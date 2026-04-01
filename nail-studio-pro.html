@@ -1348,20 +1348,36 @@
 
     <div id="lock-status" class="lock-status">Verificando licencia...</div>
 
+    <!-- Device ID — siempre visible para que el cliente lo comparta con el admin -->
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,149,106,0.25);border-radius:10px;padding:10px 14px;margin:10px 0;text-align:center">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px;letter-spacing:1px">ID DE ESTE DISPOSITIVO</div>
+      <div id="lock-device-id" style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--rose);letter-spacing:2px">cargando...</div>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('lock-device-id').textContent).then(function(){this.textContent='✅ Copiado!';var b=this;setTimeout(function(){b.textContent='📋 Copiar Device ID';},2000);}.bind(this))"
+        style="margin-top:6px;background:none;border:1px solid rgba(201,149,106,0.3);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:11px">
+        📋 Copiar Device ID
+      </button>
+      <div style="font-size:10px;color:var(--text3);margin-top:5px">Comparte este ID con el administrador para obtener tu licencia</div>
+    </div>
+
     <div id="lock-form" style="display:none">
-      <div class="form-group">
+      <div class="form-group" style="margin-top:6px">
         <input type="text" id="lock-code" class="form-input"
-          placeholder="Código de licencia NS-PRO-XXXXXX"
-          style="text-align:center;letter-spacing:2px;font-family:var(--mono)"
-          autocomplete="off" spellcheck="false">
+          placeholder="NS-PRO-XXXXXX-XXXX-XXXX  ó  NS-DEMO-XXXXXX-XXXX"
+          style="text-align:center;letter-spacing:1px;font-family:var(--mono);font-size:13px"
+          autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')activarLicencia()">
       </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="activarLicencia()">
-        🔑 Activar Licencia PRO
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;font-size:14px;padding:12px" onclick="activarLicencia()">
+        🔑 Activar Licencia
       </button>
-      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="activarDemo()">
-        🎯 Probar Demo (5 días)
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:11px;color:var(--text3)">o</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;font-size:13px" onclick="activarDemo()">
+        🎯 Iniciar prueba gratuita (5 días)
       </button>
-      <div id="lock-msg" style="font-size:12px;color:var(--text3);margin-top:10px;text-align:center"></div>
+      <div id="lock-msg" style="font-size:12px;color:var(--text3);margin-top:10px;text-align:center;line-height:1.5"></div>
     </div>
   </div>
 </div>
@@ -2368,52 +2384,100 @@ function showToast(msg,type){
 function gel(id){return document.getElementById(id);}
 function set$(id,v){var el=gel(id);if(el)el.textContent=v;}
 
-// ═══════════════════════════════════════════════════════════
-// IRON LOCK — NAIL STUDIO PRO — A2K Digital Studio 2026
+// ═══════════════════════════════════════════════════════════════════
+// IRON LOCK v2 — NAIL STUDIO PRO — A2K Digital Studio 2026
 // Salt: NAILSTUDIO2026 | Prefix: ns_
-// ═══════════════════════════════════════════════════════════
+// Licencias PRO: vinculadas a Device ID específico
+// Licencias DEMO: 5 días exactos, vencimiento irreversible
+// ═══════════════════════════════════════════════════════════════════
 var _SIGN_SALT='NAILSTUDIO2026';
 var MASTER_LICS=['NSPRO-DEMO-2024','NSPRO-A2K-2026','NSPRO-MAST-2026'];
+var _demoWatchdog=null;
 
 function _hash(s){var h=0;for(var i=0;i<s.length;i++){h=Math.imul(31,h)+s.charCodeAt(i)|0;}return Math.abs(h).toString(36).toUpperCase();}
 
-function _generarFirmada(tipo){
-  var rnd=Math.random().toString(36).slice(2,8).toUpperCase();
-  var ts=Date.now().toString(36).toUpperCase();
-  var base='NS-'+tipo+'-'+rnd+'-'+ts;
-  var check=_hash(base+_SIGN_SALT).slice(0,4);
-  return base+'-'+check;
-}
-
-function _verificarFirmada(code){
-  var p=code.trim().toUpperCase();
-  if(MASTER_LICS.indexOf(p)>=0)return{valid:true,tipo:'PRO',master:true};
-  var m=p.match(/^(NS-(PRO|DEMO)-[A-Z0-9]+-[A-Z0-9]+)-([A-Z0-9]{4})$/);
-  if(!m)return{valid:false};
-  var base=m[1];var tipo=m[2];var check=m[3];
-  if(_hash(base+_SIGN_SALT).slice(0,4)!==check)return{valid:false};
-  return{valid:true,tipo:tipo};
-}
-
+// Device ID: fingerprint persistente
 function getDeviceId(){
   var saved=_lsOK?localStorage.getItem('ns_device_id'):null;
-  if(saved)return saved;
-  var fp=[navigator.userAgent,navigator.language,screen.width+'x'+screen.height,new Date().getTimezoneOffset()].join('|');
-  var h=0;for(var i=0;i<fp.length;i++){h=((h<<5)-h)+fp.charCodeAt(i);h=h&h;}
-  var id='NS-'+Math.abs(h).toString(36).toUpperCase().slice(0,4)+'-'+Math.abs(h>>8).toString(36).toUpperCase().slice(0,4);
+  if(saved&&saved.length>4)return saved;
+  var fp=[navigator.userAgent,navigator.language,navigator.platform,
+    screen.width+'x'+screen.height+screen.colorDepth,
+    new Date().getTimezoneOffset(),navigator.hardwareConcurrency||2].join('||');
+  var h=0,h2=0;
+  for(var i=0;i<fp.length;i++){
+    h=Math.imul(31,h)+fp.charCodeAt(i)|0;
+    h2=Math.imul(37,h2)+fp.charCodeAt(i)|0;
+  }
+  var id='NS-'+Math.abs(h).toString(36).toUpperCase().padStart(4,'0').slice(0,4)+
+         '-'+Math.abs(h2).toString(36).toUpperCase().padStart(4,'0').slice(0,4)+
+         '-'+Math.abs(h^h2).toString(36).toUpperCase().padStart(4,'0').slice(0,4);
   if(_lsOK)localStorage.setItem('ns_device_id',id);
   return id;
 }
 
+// Hash del device para embeber en la licencia PRO
+function _devHash(deviceId){return _hash(deviceId+_SIGN_SALT).slice(0,6);}
+
+// Generar PRO vinculada a un Device ID específico
+function _generarFirmadaPRO(deviceId){
+  var dh=_devHash(deviceId);
+  var rnd=Math.random().toString(36).slice(2,6).toUpperCase();
+  var base='NS-PRO-'+dh+'-'+rnd;
+  var check=_hash(base+_SIGN_SALT).slice(0,4);
+  return base+'-'+check;
+}
+
+// Generar DEMO (no vinculada a device, pero con expiry inmutable)
+function _generarFirmadaDEMO(){
+  var rnd=Math.random().toString(36).slice(2,8).toUpperCase();
+  var base='NS-DEMO-'+rnd;
+  var check=_hash(base+_SIGN_SALT).slice(0,4);
+  return base+'-'+check;
+}
+
+// Verificar licencia — retorna {valid, tipo, msg, devHash}
+function _verificarFirmada(code){
+  var p=code.trim().toUpperCase();
+  // Masters
+  if(MASTER_LICS.indexOf(p)>=0)return{valid:true,tipo:'PRO',master:true};
+  // PRO: NS-PRO-DEVHASH6-RAND4-CHECK4
+  var mPRO=p.match(/^(NS-PRO-([A-Z0-9]{6})-[A-Z0-9]{4})-([A-Z0-9]{4})$/);
+  if(mPRO){
+    var base=mPRO[1],embDevHash=mPRO[2],check=mPRO[3];
+    if(_hash(base+_SIGN_SALT).slice(0,4)!==check)
+      return{valid:false,msg:'❌ Código PRO inválido o corrupto.'};
+    var myDH=_devHash(getDeviceId());
+    if(embDevHash!==myDH)
+      return{valid:false,msg:'🚫 Esta licencia ya está en uso en otro terminal. Contacta al administrador para obtener una licencia para este dispositivo.'};
+    return{valid:true,tipo:'PRO'};
+  }
+  // DEMO: NS-DEMO-RAND6-CHECK4
+  var mDEMO=p.match(/^(NS-DEMO-[A-Z0-9]{6})-([A-Z0-9]{4})$/);
+  if(mDEMO){
+    var base2=mDEMO[1],check2=mDEMO[2];
+    if(_hash(base2+_SIGN_SALT).slice(0,4)!==check2)
+      return{valid:false,msg:'❌ Código DEMO inválido o corrupto.'};
+    return{valid:true,tipo:'DEMO'};
+  }
+  return{valid:false,msg:'❌ Formato de código no reconocido.'};
+}
+
+// ── INIT IRON LOCK ──
 function _ironLockInit(){
-  var ls=gel('lock-status');var lf=gel('lock-form');
+  var devId=getDeviceId();
+  var ls=gel('lock-status'),lf=gel('lock-form'),did=gel('lock-device-id');
+  // Mostrar Device ID en pantalla
+  if(did)did.textContent=devId;
   var saved=DB.get('licencia_activa');
   if(saved){
-    var dev=getDeviceId();
-    if(saved.device===dev||saved.master){
+    // Verificar que el device coincide (o es master)
+    if(!saved.master&&saved.device!==devId){
+      DB.remove('licencia_activa');
+    } else {
+      // Verificar expiración DEMO
       if(saved.tipo==='DEMO'&&saved.expiry&&Date.now()>saved.expiry){
         DB.remove('licencia_activa');
-        if(ls)ls.innerHTML='<span style="color:var(--danger)">Tu demo ha vencido. Ingresa un codigo PRO.</span>';
+        if(ls)ls.innerHTML='<div style="color:var(--danger);font-weight:700;margin-bottom:8px">⏰ Tu período de prueba (5 días) ha finalizado.</div><div style="color:var(--text2);font-size:13px">Para continuar usando Nail Studio Pro adquiere la licencia PRO.</div>';
         if(lf)lf.style.display='block';
         return;
       }
@@ -2421,70 +2485,107 @@ function _ironLockInit(){
       return;
     }
   }
-  if(ls)ls.innerHTML='<span style="color:var(--text2)">Bienvenida a <strong>Nail Studio Pro</strong><br><small>Ingresa tu licencia para continuar</small></span>';
+  if(ls)ls.innerHTML='<span style="color:var(--text2);font-size:14px">Ingresa tu código de licencia para continuar</span>';
   if(lf)lf.style.display='block';
 }
 
+// ── ACTIVAR PRO o DEMO ──
 function activarLicencia(){
   var code=(gel('lock-code')||{}).value||'';
   var msg=gel('lock-msg');
-  if(!code.trim()){if(msg)msg.textContent='Ingresa un codigo de licencia.';return;}
+  if(!code.trim()){if(msg)msg.textContent='Ingresa un código de licencia.';return;}
   var r=_verificarFirmada(code);
-  if(!r.valid){if(msg)msg.innerHTML='<span style="color:var(--danger)">Codigo invalido o corrupto.</span>';return;}
-  if(r.tipo==='DEMO'){activarComoDemo(code);return;}
+  if(!r.valid){if(msg)msg.innerHTML='<span style="color:var(--danger)">'+r.msg+'</span>';return;}
+  if(r.tipo==='DEMO'){_activarComoDemo(code);return;}
+  // PRO
   var lic={code:code.trim().toUpperCase(),tipo:'PRO',device:getDeviceId(),activado:Date.now(),master:!!r.master};
   DB.set('licencia_activa',lic);
+  // Marcar como usada en el registro local
   var gen=DB.get('licencias_generadas')||[];
-  var idx=-1;for(var i=0;i<gen.length;i++){if(gen[i].code===lic.code){idx=i;break;}}
-  if(idx>=0)gen[idx].usado=true;else gen.push({code:lic.code,tipo:'PRO',usado:true,ts:Date.now()});
+  var idx=gen.findIndex(function(x){return x.code===lic.code;});
+  if(idx>=0){gen[idx].usado=true;gen[idx].device=lic.device;gen[idx].activadoTs=Date.now();}
+  else gen.push({code:lic.code,tipo:'PRO',usado:true,device:lic.device,ts:Date.now()});
   DB.set('licencias_generadas',gen);
   _desbloquearApp(lic);
 }
 
+// ── ACTIVAR DEMO gratuito (botón "Probar 5 días") ──
 function activarDemo(){
-  var key='ns_demo_activated_DEMO_TRIAL';
-  var existing=_lsOK?localStorage.getItem(key):null;
-  var expiry;
-  if(existing){expiry=parseInt(existing);}
-  else{expiry=Date.now()+5*24*60*60*1000;if(_lsOK)localStorage.setItem(key,String(expiry));}
-  if(Date.now()>expiry){
-    var msg=gel('lock-msg');
-    if(msg)msg.innerHTML='<span style="color:var(--danger)">Demo vencido. Contacta a A2K Digital Studio.</span>';
-    return;
+  // Verificar si ya tuvo demo en este device — no se puede repetir
+  var demoUsedKey='ns_demo_used_'+getDeviceId().replace(/-/g,'');
+  var demoUsed=_lsOK?localStorage.getItem(demoUsedKey):null;
+  if(demoUsed){
+    var exp=parseInt(demoUsed);
+    if(Date.now()>exp){
+      var msg=gel('lock-msg');
+      if(msg)msg.innerHTML='<span style="color:var(--danger)">⏰ El período de prueba de este dispositivo ya finalizó.<br>Adquiere la licencia PRO para continuar.</span>';
+      return;
+    }
+    // Demo aún vigente — reactivar
+    var lic={code:'NS-DEMO-FREE',tipo:'DEMO',device:getDeviceId(),activado:Date.now(),expiry:exp};
+    DB.set('licencia_activa',lic);_desbloquearApp(lic);return;
   }
-  var lic={code:'DEMO-TRIAL',tipo:'DEMO',device:getDeviceId(),activado:Date.now(),expiry:expiry};
-  DB.set('licencia_activa',lic);
-  _desbloquearApp(lic);
+  var expiry=Date.now()+5*24*60*60*1000;
+  if(_lsOK)localStorage.setItem(demoUsedKey,String(expiry));
+  var lic={code:'NS-DEMO-FREE',tipo:'DEMO',device:getDeviceId(),activado:Date.now(),expiry:expiry};
+  DB.set('licencia_activa',lic);_desbloquearApp(lic);
 }
 
-function activarComoDemo(code){
-  var key='ns_demo_activated_'+code.replace(/[^A-Z0-9]/g,'');
-  var existing=_lsOK?localStorage.getItem(key):null;
+// ── ACTIVAR DEMO con código generado por admin ──
+function _activarComoDemo(code){
+  var cleanCode=code.trim().toUpperCase();
+  var demoKey='ns_demo_exp_'+cleanCode.replace(/[^A-Z0-9]/g,'');
+  var existing=_lsOK?localStorage.getItem(demoKey):null;
   var expiry;
-  if(existing){expiry=parseInt(existing);}
-  else{expiry=Date.now()+5*24*60*60*1000;if(_lsOK)localStorage.setItem(key,String(expiry));}
-  if(Date.now()>expiry){
-    var msg=gel('lock-msg');
-    if(msg)msg.innerHTML='<span style="color:var(--danger)">Demo vencido.</span>';
-    return;
+  if(existing){
+    expiry=parseInt(existing);
+    if(Date.now()>expiry){
+      var msg=gel('lock-msg');
+      if(msg)msg.innerHTML='<span style="color:var(--danger)">⏰ Este código DEMO ha vencido (5 días).<br>Solicita una licencia PRO para continuar.</span>';
+      return;
+    }
+  } else {
+    expiry=Date.now()+5*24*60*60*1000;
+    if(_lsOK)localStorage.setItem(demoKey,String(expiry));
   }
-  var lic={code:code.trim().toUpperCase(),tipo:'DEMO',device:getDeviceId(),activado:Date.now(),expiry:expiry};
-  DB.set('licencia_activa',lic);
-  _desbloquearApp(lic);
+  var lic={code:cleanCode,tipo:'DEMO',device:getDeviceId(),activado:Date.now(),expiry:expiry};
+  DB.set('licencia_activa',lic);_desbloquearApp(lic);
 }
 
+// ── DESBLOQUEAR APP + TIMER DE EXPIRACIÓN ──
 function _desbloquearApp(lic){
-  var ls=gel('loginScreen');var app=gel('app');
+  var ls=gel('loginScreen'),app=gel('app');
   if(ls)ls.style.setProperty('display','none','important');
   if(app)app.style.setProperty('display','flex','important');
+  // Sidebar badge
   var sl=gel('sidebar-lic');
   if(sl){
-    var days='';
     if(lic.tipo==='DEMO'&&lic.expiry){
       var rem=Math.max(0,Math.ceil((lic.expiry-Date.now())/(1000*60*60*24)));
-      days='<br><span style="color:var(--warn);font-size:10px">'+rem+' dias restantes</span>';
+      sl.innerHTML='<span style="color:var(--warn)">● DEMO</span><br><span style="color:var(--warn);font-size:10px">⏳ '+rem+' día'+(rem!==1?'s':'')+' restante'+(rem!==1?'s':'')+'</span>';
+    } else {
+      sl.innerHTML='<span style="color:var(--gold)">● '+(lic.master?'MASTER':'PRO')+'</span><br><span style="color:var(--text3);font-size:10px">'+lic.device+'</span>';
     }
-    sl.innerHTML='<span style="color:'+(lic.tipo==='PRO'?'var(--gold)':'var(--warn)')+'">●</span> '+lic.tipo+(lic.master?' MASTER':'')+days;
+  }
+  // Watchdog: si es DEMO, verificar expiración cada 60 seg
+  if(lic.tipo==='DEMO'&&lic.expiry){
+    if(_demoWatchdog)clearInterval(_demoWatchdog);
+    _demoWatchdog=setInterval(function(){
+      if(Date.now()>lic.expiry){
+        clearInterval(_demoWatchdog);
+        DB.remove('licencia_activa');
+        // Forzar logout
+        var appEl=gel('app'),lsEl=gel('loginScreen');
+        if(appEl)appEl.style.setProperty('display','none','important');
+        if(lsEl){
+          lsEl.style.setProperty('display','flex','important');
+          var lss=gel('lock-status');
+          if(lss)lss.innerHTML='<div style="color:var(--danger);font-weight:700;margin-bottom:8px">⏰ Tu período de prueba ha finalizado.</div><div style="color:var(--text2);font-size:13px">Adquiere la licencia PRO para continuar.</div>';
+          var lff=gel('lock-form');if(lff)lff.style.display='block';
+          var lc=gel('lock-code');if(lc)lc.value='';
+        }
+      }
+    },60000); // cada 60 segundos
   }
   _appInit();
 }
@@ -2512,22 +2613,24 @@ function confirmarAdminPw(){
 
 function generarLicenciaPRO(){
   _checkAdminPw(function(){
-    var code=_generarFirmada('PRO');
+    var deviceId=prompt('Device ID del cliente (NS-XXXX-XXXX-XXXX):');
+    if(!deviceId||!deviceId.trim()){showToast('Debes ingresar el Device ID del cliente','warn');return;}
+    var code=_generarFirmadaPRO(deviceId.trim().toUpperCase());
     var gen=DB.get('licencias_generadas')||[];
-    gen.push({code:code,tipo:'PRO',ts:Date.now(),usado:false});
+    gen.push({code:code,tipo:'PRO',device:deviceId.trim().toUpperCase(),ts:Date.now(),usado:false});
     DB.set('licencias_generadas',gen);
-    prompt('Licencia PRO generada (copia este codigo):',code);
+    prompt('✅ Licencia PRO generada para '+deviceId.trim().toUpperCase()+' — copia este código:',code);
     renderConfig();
   });
 }
 
 function generarLicenciaDemo(){
   _checkAdminPw(function(){
-    var code=_generarFirmada('DEMO');
+    var code=_generarFirmadaDEMO();
     var gen=DB.get('licencias_generadas')||[];
     gen.push({code:code,tipo:'DEMO',ts:Date.now(),usado:false});
     DB.set('licencias_generadas',gen);
-    prompt('Licencia DEMO generada (copia este codigo):',code);
+    prompt('🎯 Licencia DEMO generada (5 días) — copia este código:',code);
     renderConfig();
   });
 }

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Admin Licencias — Nail Studio Pro · A2K Digital Studio</title>
+<style>
+:root{
+  --bg:#0D0A0F;--bg2:#130F18;--card:rgba(255,255,255,0.04);
+  --border:rgba(201,149,106,0.2);--rose:#C9956A;--fuchsia:#D63384;
+  --lila:#B388FF;--gold:#F4C97A;--success:#4CAF87;--danger:#E05252;
+  --warn:#F4C97A;--text:#F5EEF8;--text2:#C4A8D4;--text3:#7B5E8A;
+  --mono:'JetBrains Mono',monospace;--body:'Inter',sans-serif;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px}
+a{color:var(--fuchsia);text-decoration:none}
+
+/* LOGIN */
+#loginPanel{width:100%;max-width:420px;margin:60px auto}
+.login-logo{font-size:52px;text-align:center;margin-bottom:12px;filter:drop-shadow(0 0 20px rgba(214,51,132,0.5))}
+.login-title{text-align:center;font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--rose),var(--fuchsia));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+.login-sub{text-align:center;font-size:12px;color:var(--text3);margin-bottom:28px}
+.login-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+
+/* ADMIN PANEL */
+#adminPanel{width:100%;max-width:860px;display:none}
+.panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--rose),var(--fuchsia));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* TABS */
+.tabs{display:flex;gap:4px;background:var(--bg2);padding:4px;border-radius:12px;margin-bottom:24px;border:1px solid var(--border)}
+.tab-btn{flex:1;padding:10px 16px;border:none;background:transparent;color:var(--text2);cursor:pointer;border-radius:9px;font-size:13px;font-weight:600;transition:all .2s;font-family:var(--body)}
+.tab-btn.active{background:linear-gradient(135deg,var(--fuchsia),var(--lila));color:#fff}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+/* FORM */
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;color:var(--text2);margin-bottom:5px;display:block;font-weight:600;letter-spacing:.5px}
+.form-input{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:var(--body);transition:border-color .2s}
+.form-input:focus{border-color:var(--fuchsia)}
+.form-input.mono{font-family:var(--mono);letter-spacing:1px}
+
+/* BUTTONS */
+.btn{padding:10px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:13px;transition:all .2s;font-family:var(--body)}
+.btn-primary{background:linear-gradient(135deg,var(--fuchsia),var(--lila));color:#fff}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--rose));color:#0D0A0F}
+.btn-gold:hover{opacity:.9;transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--fuchsia);color:var(--fuchsia)}
+.btn-danger{background:rgba(224,82,82,0.15);border:1px solid var(--danger);color:var(--danger)}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:6px}
+.btn-block{width:100%}
+
+/* RESULT BOX */
+.result-box{background:rgba(79,205,135,0.08);border:1px solid rgba(79,205,135,0.3);border-radius:10px;padding:16px;margin-top:14px;display:none}
+.result-code{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--success);letter-spacing:2px;word-break:break-all;text-align:center;margin-bottom:10px}
+.result-device{font-size:12px;color:var(--text2);text-align:center;margin-bottom:10px}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.stat-num{font-size:28px;font-weight:800;font-family:var(--mono)}
+.stat-label{font-size:11px;color:var(--text2);margin-top:4px}
+
+/* TABLE */
+.lic-table{width:100%;border-collapse:collapse;font-size:12px}
+.lic-table th{padding:10px 12px;text-align:left;color:var(--text2);font-size:11px;letter-spacing:.5px;border-bottom:1px solid var(--border);font-weight:600}
+.lic-table td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle}
+.lic-table tr:hover td{background:rgba(255,255,255,0.02)}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px}
+.badge-pro{background:rgba(244,201,122,0.15);color:var(--gold);border:1px solid rgba(244,201,122,0.3)}
+.badge-demo{background:rgba(214,51,132,0.15);color:var(--fuchsia);border:1px solid rgba(214,51,132,0.3)}
+.badge-ok{background:rgba(79,205,135,0.15);color:var(--success);border:1px solid rgba(79,205,135,0.3)}
+.badge-pen{background:rgba(201,149,106,0.15);color:var(--rose);border:1px solid rgba(201,149,106,0.3)}
+.badge-exp{background:rgba(224,82,82,0.15);color:var(--danger);border:1px solid rgba(224,82,82,0.3)}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:320px}
+#toast.show{opacity:1}
+#toast.ok{border-color:var(--success);color:var(--success)}
+#toast.err{border-color:var(--danger);color:var(--danger)}
+#toast.warn{border-color:var(--warn);color:var(--warn)}
+
+.divider{height:1px;background:var(--border);margin:20px 0}
+.text-muted{font-size:11px;color:var(--text3);margin-top:6px}
+.flex{display:flex;gap:8px;align-items:center}
+.empty-state{text-align:center;padding:40px;color:var(--text3);font-size:13px}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginPanel">
+  <div class="login-logo">💅</div>
+  <div class="login-title">Panel de Administrador</div>
+  <div class="login-sub">Nail Studio Pro · A2K Digital Studio</div>
+  <div class="login-card">
+    <div class="form-group">
+      <label class="form-label">CONTRASEÑA DE ADMINISTRADOR</label>
+      <input type="password" id="admin-pw" class="form-input" placeholder="••••••••••"
+        onkeydown="if(event.key==='Enter')loginAdmin()">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="loginAdmin()">🔐 Ingresar al Panel</button>
+    <div id="login-err" style="font-size:12px;color:var(--danger);margin-top:10px;text-align:center;min-height:18px"></div>
+    <div class="text-muted" style="text-align:center;margin-top:12px">
+      ¿No recuerdas la clave? Está en Configuración de la app principal.
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN PANEL ══ -->
+<div id="adminPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">💅 Admin — Nail Studio Pro</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px">A2K Digital Studio · Sistema de Licencias</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">🚪 Salir</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-num" id="stat-total" style="color:var(--rose)">0</div>
+      <div class="stat-label">Total Generadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-pro" style="color:var(--gold)">0</div>
+      <div class="stat-label">Licencias PRO</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-demo" style="color:var(--fuchsia)">0</div>
+      <div class="stat-label">Demos Activas</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('pro',this)">⚡ Generar PRO</button>
+    <button class="tab-btn" onclick="switchTab('demo',this)">🎯 Generar DEMO</button>
+    <button class="tab-btn" onclick="switchTab('lista',this)">📋 Lista de Licencias</button>
+  </div>
+
+  <!-- TAB: PRO -->
+  <div class="tab-panel active" id="tab-pro">
+    <div class="card">
+      <div class="card-title">⚡ Nueva Licencia PRO</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+        La licencia PRO queda <strong style="color:var(--gold)">vinculada al Device ID del cliente</strong>.
+        Solo funcionará en ese dispositivo específico. Pide al cliente que abra la app y te comparta su Device ID.
+      </p>
+      <div class="form-group">
+        <label class="form-label">DEVICE ID DEL CLIENTE</label>
+        <input type="text" id="pro-device-id" class="form-input mono"
+          placeholder="NS-XXXX-XXXX-XXXX"
+          oninput="this.value=this.value.toUpperCase()">
+        <div class="text-muted">📌 El cliente lo ve en la pantalla de activación de la app.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">NOTA INTERNA (opcional)</label>
+        <input type="text" id="pro-nota" class="form-input" placeholder="Nombre del cliente, negocio...">
+      </div>
+      <button class="btn btn-gold btn-block" onclick="generarPRO()" style="font-size:14px;padding:12px">
+        ⚡ Generar Licencia PRO
+      </button>
+      <!-- Resultado -->
+      <div class="result-box" id="result-pro">
+        <div class="result-device" id="result-pro-device"></div>
+        <div class="result-code" id="result-pro-code">NS-PRO-XXXXXX-XXXX-XXXX</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn btn-ghost btn-sm" onclick="copiarCodigo('result-pro-code','copy-pro-btn')" id="copy-pro-btn">📋 Copiar</button>
+          <button class="btn btn-ghost btn-sm" onclick="compartirWhatsApp('result-pro-code','result-pro-device')">💬 Enviar por WhatsApp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: DEMO -->
+  <div class="tab-panel" id="tab-demo">
+    <div class="card">
+      <div class="card-title">🎯 Nueva Licencia DEMO</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+        El código DEMO permite al cliente usar la app por <strong style="color:var(--fuchsia)">exactamente 5 días</strong>.
+        Al vencer, la app bloquea el acceso y solicita una licencia PRO. No se puede extender ni reutilizar.
+      </p>
+      <div class="form-group">
+        <label class="form-label">NOTA INTERNA (opcional)</label>
+        <input type="text" id="demo-nota" class="form-input" placeholder="Nombre del prospecto, fecha de contacto...">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="generarDEMO()" style="font-size:14px;padding:12px">
+        🎯 Generar Código DEMO (5 días)
+      </button>
+      <!-- Resultado -->
+      <div class="result-box" id="result-demo">
+        <div style="font-size:12px;color:var(--text2);text-align:center;margin-bottom:8px">
+          ⏰ Este código expira <strong>5 días</strong> después de ser activado por el cliente.
+        </div>
+        <div class="result-code" id="result-demo-code">NS-DEMO-XXXXXX-XXXX</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn btn-ghost btn-sm" onclick="copiarCodigo('result-demo-code','copy-demo-btn')" id="copy-demo-btn">📋 Copiar</button>
+          <button class="btn btn-ghost btn-sm" onclick="compartirWhatsApp('result-demo-code',null)">💬 Enviar por WhatsApp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: LISTA -->
+  <div class="tab-panel" id="tab-lista">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:14px;font-weight:700">Historial de licencias generadas</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="exportarCSVAdmin()">📤 Exportar CSV</button>
+        <button class="btn btn-danger btn-sm" onclick="limpiarTodo()">🗑️ Limpiar todo</button>
+      </div>
+    </div>
+    <div id="lista-container"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+var _SIGN_SALT='NAILSTUDIO2026';
+var _ADMIN_PW_DEFAULT='NS2026ADMIN';
+var _DB_KEY='ns_licencias_admin';
+var _loggedIn=false;
+
+// ── HASH ──
+function _hash(s){var h=0;for(var i=0;i<s.length;i++){h=Math.imul(31,h)+s.charCodeAt(i)|0;}return Math.abs(h).toString(36).toUpperCase();}
+function _devHash(deviceId){return _hash(deviceId.trim().toUpperCase()+_SIGN_SALT).slice(0,6);}
+
+// ── STORAGE ──
+function getDB(){try{var v=localStorage.getItem(_DB_KEY);return v?JSON.parse(v):{lics:[],adminPw:_ADMIN_PW_DEFAULT};}catch(e){return{lics:[],adminPw:_ADMIN_PW_DEFAULT};}}
+function saveDB(d){try{localStorage.setItem(_DB_KEY,JSON.stringify(d));}catch(e){}}
+// También leer/escribir en ns_ prefix para sincronizar con la app principal
+function getNsLics(){try{var v=localStorage.getItem('ns_licencias_generadas');return v?JSON.parse(v):[];}catch(e){return[];}}
+function saveNsLics(arr){try{localStorage.setItem('ns_licencias_generadas',JSON.stringify(arr));}catch(e){}}
+
+// ── TOAST ──
+function toast(msg,type){
+  var t=document.getElementById('toast');t.textContent=msg;
+  t.className='show '+(type||'ok');
+  setTimeout(function(){t.className='';},3000);
+}
+
+// ── LOGIN ──
+function loginAdmin(){
+  var pw=(document.getElementById('admin-pw')||{}).value||'';
+  var db=getDB();
+  var adminPw=db.adminPw||_ADMIN_PW_DEFAULT;
+  if(pw===adminPw||pw==='NS2026ADMIN'){
+    _loggedIn=true;
+    document.getElementById('loginPanel').style.display='none';
+    document.getElementById('adminPanel').style.display='block';
+    renderStats();renderLista();
+  } else {
+    document.getElementById('login-err').textContent='❌ Contraseña incorrecta.';
+    setTimeout(function(){document.getElementById('login-err').textContent='';},3000);
+  }
+}
+
+function logout(){
+  _loggedIn=false;
+  document.getElementById('adminPanel').style.display='none';
+  document.getElementById('loginPanel').style.display='block';
+  document.getElementById('admin-pw').value='';
+}
+
+// ── TABS ──
+function switchTab(id,btn){
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='lista')renderLista();
+}
+
+// ── GENERAR PRO ──
+function generarPRO(){
+  var deviceId=(document.getElementById('pro-device-id').value||'').trim().toUpperCase();
+  var nota=(document.getElementById('pro-nota').value||'').trim();
+  if(!deviceId){toast('Ingresa el Device ID del cliente','warn');return;}
+  if(!deviceId.match(/^NS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)){
+    toast('Formato de Device ID inválido (NS-XXXX-XXXX-XXXX)','warn');return;
+  }
+  var dh=_devHash(deviceId);
+  var rnd=Math.random().toString(36).slice(2,6).toUpperCase();
+  var base='NS-PRO-'+dh+'-'+rnd;
+  var check=_hash(base+_SIGN_SALT).slice(0,4);
+  var code=base+'-'+check;
+
+  var entry={code:code,tipo:'PRO',device:deviceId,nota:nota,ts:Date.now(),usado:false};
+
+  // Guardar en admin DB
+  var db=getDB();db.lics.push(entry);saveDB(db);
+  // Sincronizar con app principal (ns_licencias_generadas)
+  var nsLics=getNsLics();nsLics.push(entry);saveNsLics(nsLics);
+
+  // Mostrar resultado
+  document.getElementById('result-pro-device').textContent='Para: '+deviceId+(nota?' ('+nota+')':'');
+  document.getElementById('result-pro-code').textContent=code;
+  document.getElementById('result-pro').style.display='block';
+  document.getElementById('pro-device-id').value='';
+  document.getElementById('pro-nota').value='';
+
+  renderStats();toast('✅ Licencia PRO generada','ok');
+}
+
+// ── GENERAR DEMO ──
+function generarDEMO(){
+  var nota=(document.getElementById('demo-nota').value||'').trim();
+  var rnd=Math.random().toString(36).slice(2,8).toUpperCase();
+  var base='NS-DEMO-'+rnd;
+  var check=_hash(base+_SIGN_SALT).slice(0,4);
+  var code=base+'-'+check;
+
+  var entry={code:code,tipo:'DEMO',nota:nota,ts:Date.now(),usado:false};
+
+  var db=getDB();db.lics.push(entry);saveDB(db);
+  var nsLics=getNsLics();nsLics.push(entry);saveNsLics(nsLics);
+
+  document.getElementById('result-demo-code').textContent=code;
+  document.getElementById('result-demo').style.display='block';
+  document.getElementById('demo-nota').value='';
+
+  renderStats();toast('🎯 Código DEMO generado','ok');
+}
+
+// ── STATS ──
+function renderStats(){
+  var db=getDB();
+  var lics=db.lics||[];
+  var pro=lics.filter(function(l){return l.tipo==='PRO';}).length;
+  var demo=lics.filter(function(l){return l.tipo==='DEMO'&&!l.vencida;}).length;
+  document.getElementById('stat-total').textContent=lics.length;
+  document.getElementById('stat-pro').textContent=pro;
+  document.getElementById('stat-demo').textContent=demo;
+}
+
+// ── LISTA ──
+function renderLista(){
+  var db=getDB();var lics=(db.lics||[]).slice().reverse();
+  var c=document.getElementById('lista-container');
+  if(!lics.length){c.innerHTML='<div class="empty-state">💅 Aún no has generado ninguna licencia.</div>';return;}
+
+  var rows=lics.map(function(l,idx){
+    var realIdx=lics.length-1-idx;
+    var tipoBadge=l.tipo==='PRO'
+      ?'<span class="badge badge-pro">⚡ PRO</span>'
+      :'<span class="badge badge-demo">🎯 DEMO</span>';
+    var estadoBadge=l.usado
+      ?'<span class="badge badge-ok">✅ Activa</span>'
+      :'<span class="badge badge-pen">⏳ Pendiente</span>';
+    var fecha=new Date(l.ts).toLocaleDateString('es-VE',{day:'2-digit',month:'short',year:'numeric'});
+    return '<tr>'+
+      '<td>'+tipoBadge+'</td>'+
+      '<td style="font-family:var(--mono);font-size:11px;color:var(--text2)">'+l.code+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+( l.device||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--text2)">'+( l.nota||'—')+'</td>'+
+      '<td>'+estadoBadge+'</td>'+
+      '<td style="font-size:11px;color:var(--text3)">'+fecha+'</td>'+
+      '<td>'+
+        '<button class="btn btn-ghost btn-sm" onclick="copiarTexto(\''+l.code+'\')" title="Copiar código">📋</button> '+
+        '<button class="btn btn-danger btn-sm" onclick="eliminarLic('+realIdx+')" title="Eliminar">🗑️</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+
+  c.innerHTML='<div style="overflow-x:auto"><table class="lic-table">'+
+    '<thead><tr>'+
+      '<th>Tipo</th><th>Código</th><th>Device ID</th><th>Nota</th><th>Estado</th><th>Fecha</th><th>Acción</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+// ── ACCIONES ──
+function copiarCodigo(elId,btnId){
+  var code=document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(code).then(function(){
+    toast('📋 Código copiado al portapapeles','ok');
+    var btn=document.getElementById(btnId);
+    if(btn){btn.textContent='✅ Copiado';setTimeout(function(){btn.textContent='📋 Copiar';},2000);}
+  });
+}
+
+function copiarTexto(txt){
+  navigator.clipboard.writeText(txt).then(function(){toast('📋 Copiado','ok');});
+}
+
+function compartirWhatsApp(codeElId,deviceElId){
+  var code=document.getElementById(codeElId).textContent;
+  var device=deviceElId?document.getElementById(deviceElId).textContent:'';
+  var msg='💅 *Nail Studio Pro — A2K Digital Studio*\n\n'+
+    '¡Hola! Aquí está tu código de activación:\n\n'+
+    '*'+code+'*\n\n'+
+    (device?'📱 Device ID: '+device+'\n\n':'')+
+    '🔑 Cómo activar:\n'+
+    '1. Abre la app Nail Studio Pro\n'+
+    '2. Pega el código en el campo de licencia\n'+
+    '3. Presiona "Activar Licencia"\n\n'+
+    '¿Necesitas ayuda? Escríbenos. 💜';
+  var url='https://wa.me/?text='+encodeURIComponent(msg);
+  window.open(url,'_blank');
+}
+
+function eliminarLic(idx){
+  if(!confirm('¿Eliminar esta licencia del historial?'))return;
+  var db=getDB();
+  db.lics.splice(idx,1);saveDB(db);
+  // Sincronizar
+  var nsLics=getNsLics();
+  saveNsLics(db.lics);
+  renderLista();renderStats();
+  toast('Licencia eliminada','warn');
+}
+
+function limpiarTodo(){
+  if(!confirm('¿Eliminar TODO el historial de licencias? Esta acción no se puede deshacer.'))return;
+  var db=getDB();db.lics=[];saveDB(db);saveNsLics([]);
+  renderLista();renderStats();toast('Historial limpiado','warn');
+}
+
+function exportarCSVAdmin(){
+  var db=getDB();var lics=db.lics||[];
+  if(!lics.length){toast('No hay licencias para exportar','warn');return;}
+  var rows=[['Tipo','Código','Device ID','Nota','Estado','Fecha']];
+  lics.forEach(function(l){
+    rows.push([l.tipo,l.code,l.device||'',l.nota||'',l.usado?'Activa':'Pendiente',new Date(l.ts).toLocaleDateString('es-VE')]);
+  });
+  var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='licencias-nail-studio-pro.csv';a.click();
+  toast('📤 CSV exportado','ok');
+}
+
+// ── INIT ──
+document.getElementById('admin-pw').addEventListener('keydown',function(e){if(e.key==='Enter')loginAdmin();});
+</script>
+</body>
+</html>
