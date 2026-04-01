@@ -1346,7 +1346,7 @@
     <div class="login-brand">Nail Studio Pro</div>
     <div class="login-sub">by A2K Digital Studio</div>
 
-    <div id="lock-status" class="lock-status">Verificando licencia...</div>
+    <div id="lock-status" class="lock-status" style="display:none">Verificando licencia...</div>
 
     <!-- Device ID — siempre visible para que el cliente lo comparta con el admin -->
     <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,149,106,0.25);border-radius:10px;padding:10px 14px;margin:10px 0;text-align:center">
@@ -1359,7 +1359,7 @@
       <div style="font-size:10px;color:var(--text3);margin-top:5px">Comparte este ID con el administrador para obtener tu licencia</div>
     </div>
 
-    <div id="lock-form" style="display:none">
+    <div id="lock-form">
       <div class="form-group" style="margin-top:6px">
         <input type="text" id="lock-code" class="form-input"
           placeholder="NS-PRO-XXXXXX-XXXX-XXXX  ó  NS-DEMO-XXXXXX-XXXX"
@@ -1377,7 +1377,7 @@
       <button class="btn btn-ghost" style="width:100%;font-size:13px" onclick="activarDemo()">
         🎯 Iniciar prueba gratuita (5 días)
       </button>
-      <div id="lock-msg" style="font-size:12px;color:var(--text3);margin-top:10px;text-align:center;line-height:1.5"></div>
+      <div id="lock-msg" style="font-size:12px;color:var(--text3);margin-top:10px;text-align:center;line-height:1.5">Ingresa tu código de licencia o inicia la prueba gratuita de 5 días.</div>
     </div>
   </div>
 </div>
@@ -2468,7 +2468,7 @@ function _verificarFirmada(code){
 // ── INIT IRON LOCK ──
 function _ironLockInit(){
   var devId=getDeviceId();
-  var ls=gel('lock-status'),lf=gel('lock-form'),did=gel('lock-device-id');
+  var ls=gel('lock-status'),did=gel('lock-device-id');
   // Mostrar Device ID en pantalla
   if(did)did.textContent=devId;
   var saved=DB.get('licencia_activa');
@@ -2480,16 +2480,16 @@ function _ironLockInit(){
       // Verificar expiración DEMO
       if(saved.tipo==='DEMO'&&saved.expiry&&Date.now()>saved.expiry){
         DB.remove('licencia_activa');
-        if(ls)ls.innerHTML='<div style="color:var(--danger);font-weight:700;margin-bottom:8px">⏰ Tu período de prueba (5 días) ha finalizado.</div><div style="color:var(--text2);font-size:13px">Para continuar usando Nail Studio Pro adquiere la licencia PRO.</div>';
-        if(lf)lf.style.display='block';
+        if(ls){ls.style.display='block';ls.innerHTML='<div style="color:var(--danger);font-weight:700;margin-bottom:8px">⏰ Tu período de prueba (5 días) ha finalizado.</div><div style="color:var(--text2);font-size:13px">Para continuar usando Nail Studio Pro adquiere la licencia PRO.</div>';}
         return;
       }
       _desbloquearApp(saved);
       return;
     }
   }
-  if(ls)ls.innerHTML='<span style="color:var(--text2);font-size:14px">Ingresa tu código de licencia para continuar</span>';
-  if(lf)lf.style.display='block';
+  // Sin licencia — el formulario ya es visible, solo limpiar msg
+  var msg=gel('lock-msg');
+  if(msg)msg.textContent='Ingresa tu código de licencia o inicia la prueba gratuita de 5 días.';
 }
 
 // ── ACTIVAR PRO o DEMO ──
