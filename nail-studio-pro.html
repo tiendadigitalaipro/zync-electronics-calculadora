@@ -1,0 +1,3055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nail Studio Pro — A2K Digital Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       CSS VARIABLES
+    ============================================================ */
+    :root {
+      --rose:      #C9956A;
+      --fuchsia:   #D63384;
+      --lila:      #B388FF;
+      --gold:      #F4C97A;
+      --success:   #4CAF87;
+      --danger:    #E05252;
+      --warn:      #F4C97A;
+
+      --bg:        #0D0A0F;
+      --bg2:       #130E17;
+      --bg3:       #1A1220;
+      --card:      rgba(255,255,255,0.04);
+      --border:    rgba(201,149,106,0.2);
+      --border2:   rgba(182,136,255,0.15);
+
+      --text:      #F5EEF8;
+      --text2:     #C4A8D4;
+      --text3:     #7B5E8A;
+
+      --display:   'Playfair Display', Georgia, serif;
+      --body:      'Inter', sans-serif;
+      --mono:      'JetBrains Mono', monospace;
+
+      --radius:    10px;
+      --radius-lg: 18px;
+      --radius-xl: 26px;
+
+      --shadow:    0 8px 32px rgba(0,0,0,0.45);
+      --shadow-rose: 0 0 24px rgba(201,149,106,0.18);
+      --shadow-fuchsia: 0 0 24px rgba(214,51,132,0.2);
+
+      --sidebar-w: 240px;
+      --topbar-h:  60px;
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 15px; scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--rose); text-decoration: none; }
+    a:hover { color: var(--fuchsia); }
+
+    /* ============================================================
+       SCROLLBAR
+    ============================================================ */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--rose); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--fuchsia); }
+
+    /* ============================================================
+       BUTTONS
+    ============================================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: var(--body);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      line-height: 1.3;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--fuchsia) 0%, #a0206a 100%);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(214,51,132,0.35);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #e8429a 0%, var(--fuchsia) 100%);
+      box-shadow: 0 6px 24px rgba(214,51,132,0.5);
+    }
+
+    .btn-rose {
+      background: linear-gradient(135deg, var(--rose) 0%, #a8723e 100%);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(201,149,106,0.3);
+    }
+    .btn-rose:hover { filter: brightness(1.1); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text2);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--card); color: var(--text); border-color: var(--rose); }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--danger) 0%, #b83232 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(224,82,82,0.3);
+    }
+    .btn-danger:hover { filter: brightness(1.1); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--rose);
+      border: 1px solid var(--rose);
+    }
+    .btn-outline:hover { background: rgba(201,149,106,0.12); }
+
+    .btn-lila {
+      background: linear-gradient(135deg, var(--lila) 0%, #7c52d9 100%);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(179,136,255,0.3);
+    }
+    .btn-lila:hover { filter: brightness(1.1); }
+
+    .btn-sm {
+      padding: 5px 11px;
+      font-size: 12px;
+      border-radius: 7px;
+    }
+
+    .btn-icon {
+      padding: 8px;
+      border-radius: var(--radius);
+    }
+
+    /* ============================================================
+       FORMS
+    ============================================================ */
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--rose);
+      box-shadow: 0 0 0 3px rgba(201,149,106,0.12);
+    }
+    .form-input::placeholder { color: var(--text3); }
+    .form-select { cursor: pointer; }
+    .form-select option { background: var(--bg2); color: var(--text); }
+    .form-textarea { resize: vertical; min-height: 80px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+
+    /* ============================================================
+       BADGES
+    ============================================================ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .badge-rose    { background: rgba(201,149,106,0.18); color: var(--rose); border: 1px solid rgba(201,149,106,0.3); }
+    .badge-fuchsia { background: rgba(214,51,132,0.15); color: var(--fuchsia); border: 1px solid rgba(214,51,132,0.3); }
+    .badge-lila    { background: rgba(179,136,255,0.15); color: var(--lila); border: 1px solid rgba(179,136,255,0.3); }
+    .badge-gold    { background: rgba(244,201,122,0.15); color: var(--gold); border: 1px solid rgba(244,201,122,0.3); }
+    .badge-success { background: rgba(76,175,135,0.15); color: var(--success); border: 1px solid rgba(76,175,135,0.3); }
+    .badge-danger  { background: rgba(224,82,82,0.15); color: var(--danger); border: 1px solid rgba(224,82,82,0.3); }
+
+    /* ============================================================
+       LOGIN SCREEN
+    ============================================================ */
+    #loginScreen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(214,51,132,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(179,136,255,0.12) 0%, transparent 60%),
+        var(--bg);
+      z-index: 99000;
+    }
+
+    .login-box {
+      background: rgba(19,14,23,0.92);
+      border: 1px solid rgba(201,149,106,0.35);
+      border-radius: var(--radius-xl);
+      padding: 48px 40px 40px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow:
+        0 0 0 1px rgba(214,51,132,0.08),
+        0 24px 80px rgba(0,0,0,0.6),
+        0 0 60px rgba(201,149,106,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-box::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--rose), var(--fuchsia), var(--lila), transparent);
+      opacity: 0.8;
+    }
+
+    .login-box::after {
+      content: '';
+      position: absolute;
+      top: -80px; left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(214,51,132,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .login-logo {
+      font-size: 56px;
+      display: block;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 0 20px rgba(201,149,106,0.5));
+      animation: floatLogo 3s ease-in-out infinite;
+      position: relative;
+      z-index: 1;
+    }
+
+    @keyframes floatLogo {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .login-brand {
+      font-family: var(--display);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, var(--rose) 0%, var(--fuchsia) 50%, var(--lila) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-sub {
+      font-size: 12px;
+      color: var(--text3);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .lock-status {
+      font-size: 13px;
+      color: var(--text2);
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.04);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    #lock-form {
+      position: relative;
+      z-index: 1;
+    }
+
+    #lock-form .form-input {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(201,149,106,0.3);
+      text-align: center;
+      letter-spacing: 2px;
+      font-family: var(--mono);
+    }
+    #lock-form .form-input:focus {
+      border-color: var(--rose);
+      box-shadow: 0 0 0 3px rgba(201,149,106,0.15), 0 0 20px rgba(201,149,106,0.1);
+    }
+
+    /* ============================================================
+       SIDEBAR
+    ============================================================ */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      height: 100vh;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0; top: 0;
+      z-index: 9000;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-logo-emoji {
+      font-size: 26px;
+      filter: drop-shadow(0 0 8px rgba(214,51,132,0.4));
+    }
+
+    .sidebar-logo-text {
+      font-family: var(--display);
+      font-size: 16px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--rose), var(--fuchsia));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .sidebar-logo-sub {
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: block;
+      -webkit-text-fill-color: var(--text3);
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 10px 8px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--text2);
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: all 0.18s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      background: rgba(201,149,106,0.08);
+      color: var(--text);
+      border-color: rgba(201,149,106,0.12);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(214,51,132,0.15) 0%, rgba(201,149,106,0.1) 100%);
+      color: var(--text);
+      border-color: rgba(201,149,106,0.25);
+      box-shadow: 0 2px 12px rgba(214,51,132,0.1);
+    }
+
+    .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px rgba(201,149,106,0.5)); }
+
+    .nav-icon { font-size: 17px; width: 22px; text-align: center; }
+    .nav-label { flex: 1; }
+    .nav-badge {
+      background: var(--fuchsia);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 99px;
+    }
+
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    #sidebar-lic {
+      font-size: 11px;
+      color: var(--text3);
+      line-height: 1.5;
+    }
+
+    #sidebar-lic span {
+      color: var(--rose);
+      font-weight: 600;
+    }
+
+    /* ============================================================
+       APP LAYOUT
+    ============================================================ */
+    #app {
+      display: none;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ============================================================
+       TOPBAR
+    ============================================================ */
+    .topbar {
+      height: var(--topbar-h);
+      background: rgba(13,10,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 8000;
+    }
+
+    #topbar-title {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    #topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ============================================================
+       PAGES
+    ============================================================ */
+    .pages-container {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ============================================================
+       STAT CARDS
+    ============================================================ */
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--rose), transparent);
+      opacity: 0.5;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3), var(--shadow-rose);
+    }
+
+    .stat-icon {
+      font-size: 28px;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: var(--mono);
+      line-height: 1;
+    }
+
+    .stat-value.rose   { color: var(--rose); }
+    .stat-value.fuchsia { color: var(--fuchsia); }
+    .stat-value.lila   { color: var(--lila); }
+    .stat-value.gold   { color: var(--gold); }
+
+    .stat-sub {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    /* ============================================================
+       SECTION HEADER
+    ============================================================ */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-family: var(--display);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    /* ============================================================
+       TABLES
+    ============================================================ */
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    .data-table thead tr {
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table th {
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 12px 16px;
+      color: var(--text2);
+      border-bottom: 1px solid rgba(201,149,106,0.07);
+    }
+
+    .data-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+    .data-table tbody tr:last-child td { border-bottom: none; }
+
+    /* ============================================================
+       SEARCH BAR
+    ============================================================ */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .search-input-wrap input {
+      padding-left: 36px;
+    }
+
+    .search-input-wrap::before {
+      content: '🔍';
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    /* ============================================================
+       AGENDA / CALENDARIO
+    ============================================================ */
+    .agenda-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .agenda-nav-date {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .agenda-semana {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .agenda-hora-col {
+      background: var(--bg2);
+    }
+
+    .agenda-dia-header {
+      background: rgba(255,255,255,0.04);
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .agenda-dia-nombre {
+      font-weight: 700;
+      color: var(--text2);
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .agenda-dia-num {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: var(--mono);
+    }
+
+    .agenda-dia-header.hoy .agenda-dia-num {
+      color: var(--fuchsia);
+    }
+
+    .agenda-celda {
+      background: var(--bg3);
+      min-height: 52px;
+      padding: 4px;
+      position: relative;
+      border-top: 1px solid rgba(201,149,106,0.06);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .agenda-celda:hover { background: rgba(214,51,132,0.06); }
+
+    .agenda-hora-label {
+      background: var(--bg2);
+      padding: 4px 8px;
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text3);
+      text-align: right;
+      border-top: 1px solid rgba(201,149,106,0.06);
+      min-height: 52px;
+      display: flex;
+      align-items: flex-start;
+      padding-top: 6px;
+    }
+
+    .cita-card {
+      background: linear-gradient(135deg, rgba(214,51,132,0.25) 0%, rgba(201,149,106,0.2) 100%);
+      border: 1px solid rgba(201,149,106,0.4);
+      border-radius: 6px;
+      padding: 4px 7px;
+      font-size: 11px;
+      line-height: 1.3;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .cita-card:hover {
+      border-color: var(--fuchsia);
+      box-shadow: 0 2px 12px rgba(214,51,132,0.25);
+    }
+
+    .cita-card-nombre {
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cita-card-servicio {
+      color: var(--text2);
+      font-size: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ============================================================
+       CLIENT CARDS
+    ============================================================ */
+    .clientas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .cliente-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cliente-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--rose), var(--fuchsia));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .cliente-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(201,149,106,0.4);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.3), var(--shadow-rose);
+    }
+
+    .cliente-card:hover::before { opacity: 1; }
+
+    .cliente-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--fuchsia), var(--rose));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin: 0 auto 12px;
+      box-shadow: 0 4px 16px rgba(214,51,132,0.3);
+    }
+
+    .cliente-nombre {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .cliente-tel {
+      font-size: 12px;
+      color: var(--text3);
+      font-family: var(--mono);
+      margin-bottom: 10px;
+    }
+
+    /* ============================================================
+       SERVICIO ITEMS
+    ============================================================ */
+    .servicio-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: all 0.18s;
+    }
+
+    .servicio-item:hover {
+      border-color: rgba(201,149,106,0.35);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .servicio-emoji {
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       CAJA
+    ============================================================ */
+    .caja-panel {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .caja-hero {
+      text-align: center;
+      padding: 32px 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .caja-hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--rose), var(--fuchsia), var(--lila));
+    }
+
+    .caja-icon { font-size: 48px; margin-bottom: 12px; }
+
+    .caja-estado {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .caja-saldo {
+      font-family: var(--mono);
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--gold);
+      margin: 8px 0;
+    }
+
+    .movimientos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .movimiento-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .movimiento-tipo {
+      font-size: 18px;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .movimiento-tipo.entrada { background: rgba(76,175,135,0.15); }
+    .movimiento-tipo.salida  { background: rgba(224,82,82,0.15); }
+
+    /* ============================================================
+       MODALS
+    ============================================================ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 10001;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(201,149,106,0.1);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .modal-lg { max-width: 680px; }
+
+    .modal-header {
+      padding: 20px 24px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+
+    .modal-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--rose), var(--fuchsia), var(--lila));
+    }
+
+    .modal-title {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .modal-body {
+      padding: 22px 24px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    /* ============================================================
+       BTN-CLOSE — MUST BE z-index:20000 IMPORTANT
+    ============================================================ */
+    .btn-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      color: var(--text2);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      z-index: 20000 !important;
+      pointer-events: auto !important;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .btn-close:hover {
+      background: rgba(224,82,82,0.15);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    /* ============================================================
+       EMOJI PICKER (servicio)
+    ============================================================ */
+    .emoji-picker-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .emoji-opt {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .emoji-opt:hover { border-color: var(--rose); background: rgba(201,149,106,0.1); }
+    .emoji-opt.selected { border-color: var(--fuchsia); background: rgba(214,51,132,0.15); box-shadow: 0 0 10px rgba(214,51,132,0.25); }
+
+    /* ============================================================
+       COBRO / PAGO
+    ============================================================ */
+    .metodo-pago-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+    }
+
+    .metodo-pago-btn {
+      padding: 10px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text2);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      font-family: var(--body);
+    }
+
+    .metodo-pago-btn:hover { border-color: var(--rose); color: var(--text); }
+    .metodo-pago-btn.selected {
+      background: rgba(201,149,106,0.15);
+      border-color: var(--rose);
+      color: var(--rose);
+      box-shadow: 0 0 10px rgba(201,149,106,0.15);
+    }
+
+    /* ============================================================
+       COBRO RESUMEN
+    ============================================================ */
+    .cobro-resumen {
+      background: rgba(201,149,106,0.07);
+      border: 1px solid rgba(201,149,106,0.2);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+    }
+
+    .cobro-total {
+      font-family: var(--mono);
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--gold);
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    /* ============================================================
+       REPORTES
+    ============================================================ */
+    .reporte-filtros {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    /* ============================================================
+       CONFIG
+    ============================================================ */
+    .config-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .config-section-title {
+      font-family: var(--display);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hardware-btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ============================================================
+       TOAST
+    ============================================================ */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      font-size: 13.5px;
+      color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 320px;
+      animation: toastIn 0.3s ease;
+      pointer-events: auto;
+    }
+
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.danger  { border-left: 3px solid var(--danger); }
+    .toast.warn    { border-left: 3px solid var(--warn); }
+    .toast.info    { border-left: 3px solid var(--rose); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(30px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ============================================================
+       MODAL ADMIN PASSWORD
+    ============================================================ */
+    #modalAdminPw {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px);
+      z-index: 99999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #modalAdminPw.open { display: flex; }
+
+    /* ============================================================
+       DASHBOARD APPOINTMENTS LIST
+    ============================================================ */
+    .dash-cita-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: all 0.15s;
+    }
+
+    .dash-cita-item:hover { border-color: rgba(201,149,106,0.35); }
+
+    .dash-cita-hora {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--rose);
+      min-width: 44px;
+    }
+
+    .dash-cita-info { flex: 1; }
+    .dash-cita-nombre { font-weight: 600; font-size: 14px; color: var(--text); }
+    .dash-cita-servicio { font-size: 12px; color: var(--text3); }
+
+    .dash-cita-precio {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    /* ============================================================
+       EMPTY STATES
+    ============================================================ */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text3);
+    }
+
+    .empty-state-icon { font-size: 48px; margin-bottom: 12px; display: block; opacity: 0.5; }
+    .empty-state-text { font-size: 14px; }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 0px; }
+      .sidebar { transform: translateX(-240px); transition: transform 0.3s; }
+      .sidebar.open { transform: translateX(0); --sidebar-w: 240px; }
+      .main-content { margin-left: 0; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .agenda-semana { grid-template-columns: 40px repeat(3,1fr); }
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- ================================================================
+     LOGIN SCREEN
+================================================================ -->
+<div id="loginScreen" style="display:flex">
+  <div class="login-box">
+    <span class="login-logo">💅</span>
+    <div class="login-brand">Nail Studio Pro</div>
+    <div class="login-sub">by A2K Digital Studio</div>
+
+    <div id="lock-status" class="lock-status">Verificando licencia...</div>
+
+    <div id="lock-form" style="display:none">
+      <div class="form-group">
+        <input type="text" id="lock-code" class="form-input"
+          placeholder="Código de licencia NS-PRO-XXXXXX"
+          style="text-align:center;letter-spacing:2px;font-family:var(--mono)"
+          autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="activarLicencia()">
+        🔑 Activar Licencia PRO
+      </button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="activarDemo()">
+        🎯 Probar Demo (5 días)
+      </button>
+      <div id="lock-msg" style="font-size:12px;color:var(--text3);margin-top:10px;text-align:center"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     APP PRINCIPAL
+================================================================ -->
+<div id="app" style="display:none">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-emoji">💅</span>
+      <div>
+        <div class="sidebar-logo-text">Nail Studio Pro</div>
+        <span class="sidebar-logo-sub">A2K Digital Studio</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+
+      <div class="nav-item active" onclick="showPage('dashboard',this)">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Dashboard</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('agenda',this)">
+        <span class="nav-icon">📅</span>
+        <span class="nav-label">Agenda</span>
+        <span class="nav-badge" id="badge-agenda">0</span>
+      </div>
+
+      <div class="nav-section-label">Gestión</div>
+
+      <div class="nav-item" onclick="showPage('servicios',this)">
+        <span class="nav-icon">💅</span>
+        <span class="nav-label">Servicios</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('clientas',this)">
+        <span class="nav-icon">👩‍🦰</span>
+        <span class="nav-label">Clientas</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('materiales',this)">
+        <span class="nav-icon">🧴</span>
+        <span class="nav-label">Materiales</span>
+      </div>
+
+      <div class="nav-section-label">Finanzas</div>
+
+      <div class="nav-item" onclick="showPage('caja',this)">
+        <span class="nav-icon">💰</span>
+        <span class="nav-label">Caja</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('reportes',this)">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Reportes</span>
+      </div>
+
+      <div class="nav-section-label">Sistema</div>
+
+      <div class="nav-item" onclick="showPage('config',this)">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Configuración</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div id="sidebar-lic">
+        <div>Licencia: <span id="lic-tipo-sidebar">—</span></div>
+        <div id="lic-expira-sidebar" style="font-size:10px;margin-top:2px"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div id="topbar-title">Dashboard</div>
+      <div id="topbar-actions">
+        <button class="btn btn-primary btn-sm" id="btn-nueva-cita" onclick="abrirModalCita()">
+          📅 Nueva Cita
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="mostrarInfoLicencia()">
+          🔑 Licencia
+        </button>
+      </div>
+    </header>
+
+    <!-- PAGES -->
+    <div class="pages-container">
+
+      <!-- ===== DASHBOARD ===== -->
+      <div class="page active" id="page-dashboard">
+        <div class="section-header" style="margin-bottom:22px">
+          <div>
+            <div class="section-title">Buen día ✨</div>
+            <div class="section-subtitle" id="dash-fecha-hoy">Cargando fecha...</div>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="grid-4" style="margin-bottom:24px">
+          <div class="stat-card">
+            <span class="stat-icon">📅</span>
+            <div class="stat-label">Citas hoy</div>
+            <div class="stat-value fuchsia" id="dash-citas-hoy">0</div>
+            <div class="stat-sub" id="dash-citas-pendientes">0 pendientes</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">💵</span>
+            <div class="stat-label">Ingresos hoy</div>
+            <div class="stat-value gold" id="dash-ingresos-hoy">$0.00</div>
+            <div class="stat-sub" id="dash-ingresos-bs">Bs 0.00</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">👩‍🦰</span>
+            <div class="stat-label">Clientas totales</div>
+            <div class="stat-value lila" id="dash-clientas-total">0</div>
+            <div class="stat-sub" id="dash-clientas-nuevas">0 este mes</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">💅</span>
+            <div class="stat-label">Servicios realizados</div>
+            <div class="stat-value rose" id="dash-servicios-mes">0</div>
+            <div class="stat-sub">Este mes</div>
+          </div>
+        </div>
+
+        <!-- Citas de hoy + Top servicios -->
+        <div class="grid-2">
+          <div>
+            <div class="section-header">
+              <div class="section-title" style="font-size:16px">📅 Citas de hoy</div>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('agenda',null)">Ver agenda</button>
+            </div>
+            <div id="dash-agenda-hoy" style="display:flex;flex-direction:column;gap:8px">
+              <div class="empty-state">
+                <span class="empty-state-icon">📅</span>
+                <div class="empty-state-text">No hay citas programadas para hoy</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="section-header">
+              <div class="section-title" style="font-size:16px">🏆 Top Servicios</div>
+            </div>
+            <div id="dash-top-servicios" style="display:flex;flex-direction:column;gap:8px">
+              <div class="empty-state">
+                <span class="empty-state-icon">💅</span>
+                <div class="empty-state-text">Sin datos aún</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-dashboard -->
+
+      <!-- ===== AGENDA ===== -->
+      <div class="page" id="page-agenda">
+        <div class="section-header">
+          <div>
+            <div class="section-title">📅 Agenda Semanal</div>
+          </div>
+          <button class="btn btn-primary" onclick="abrirModalCita()">📅 + Nueva Cita</button>
+        </div>
+
+        <div class="agenda-nav">
+          <button class="btn btn-ghost btn-sm" onclick="semanaAnterior()">← Anterior</button>
+          <div class="agenda-nav-date" id="agenda-rango-fecha">Semana actual</div>
+          <button class="btn btn-ghost btn-sm" onclick="semanaHoy()">Hoy</button>
+          <button class="btn btn-ghost btn-sm" onclick="semanaSiguiente()">Siguiente →</button>
+        </div>
+
+        <div style="overflow-x:auto">
+          <div id="agenda-semana" class="agenda-semana" style="min-width:700px">
+            <!-- Renderizado dinámico por JS -->
+          </div>
+        </div>
+      </div><!-- /page-agenda -->
+
+      <!-- ===== SERVICIOS ===== -->
+      <div class="page" id="page-servicios">
+        <div class="section-header">
+          <div>
+            <div class="section-title">💅 Servicios</div>
+            <div class="section-subtitle">Catálogo de servicios del salón</div>
+          </div>
+          <button class="btn btn-primary" onclick="abrirModalServicio()">💅 + Nuevo Servicio</button>
+        </div>
+
+        <div class="search-bar" style="margin-bottom:18px">
+          <div class="search-input-wrap" style="max-width:340px">
+            <input type="text" class="form-input" id="serv-buscar" placeholder="Buscar servicio..." oninput="filtrarServicios()">
+          </div>
+          <select class="form-select" id="serv-cat-filtro" style="max-width:200px" onchange="filtrarServicios()">
+            <option value="">Todas las categorías</option>
+            <option>Uñas Acrílicas</option>
+            <option>Acrigel</option>
+            <option>Semipermanente</option>
+            <option>Polygel</option>
+            <option>Nail Art</option>
+            <option>Retoque</option>
+            <option>Spa Uñas</option>
+            <option>Depilación</option>
+            <option>Cejas</option>
+            <option>Otros</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:44px"></th>
+                <th>Nombre</th>
+                <th>Precio $</th>
+                <th>Precio Bs</th>
+                <th>Duración</th>
+                <th>Categoría</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="serv-tbody">
+              <tr><td colspan="7">
+                <div class="empty-state"><span class="empty-state-icon">💅</span><div class="empty-state-text">No hay servicios registrados</div></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div><!-- /page-servicios -->
+
+      <!-- ===== CLIENTAS ===== -->
+      <div class="page" id="page-clientas">
+        <div class="section-header">
+          <div>
+            <div class="section-title">👩‍🦰 Clientas</div>
+            <div class="section-subtitle" id="clientas-count-sub">0 clientas registradas</div>
+          </div>
+          <button class="btn btn-primary" onclick="abrirModalClienta()">👩‍🦰 + Nueva Clienta</button>
+        </div>
+
+        <div class="search-bar" style="margin-bottom:18px">
+          <div class="search-input-wrap" style="max-width:360px">
+            <input type="text" class="form-input" id="cli-buscar" placeholder="Buscar clienta..." oninput="filtrarClientas()">
+          </div>
+        </div>
+
+        <div id="clientas-grid" class="clientas-grid">
+          <div class="empty-state" style="grid-column:1/-1">
+            <span class="empty-state-icon">👩‍🦰</span>
+            <div class="empty-state-text">No hay clientas registradas aún</div>
+          </div>
+        </div>
+      </div><!-- /page-clientas -->
+
+      <!-- ===== MATERIALES ===== -->
+      <div class="page" id="page-materiales">
+        <div class="section-header">
+          <div>
+            <div class="section-title">🧴 Materiales</div>
+            <div class="section-subtitle">Inventario de insumos y productos</div>
+          </div>
+          <button class="btn btn-primary" onclick="abrirModalMaterial()">🧴 + Nuevo Material</button>
+        </div>
+
+        <div class="search-bar" style="margin-bottom:18px">
+          <div class="search-input-wrap" style="max-width:340px">
+            <input type="text" class="form-input" id="mat-buscar" placeholder="Buscar material..." oninput="filtrarMateriales()">
+          </div>
+          <select class="form-select" id="mat-cat-filtro" style="max-width:220px" onchange="filtrarMateriales()">
+            <option value="">Todas las categorías</option>
+            <option>Polvos Acrílicos</option>
+            <option>Geles</option>
+            <option>Tips/Formas</option>
+            <option>Limas/Abrasivos</option>
+            <option>Bases y Tops</option>
+            <option>Primers</option>
+            <option>Lámpara UV/LED</option>
+            <option>Herramientas</option>
+            <option>Otros</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Stock</th>
+                <th>Unidad</th>
+                <th>Stock Mín.</th>
+                <th>Costo $</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="mat-tbody">
+              <tr><td colspan="8">
+                <div class="empty-state"><span class="empty-state-icon">🧴</span><div class="empty-state-text">No hay materiales registrados</div></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div><!-- /page-materiales -->
+
+      <!-- ===== CAJA ===== -->
+      <div class="page" id="page-caja">
+        <div class="section-header">
+          <div>
+            <div class="section-title">💰 Caja</div>
+            <div class="section-subtitle" id="caja-fecha-turno">—</div>
+          </div>
+        </div>
+
+        <div class="caja-panel">
+          <!-- CAJA CERRADA -->
+          <div id="caja-cerrada">
+            <div class="caja-hero">
+              <div class="caja-icon">🔒</div>
+              <div class="caja-estado" style="color:var(--text3)">Caja Cerrada</div>
+              <div style="font-size:13px;color:var(--text3);margin-top:8px">Abre la caja para iniciar el turno</div>
+            </div>
+            <div class="config-section">
+              <div class="config-section-title">💵 Fondo de apertura</div>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label class="form-label">Efectivo inicial $</label>
+                  <input type="number" class="form-input" id="caja-apertura-usd" placeholder="0.00" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Efectivo inicial Bs</label>
+                  <input type="number" class="form-input" id="caja-apertura-bs" placeholder="0.00" min="0" step="0.01">
+                </div>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="abrirCaja()">
+                🔓 Abrir Caja
+              </button>
+            </div>
+          </div>
+
+          <!-- CAJA ABIERTA -->
+          <div id="caja-abierta" style="display:none">
+            <div class="caja-hero">
+              <div class="caja-icon">✅</div>
+              <div class="caja-estado" style="color:var(--success)">Caja Abierta</div>
+              <div class="caja-saldo" id="caja-saldo-usd">$0.00</div>
+              <div style="font-size:14px;color:var(--text3);font-family:var(--mono)" id="caja-saldo-bs">Bs 0.00</div>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+              <button class="btn btn-success" style="flex:1;background:linear-gradient(135deg,var(--success),#2e7d56);color:#fff" onclick="abrirMovimientoCaja('entrada')">
+                ➕ Entrada
+              </button>
+              <button class="btn btn-danger" style="flex:1" onclick="abrirMovimientoCaja('salida')">
+                ➖ Salida
+              </button>
+              <button class="btn btn-ghost" style="flex:1" onclick="cerrarCaja()">
+                🔒 Cerrar Caja
+              </button>
+            </div>
+
+            <div class="config-section">
+              <div class="config-section-title">📋 Movimientos del turno</div>
+              <div id="caja-movimientos" class="movimientos-list">
+                <div class="empty-state" style="padding:24px">
+                  <span class="empty-state-icon" style="font-size:28px">📋</span>
+                  <div class="empty-state-text">Sin movimientos aún</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-caja -->
+
+      <!-- ===== REPORTES ===== -->
+      <div class="page" id="page-reportes">
+        <div class="section-header">
+          <div>
+            <div class="section-title">📊 Reportes</div>
+            <div class="section-subtitle">Análisis de rendimiento del salón</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="exportarReporte()">📥 Exportar</button>
+        </div>
+
+        <div class="reporte-filtros">
+          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
+            <label class="form-label" style="white-space:nowrap">Desde:</label>
+            <input type="date" class="form-input" id="rep-fecha-desde" style="width:160px">
+          </div>
+          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
+            <label class="form-label" style="white-space:nowrap">Hasta:</label>
+            <input type="date" class="form-input" id="rep-fecha-hasta" style="width:160px">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="generarReporte()">📊 Generar</button>
+          <button class="btn btn-ghost btn-sm" onclick="reporteMesActual()">Este mes</button>
+          <button class="btn btn-ghost btn-sm" onclick="reporteHoy()">Hoy</button>
+        </div>
+
+        <div class="grid-3" style="margin-bottom:24px">
+          <div class="stat-card">
+            <span class="stat-icon">💵</span>
+            <div class="stat-label">Ingresos período</div>
+            <div class="stat-value gold" id="rep-ingresos">$0.00</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">📅</span>
+            <div class="stat-label">Citas realizadas</div>
+            <div class="stat-value fuchsia" id="rep-citas">0</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-icon">🏆</span>
+            <div class="stat-label">Servicio top</div>
+            <div class="stat-value rose" id="rep-top-serv" style="font-size:18px;font-family:var(--body)">—</div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Clienta</th>
+                <th>Servicio</th>
+                <th>Duración</th>
+                <th>Método Pago</th>
+                <th>Total $</th>
+                <th>Total Bs</th>
+              </tr>
+            </thead>
+            <tbody id="rep-tbody">
+              <tr><td colspan="7">
+                <div class="empty-state"><span class="empty-state-icon">📊</span><div class="empty-state-text">Selecciona un rango de fechas y genera el reporte</div></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div><!-- /page-reportes -->
+
+      <!-- ===== CONFIGURACIÓN ===== -->
+      <div class="page" id="page-config">
+        <div class="section-header">
+          <div>
+            <div class="section-title">⚙️ Configuración</div>
+            <div class="section-subtitle">Ajustes generales del salón</div>
+          </div>
+          <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar Cambios</button>
+        </div>
+
+        <!-- Datos del negocio -->
+        <div class="config-section">
+          <div class="config-section-title">💅 Datos del Negocio</div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Nombre del negocio</label>
+              <input type="text" class="form-input" id="cfg-nombre" placeholder="Ej: Nail Studio by Valentina">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Teléfono / WhatsApp</label>
+              <input type="text" class="form-input" id="cfg-tel" placeholder="+58 412 000 0000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dirección</label>
+              <input type="text" class="form-input" id="cfg-direccion" placeholder="Dirección del salón">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tu nombre (técnica)</label>
+              <input type="text" class="form-input" id="cfg-tecnica" placeholder="Ej: Valentina Rodríguez">
+            </div>
+          </div>
+        </div>
+
+        <!-- Moneda y tasa -->
+        <div class="config-section">
+          <div class="config-section-title">💱 Moneda y Tasa</div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Tasa del día Bs/$</label>
+              <input type="number" class="form-input" id="cfg-tasa" placeholder="Ej: 40.50" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Moneda principal</label>
+              <select class="form-select" id="cfg-moneda">
+                <option value="USD">Dólar (USD $)</option>
+                <option value="BS">Bolívares (Bs)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware -->
+        <div class="config-section">
+          <div class="config-section-title">🖨️ Periféricos / Hardware</div>
+          <div class="hardware-btns">
+            <button class="btn btn-ghost" onclick="testImpresora()">🖨️ Probar Impresora</button>
+            <button class="btn btn-ghost" onclick="testGaveta()">💰 Abrir Gaveta</button>
+            <button class="btn btn-ghost" onclick="testBalanza()">⚖️ Conectar Balanza</button>
+          </div>
+          <div style="margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">Puerto impresora</label>
+              <input type="text" class="form-input" id="cfg-impresora" placeholder="Ej: USB001 o 192.168.1.100" style="max-width:300px">
+            </div>
+          </div>
+        </div>
+
+        <!-- Licencia -->
+        <div class="config-section">
+          <div class="config-section-title">🔑 Licencia</div>
+          <div id="cfg-lic-info" style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:14px">
+            Cargando información de licencia...
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="mostrarInfoLicencia()">ℹ️ Ver detalles</button>
+            <button class="btn btn-danger btn-sm" onclick="revocarLicencia()">🗑️ Revocar licencia</button>
+          </div>
+        </div>
+
+      </div><!-- /page-config -->
+
+    </div><!-- /pages-container -->
+  </div><!-- /main-content -->
+</div><!-- /app -->
+
+<!-- ================================================================
+     MODALES ESTÁTICOS
+================================================================ -->
+
+<!-- MODAL: Nuevo/Editar Servicio -->
+<div class="modal-overlay" id="modalServicio">
+  <div class="modal">
+    <div class="modal-header">
+      <span style="font-size:22px" id="modal-serv-icon-preview">💅</span>
+      <div class="modal-title" id="modal-serv-titulo">Nuevo Servicio</div>
+      <button class="btn-close" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Emoji picker -->
+      <div class="form-group">
+        <label class="form-label">Ícono del servicio</label>
+        <div class="emoji-picker-grid" id="serv-emoji-picker">
+          <div class="emoji-opt selected" data-emoji="💅" onclick="seleccionarEmojiServ(this)">💅</div>
+          <div class="emoji-opt" data-emoji="🌸" onclick="seleccionarEmojiServ(this)">🌸</div>
+          <div class="emoji-opt" data-emoji="✨" onclick="seleccionarEmojiServ(this)">✨</div>
+          <div class="emoji-opt" data-emoji="💎" onclick="seleccionarEmojiServ(this)">💎</div>
+          <div class="emoji-opt" data-emoji="🌷" onclick="seleccionarEmojiServ(this)">🌷</div>
+          <div class="emoji-opt" data-emoji="🦋" onclick="seleccionarEmojiServ(this)">🦋</div>
+          <div class="emoji-opt" data-emoji="🎀" onclick="seleccionarEmojiServ(this)">🎀</div>
+          <div class="emoji-opt" data-emoji="🌺" onclick="seleccionarEmojiServ(this)">🌺</div>
+          <div class="emoji-opt" data-emoji="💜" onclick="seleccionarEmojiServ(this)">💜</div>
+          <div class="emoji-opt" data-emoji="🩷" onclick="seleccionarEmojiServ(this)">🩷</div>
+          <div class="emoji-opt" data-emoji="🤍" onclick="seleccionarEmojiServ(this)">🤍</div>
+          <div class="emoji-opt" data-emoji="💗" onclick="seleccionarEmojiServ(this)">💗</div>
+          <div class="emoji-opt" data-emoji="🌙" onclick="seleccionarEmojiServ(this)">🌙</div>
+          <div class="emoji-opt" data-emoji="⭐" onclick="seleccionarEmojiServ(this)">⭐</div>
+          <div class="emoji-opt" data-emoji="🪷" onclick="seleccionarEmojiServ(this)">🪷</div>
+          <div class="emoji-opt" data-emoji="🧖‍♀️" onclick="seleccionarEmojiServ(this)">🧖‍♀️</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Nombre del servicio *</label>
+          <input type="text" class="form-input" id="serv-nombre" placeholder="Ej: Uñas Acrílicas Full Set">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoría *</label>
+          <select class="form-select" id="serv-categoria">
+            <option value="">Seleccionar...</option>
+            <option>Uñas Acrílicas</option>
+            <option>Acrigel</option>
+            <option>Semipermanente</option>
+            <option>Polygel</option>
+            <option>Nail Art</option>
+            <option>Retoque</option>
+            <option>Spa Uñas</option>
+            <option>Depilación</option>
+            <option>Cejas</option>
+            <option>Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Duración (minutos) *</label>
+          <input type="number" class="form-input" id="serv-duracion" placeholder="Ej: 90" min="5" step="5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Precio $</label>
+          <input type="number" class="form-input" id="serv-precio-usd" placeholder="0.00" min="0" step="0.01" oninput="calcPrecioBsServ()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Precio Bs (auto)</label>
+          <input type="number" class="form-input" id="serv-precio-bs" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Descripción</label>
+          <textarea class="form-textarea" id="serv-descripcion" placeholder="Descripción opcional del servicio..."></textarea>
+        </div>
+      </div>
+
+      <input type="hidden" id="serv-edit-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalServicio')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarServicio()">💾 Guardar Servicio</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Nueva/Editar Clienta -->
+<div class="modal-overlay" id="modalClienta">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cli-titulo">Nueva Clienta</div>
+      <button class="btn-close" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Nombre completo *</label>
+          <input type="text" class="form-input" id="cli-nombre" placeholder="Nombre de la clienta">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono / WhatsApp</label>
+          <input type="text" class="form-input" id="cli-tel" placeholder="+58 412 000 0000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de nacimiento</label>
+          <input type="date" class="form-input" id="cli-nacimiento">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Forma de uña favorita</label>
+          <select class="form-select" id="cli-forma">
+            <option value="">Sin preferencia</option>
+            <option>Cuadrada</option>
+            <option>Almendra</option>
+            <option>Stiletto</option>
+            <option>Coffin/Ballerina</option>
+            <option>Oval</option>
+            <option>Redonda</option>
+            <option>Flare/Pato</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Largo favorito</label>
+          <select class="form-select" id="cli-largo">
+            <option value="">Sin preferencia</option>
+            <option>Corta</option>
+            <option>Media</option>
+            <option>Larga</option>
+            <option>Extra Larga</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Color favorito</label>
+          <input type="text" class="form-input" id="cli-color" placeholder="Ej: Rosa nude, Rojo cereza...">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Notas / Alergias</label>
+          <textarea class="form-textarea" id="cli-notas" placeholder="Alergias, preferencias especiales, notas importantes..."></textarea>
+        </div>
+      </div>
+      <input type="hidden" id="cli-edit-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalClienta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarClienta()">💾 Guardar Clienta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Nueva Cita -->
+<div class="modal-overlay" id="modalCita">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cita-titulo">📅 Nueva Cita</div>
+      <button class="btn-close" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Clienta *</label>
+          <select class="form-select" id="cita-clienta" onchange="autoFillCita()">
+            <option value="">Seleccionar clienta...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Servicio *</label>
+          <select class="form-select" id="cita-servicio" onchange="autoFillCitaServicio()">
+            <option value="">Seleccionar servicio...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha *</label>
+          <input type="date" class="form-input" id="cita-fecha">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora *</label>
+          <input type="time" class="form-input" id="cita-hora" step="900">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Duración (min)</label>
+          <input type="number" class="form-input" id="cita-duracion" placeholder="90" min="5" step="5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Precio $</label>
+          <input type="number" class="form-input" id="cita-precio" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Técnica asignada</label>
+          <input type="text" class="form-input" id="cita-tecnica" placeholder="Nombre de la técnica">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select class="form-select" id="cita-estado">
+            <option value="pendiente">Pendiente</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="completada">Completada</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Nota</label>
+          <textarea class="form-textarea" id="cita-nota" placeholder="Nota adicional para esta cita..." style="min-height:60px"></textarea>
+        </div>
+      </div>
+      <input type="hidden" id="cita-edit-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalCita')">Cancelar</button>
+      <button class="btn btn-rose" onclick="guardarCitaYCobrar()">💅 Guardar y Cobrar</button>
+      <button class="btn btn-primary" onclick="guardarCita()">💾 Guardar Cita</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Cobro -->
+<div class="modal-overlay" id="modalCobro">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💳 Cobrar Servicio</div>
+      <button class="btn-close" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="cobro-resumen">
+        <div style="font-size:13px;color:var(--text3);text-align:center;margin-bottom:4px" id="cobro-clienta-serv">—</div>
+        <div class="cobro-total" id="cobro-total-display">$0.00</div>
+        <div style="text-align:center;font-size:13px;color:var(--text3);font-family:var(--mono)" id="cobro-total-bs">Bs 0.00</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Método de pago</label>
+        <div class="metodo-pago-grid" id="metodo-pago-grid">
+          <div class="metodo-pago-btn" data-metodo="Efectivo $" onclick="seleccionarMetodo(this)">💵 Efectivo $</div>
+          <div class="metodo-pago-btn" data-metodo="Zelle" onclick="seleccionarMetodo(this)">💙 Zelle</div>
+          <div class="metodo-pago-btn" data-metodo="Binance Pay" onclick="seleccionarMetodo(this)">🟡 Binance</div>
+          <div class="metodo-pago-btn" data-metodo="Zinli" onclick="seleccionarMetodo(this)">💜 Zinli</div>
+          <div class="metodo-pago-btn" data-metodo="Efectivo Bs" onclick="seleccionarMetodo(this)">🏦 Efectivo Bs</div>
+          <div class="metodo-pago-btn" data-metodo="Pago Móvil" onclick="seleccionarMetodo(this)">📱 Pago Móvil</div>
+          <div class="metodo-pago-btn" data-metodo="Punto" onclick="seleccionarMetodo(this)">💳 Punto</div>
+          <div class="metodo-pago-btn" data-metodo="Fiado" onclick="seleccionarMetodo(this)">📝 Fiado</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Monto cobrado $</label>
+          <input type="number" class="form-input" id="cobro-monto-usd" placeholder="0.00" min="0" step="0.01" oninput="calcCobroBS()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Equivalente Bs</label>
+          <input type="number" class="form-input" id="cobro-monto-bs" placeholder="0.00" min="0" step="0.01" readonly style="opacity:0.7">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Nota del cobro</label>
+        <input type="text" class="form-input" id="cobro-nota" placeholder="Referencia, nota adicional...">
+      </div>
+
+      <input type="hidden" id="cobro-cita-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalCobro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCobro()">✅ Confirmar Cobro</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Nuevo/Editar Material -->
+<div class="modal-overlay" id="modalMaterial">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-mat-titulo">Nuevo Material</div>
+      <button class="btn-close" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Nombre del material *</label>
+          <input type="text" class="form-input" id="mat-nombre" placeholder="Ej: Polvo Acrílico Transparente">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoría *</label>
+          <select class="form-select" id="mat-categoria">
+            <option value="">Seleccionar...</option>
+            <option>Polvos Acrílicos</option>
+            <option>Geles</option>
+            <option>Tips/Formas</option>
+            <option>Limas/Abrasivos</option>
+            <option>Bases y Tops</option>
+            <option>Primers</option>
+            <option>Lámpara UV/LED</option>
+            <option>Herramientas</option>
+            <option>Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidad</label>
+          <select class="form-select" id="mat-unidad">
+            <option>Unidad</option>
+            <option>Gramos</option>
+            <option>Mililitros</option>
+            <option>Caja</option>
+            <option>Paquete</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock actual *</label>
+          <input type="number" class="form-input" id="mat-stock" placeholder="0" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock mínimo</label>
+          <input type="number" class="form-input" id="mat-stock-min" placeholder="0" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Costo $</label>
+          <input type="number" class="form-input" id="mat-costo" placeholder="0.00" min="0" step="0.01">
+        </div>
+      </div>
+      <input type="hidden" id="mat-edit-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalMaterial')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarMaterial()">💾 Guardar Material</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Admin Password -->
+<div id="modalAdminPw" style="z-index:99999">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title">🔐 Verificación Admin</div>
+      <button class="btn-close" title="Cerrar" onclick="closeModal('modalAdminPw')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Contraseña de administrador</label>
+        <input type="password" class="form-input" id="admin-pw-input"
+          placeholder="Ingresa la contraseña admin"
+          style="text-align:center;letter-spacing:3px"
+          onkeydown="if(event.key==='Enter') confirmarAdminPw()">
+      </div>
+      <div id="admin-pw-msg" style="font-size:12px;color:var(--danger);text-align:center;min-height:18px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalAdminPw')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAdminPw()">✅ Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+'use strict';
+// ── STORAGE ──
+var _lsOK=true;var _mem={};
+try{localStorage.setItem('_t','1');localStorage.removeItem('_t');}catch(e){_lsOK=false;}
+var DB={
+  get:function(k){var v=_lsOK?localStorage.getItem('ns_'+k):_mem['ns_'+k];try{return v?JSON.parse(v):null;}catch(e){return null;}},
+  set:function(k,v){var s=JSON.stringify(v);if(_lsOK)localStorage.setItem('ns_'+k,s);else _mem['ns_'+k]=s;},
+  remove:function(k){if(_lsOK)localStorage.removeItem('ns_'+k);else delete _mem['ns_'+k];}
+};
+
+// ── HELPERS ──
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function fmt$(n){return '$'+(+n||0).toFixed(2);}
+function fmtBs(n){var t=getCfg().tasa||40;return'Bs '+((+n||0)*t).toFixed(2);}
+function fmtDate(ts){return ts?new Date(ts).toLocaleDateString('es-VE'):'—';}
+function fmtDateTime(ts){return ts?new Date(ts).toLocaleString('es-VE'):'—';}
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function showToast(msg,type){
+  type=type||'info';
+  var c=document.getElementById('toast-container');if(!c)return;
+  var t=document.createElement('div');t.className='toast toast-'+type;t.textContent=msg;
+  c.appendChild(t);setTimeout(function(){t.classList.add('hide');setTimeout(function(){t.remove();},400);},3200);
+}
+function gel(id){return document.getElementById(id);}
+function set$(id,v){var el=gel(id);if(el)el.textContent=v;}
+
+// ═══════════════════════════════════════════════════════════
+// IRON LOCK — NAIL STUDIO PRO — A2K Digital Studio 2026
+// Salt: NAILSTUDIO2026 | Prefix: ns_
+// ═══════════════════════════════════════════════════════════
+var _SIGN_SALT='NAILSTUDIO2026';
+var MASTER_LICS=['NSPRO-DEMO-2024','NSPRO-A2K-2026','NSPRO-MAST-2026'];
+
+function _hash(s){var h=0;for(var i=0;i<s.length;i++){h=Math.imul(31,h)+s.charCodeAt(i)|0;}return Math.abs(h).toString(36).toUpperCase();}
+
+function _generarFirmada(tipo){
+  var rnd=Math.random().toString(36).slice(2,8).toUpperCase();
+  var ts=Date.now().toString(36).toUpperCase();
+  var base='NS-'+tipo+'-'+rnd+'-'+ts;
+  var check=_hash(base+_SIGN_SALT).slice(0,4);
+  return base+'-'+check;
+}
+
+function _verificarFirmada(code){
+  var p=code.trim().toUpperCase();
+  if(MASTER_LICS.indexOf(p)>=0)return{valid:true,tipo:'PRO',master:true};
+  var m=p.match(/^(NS-(PRO|DEMO)-[A-Z0-9]+-[A-Z0-9]+)-([A-Z0-9]{4})$/);
+  if(!m)return{valid:false};
+  var base=m[1];var tipo=m[2];var check=m[3];
+  if(_hash(base+_SIGN_SALT).slice(0,4)!==check)return{valid:false};
+  return{valid:true,tipo:tipo};
+}
+
+function getDeviceId(){
+  var saved=_lsOK?localStorage.getItem('ns_device_id'):null;
+  if(saved)return saved;
+  var fp=[navigator.userAgent,navigator.language,screen.width+'x'+screen.height,new Date().getTimezoneOffset()].join('|');
+  var h=0;for(var i=0;i<fp.length;i++){h=((h<<5)-h)+fp.charCodeAt(i);h=h&h;}
+  var id='NS-'+Math.abs(h).toString(36).toUpperCase().slice(0,4)+'-'+Math.abs(h>>8).toString(36).toUpperCase().slice(0,4);
+  if(_lsOK)localStorage.setItem('ns_device_id',id);
+  return id;
+}
+
+function _ironLockInit(){
+  var ls=gel('lock-status');var lf=gel('lock-form');
+  var saved=DB.get('licencia_activa');
+  if(saved){
+    var dev=getDeviceId();
+    if(saved.device===dev||saved.master){
+      if(saved.tipo==='DEMO'&&saved.expiry&&Date.now()>saved.expiry){
+        DB.remove('licencia_activa');
+        if(ls)ls.innerHTML='<span style="color:var(--danger)">Tu demo ha vencido. Ingresa un codigo PRO.</span>';
+        if(lf)lf.style.display='block';
+        return;
+      }
+      _desbloquearApp(saved);
+      return;
+    }
+  }
+  if(ls)ls.innerHTML='<span style="color:var(--text2)">Bienvenida a <strong>Nail Studio Pro</strong><br><small>Ingresa tu licencia para continuar</small></span>';
+  if(lf)lf.style.display='block';
+}
+
+function activarLicencia(){
+  var code=(gel('lock-code')||{}).value||'';
+  var msg=gel('lock-msg');
+  if(!code.trim()){if(msg)msg.textContent='Ingresa un codigo de licencia.';return;}
+  var r=_verificarFirmada(code);
+  if(!r.valid){if(msg)msg.innerHTML='<span style="color:var(--danger)">Codigo invalido o corrupto.</span>';return;}
+  if(r.tipo==='DEMO'){activarComoDemo(code);return;}
+  var lic={code:code.trim().toUpperCase(),tipo:'PRO',device:getDeviceId(),activado:Date.now(),master:!!r.master};
+  DB.set('licencia_activa',lic);
+  var gen=DB.get('licencias_generadas')||[];
+  var idx=-1;for(var i=0;i<gen.length;i++){if(gen[i].code===lic.code){idx=i;break;}}
+  if(idx>=0)gen[idx].usado=true;else gen.push({code:lic.code,tipo:'PRO',usado:true,ts:Date.now()});
+  DB.set('licencias_generadas',gen);
+  _desbloquearApp(lic);
+}
+
+function activarDemo(){
+  var key='ns_demo_activated_DEMO_TRIAL';
+  var existing=_lsOK?localStorage.getItem(key):null;
+  var expiry;
+  if(existing){expiry=parseInt(existing);}
+  else{expiry=Date.now()+5*24*60*60*1000;if(_lsOK)localStorage.setItem(key,String(expiry));}
+  if(Date.now()>expiry){
+    var msg=gel('lock-msg');
+    if(msg)msg.innerHTML='<span style="color:var(--danger)">Demo vencido. Contacta a A2K Digital Studio.</span>';
+    return;
+  }
+  var lic={code:'DEMO-TRIAL',tipo:'DEMO',device:getDeviceId(),activado:Date.now(),expiry:expiry};
+  DB.set('licencia_activa',lic);
+  _desbloquearApp(lic);
+}
+
+function activarComoDemo(code){
+  var key='ns_demo_activated_'+code.replace(/[^A-Z0-9]/g,'');
+  var existing=_lsOK?localStorage.getItem(key):null;
+  var expiry;
+  if(existing){expiry=parseInt(existing);}
+  else{expiry=Date.now()+5*24*60*60*1000;if(_lsOK)localStorage.setItem(key,String(expiry));}
+  if(Date.now()>expiry){
+    var msg=gel('lock-msg');
+    if(msg)msg.innerHTML='<span style="color:var(--danger)">Demo vencido.</span>';
+    return;
+  }
+  var lic={code:code.trim().toUpperCase(),tipo:'DEMO',device:getDeviceId(),activado:Date.now(),expiry:expiry};
+  DB.set('licencia_activa',lic);
+  _desbloquearApp(lic);
+}
+
+function _desbloquearApp(lic){
+  var ls=gel('loginScreen');var app=gel('app');
+  if(ls)ls.style.setProperty('display','none','important');
+  if(app)app.style.setProperty('display','flex','important');
+  var sl=gel('sidebar-lic');
+  if(sl){
+    var days='';
+    if(lic.tipo==='DEMO'&&lic.expiry){
+      var rem=Math.max(0,Math.ceil((lic.expiry-Date.now())/(1000*60*60*24)));
+      days='<br><span style="color:var(--warn);font-size:10px">'+rem+' dias restantes</span>';
+    }
+    sl.innerHTML='<span style="color:'+(lic.tipo==='PRO'?'var(--gold)':'var(--warn)')+'">●</span> '+lic.tipo+(lic.master?' MASTER':'')+days;
+  }
+  _appInit();
+}
+
+var _adminPwCallback=null;
+function _checkAdminPw(cb){
+  _adminPwCallback=cb;
+  var el=gel('admin-pw-input');if(el)el.value='';
+  var msg=gel('admin-pw-msg');if(msg)msg.textContent='';
+  openModal('modalAdminPw');
+}
+
+function confirmarAdminPw(){
+  var pw=(gel('admin-pw-input')||{}).value||'';
+  var cfg=getCfg();var admpw=cfg.adminPw||'NS2026ADMIN';
+  var msg=gel('admin-pw-msg');
+  if(pw===admpw){
+    closeModal('modalAdminPw');
+    if(_adminPwCallback)_adminPwCallback();
+    _adminPwCallback=null;
+  } else {
+    if(msg)msg.textContent='Contrasena incorrecta';
+  }
+}
+
+function generarLicenciaPRO(){
+  _checkAdminPw(function(){
+    var code=_generarFirmada('PRO');
+    var gen=DB.get('licencias_generadas')||[];
+    gen.push({code:code,tipo:'PRO',ts:Date.now(),usado:false});
+    DB.set('licencias_generadas',gen);
+    prompt('Licencia PRO generada (copia este codigo):',code);
+    renderConfig();
+  });
+}
+
+function generarLicenciaDemo(){
+  _checkAdminPw(function(){
+    var code=_generarFirmada('DEMO');
+    var gen=DB.get('licencias_generadas')||[];
+    gen.push({code:code,tipo:'DEMO',ts:Date.now(),usado:false});
+    DB.set('licencias_generadas',gen);
+    prompt('Licencia DEMO generada (copia este codigo):',code);
+    renderConfig();
+  });
+}
+
+// ── APP INIT + NAVIGATION ──
+var _currentPage='dashboard';
+
+function _appInit(){
+  _loadDefaultData();
+  showPage('dashboard');
+  window.addEventListener('click',function(e){
+    var btn=e.target.closest('.btn-close');
+    if(!btn)return;
+    var overlay=btn.closest('.modal-overlay');
+    if(overlay){overlay.style.setProperty('display','none','important');overlay.classList.remove('open');return;}
+    var p=btn.parentNode;
+    while(p&&p!==document.body){
+      if(p.style&&(p.style.position==='fixed'||p.classList.contains('modal-overlay')||p.classList.contains('modal'))){
+        p.style.setProperty('display','none','important');return;
+      }
+      p=p.parentNode;
+    }
+  },true);
+}
+
+function showPage(page,el){
+  _currentPage=page;
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var pg=gel('page-'+page);if(pg)pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  if(el)el.classList.add('active');
+  else{var ni=document.querySelector('.nav-item[data-page="'+page+'"]');if(ni)ni.classList.add('active');}
+  var titles={dashboard:'Dashboard',agenda:'Agenda',servicios:'Servicios',clientas:'Clientas',materiales:'Materiales',caja:'Caja',reportes:'Reportes',config:'Configuracion'};
+  set$('topbar-title',titles[page]||page);
+  var renders={dashboard:renderDashboard,agenda:renderAgenda,servicios:renderServicios,clientas:renderClientas,materiales:renderMateriales,caja:renderCaja,reportes:renderReportes,config:renderConfig};
+  if(renders[page])renders[page]();
+}
+
+function openModal(id){var el=gel(id);if(el){el.style.setProperty('display','flex','important');el.classList.add('open');}}
+function closeModal(id){var el=gel(id);if(!el)return;el.style.setProperty('display','none','important');el.classList.remove('open');}
+
+// ── CONFIG ──
+var _CFG_KEY='config';
+function getCfg(){return DB.get(_CFG_KEY)||{nombre:'Mi Nail Studio',telefono:'',tecnica:'',tasa:40,adminPw:'NS2026ADMIN',moneda:'USD'};}
+function saveCfg(cfg){DB.set(_CFG_KEY,cfg);}
+
+function renderConfig(){
+  var cfg=getCfg();
+  var f=function(id,v){var el=gel(id);if(el)el.value=v||'';};
+  f('cfg-nombre',cfg.nombre);f('cfg-telefono',cfg.telefono);
+  f('cfg-tecnica',cfg.tecnica);f('cfg-tasa',cfg.tasa||40);
+  f('cfg-adminpw',cfg.adminPw);
+  var lic=DB.get('licencia_activa');
+  var li=gel('cfg-lic-info');
+  if(li&&lic)li.innerHTML='<strong>'+lic.tipo+'</strong> &middot; '+lic.code+(lic.expiry?'<br>Vence: '+fmtDateTime(lic.expiry):'');
+  var gen=DB.get('licencias_generadas')||[];
+  var gl=gel('cfg-gen-list');
+  if(gl){
+    gl.innerHTML=gen.length?gen.slice().reverse().map(function(l){
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--card);border-radius:8px;margin-bottom:6px;font-family:var(--mono);font-size:12px">'+
+        '<span style="color:'+(l.tipo==='PRO'?'var(--gold)':'var(--warn)')+'">'+l.tipo+'</span>'+
+        '<span style="color:var(--text2);flex:1;margin:0 12px;overflow:hidden;text-overflow:ellipsis">'+l.code+'</span>'+
+        '<button onclick="navigator.clipboard.writeText(\''+l.code+'\').then(function(){showToast(\'Copiado\',\'success\');})" style="background:none;border:1px solid var(--border);padding:2px 8px;border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px">Copiar</button>'+
+      '</div>';
+    }).join(''):'<div style="color:var(--text3);text-align:center;padding:20px">Sin licencias generadas</div>';
+  }
+}
+
+function guardarConfig(){
+  var cfg=getCfg();
+  var g=function(id){var el=gel(id);return el?el.value.trim():'';}
+  cfg.nombre=g('cfg-nombre')||'Mi Nail Studio';
+  cfg.telefono=g('cfg-telefono');
+  cfg.tecnica=g('cfg-tecnica');
+  cfg.tasa=parseFloat(g('cfg-tasa'))||40;
+  cfg.adminPw=g('cfg-adminpw')||'NS2026ADMIN';
+  saveCfg(cfg);
+  showToast('Configuracion guardada','success');
+  var sn=gel('sidebar-studio-name');if(sn)sn.textContent=cfg.nombre;
+}
+
+// ── DEFAULT DATA + SERVICIOS ──
+var SERVICIOS_DEFAULT=[
+  {id:'s1',emoji:'💅',nombre:'Unas Acrilicas Full',cat:'Unas Acrilicas',precio:25,duracion:90,desc:'Extensiones completas en polvo acrilico'},
+  {id:'s2',emoji:'✨',nombre:'Acrigel Full',cat:'Acrigel',precio:28,duracion:90,desc:'Extensiones con sistema acrigel'},
+  {id:'s3',emoji:'💎',nombre:'Semipermanente',cat:'Semipermanente',precio:18,duracion:60,desc:'Esmalte semipermanente con cura UV'},
+  {id:'s4',emoji:'🌸',nombre:'Polygel Full',cat:'Polygel',precio:30,duracion:100,desc:'Extensiones con polygel'},
+  {id:'s5',emoji:'🎨',nombre:'Nail Art (diseno)',cat:'Nail Art',precio:10,duracion:30,desc:'Disenos artisticos por una o set'},
+  {id:'s6',emoji:'🔄',nombre:'Retoque Acrilico',cat:'Retoque',precio:15,duracion:60,desc:'Relleno y mantenimiento acrilico'},
+  {id:'s7',emoji:'🛁',nombre:'Spa de Unas',cat:'Spa Unas',precio:12,duracion:45,desc:'Hidratacion, exfoliacion y masaje de manos'},
+  {id:'s8',emoji:'🌺',nombre:'Semipermanente Pies',cat:'Semipermanente',precio:15,duracion:50,desc:'Semipermanente en pies'}
+];
+
+function _loadDefaultData(){
+  if(!DB.get('productos_cargados')){
+    if(!DB.get('servicios')||DB.get('servicios').length===0)DB.set('servicios',SERVICIOS_DEFAULT);
+    DB.set('productos_cargados',true);
+  }
+}
+
+function renderServicios(){
+  var q=(gel('serv-search')||{}).value||'';
+  var cat=(gel('serv-cat-filter')||{}).value||'';
+  var servs=DB.get('servicios')||[];
+  var f=servs.filter(function(s){
+    return(!q||s.nombre.toLowerCase().includes(q.toLowerCase()))&&(!cat||s.cat===cat);
+  });
+  var tb=gel('serv-tbody');if(!tb)return;
+  var cfg=getCfg();
+  tb.innerHTML=f.length?f.map(function(s){
+    return'<tr>'+
+      '<td style="font-size:22px">'+s.emoji+'</td>'+
+      '<td><strong>'+s.nombre+'</strong>'+(s.desc?'<br><span style="font-size:11px;color:var(--text3)">'+s.desc+'</span>':'')+'</td>'+
+      '<td><span class="badge badge-lila">'+s.cat+'</span></td>'+
+      '<td style="font-family:var(--mono);color:var(--gold)">'+fmt$(s.precio)+'</td>'+
+      '<td style="font-family:var(--mono);color:var(--text2)">Bs '+((s.precio*(cfg.tasa||40)).toFixed(2))+'</td>'+
+      '<td style="color:var(--text2)">'+s.duracion+' min</td>'+
+      '<td>'+
+        '<button class="btn btn-ghost btn-sm" onclick="abrirModalServicio(\''+s.id+'\')">Editar</button> '+
+        '<button class="btn btn-danger btn-sm" onclick="eliminarServicio(\''+s.id+'\')">Eliminar</button>'+
+      '</td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:30px">Sin servicios registrados</td></tr>';
+}
+
+function abrirModalServicio(id){
+  var s=null;
+  if(id){var all=DB.get('servicios')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){s=all[i];break;}}}
+  gel('mserv-title').textContent=s?'Editar Servicio':'Nuevo Servicio';
+  gel('mserv-id').value=s?s.id:'';
+  gel('mserv-nombre').value=s?s.nombre:'';
+  gel('mserv-emoji').value=s?(s.emoji||'💅'):'💅';
+  gel('mserv-cat').value=s?s.cat:'Unas Acrilicas';
+  gel('mserv-precio').value=s?s.precio:'';
+  gel('mserv-duracion').value=s?s.duracion:60;
+  gel('mserv-desc').value=s?(s.desc||''):'';
+  openModal('modalServicio');
+}
+
+function guardarServicio(){
+  var id=gel('mserv-id').value;
+  var s={
+    id:id||uid(),
+    emoji:gel('mserv-emoji').value||'💅',
+    nombre:gel('mserv-nombre').value.trim(),
+    cat:gel('mserv-cat').value,
+    precio:parseFloat(gel('mserv-precio').value)||0,
+    duracion:parseInt(gel('mserv-duracion').value)||60,
+    desc:gel('mserv-desc').value.trim()
+  };
+  if(!s.nombre){showToast('Nombre requerido','danger');return;}
+  var all=DB.get('servicios')||[];
+  if(id){var i=-1;for(var j=0;j<all.length;j++){if(all[j].id===id){i=j;break;}}if(i>=0)all[i]=s;else all.push(s);}
+  else all.push(s);
+  DB.set('servicios',all);
+  closeModal('modalServicio');
+  renderServicios();
+  showToast('Servicio guardado','success');
+}
+
+function eliminarServicio(id){
+  if(!confirm('Eliminar este servicio?'))return;
+  var all=DB.get('servicios')||[];
+  DB.set('servicios',all.filter(function(s){return s.id!==id;}));
+  renderServicios();
+  showToast('Servicio eliminado','info');
+}
+
+// ── CLIENTAS ──
+function renderClientas(){
+  var q=(gel('cli-search')||{}).value||'';
+  var all=DB.get('clientas')||[];
+  var f=all.filter(function(c){return!q||c.nombre.toLowerCase().includes(q.toLowerCase())||(c.telefono||'').includes(q);});
+  var grid=gel('clientas-grid');if(!grid)return;
+  grid.innerHTML=f.length?f.map(function(c){
+    var citas=DB.get('citas')||[];
+    var nCitas=0;for(var i=0;i<citas.length;i++){if(citas[i].clientaId===c.id)nCitas++;}
+    return'<div class="cliente-card" onclick="verClienta(\''+c.id+'\')">'+
+      '<div class="cliente-avatar">'+c.nombre.charAt(0).toUpperCase()+'</div>'+
+      '<div class="cliente-nombre">'+c.nombre+'</div>'+
+      '<div class="cliente-tel">'+((c.telefono)||'Sin telefono')+'</div>'+
+      '<div class="cliente-stats">'+
+        '<span>'+nCitas+' citas</span>'+
+        (c.formaFav?'<span>'+c.formaFav+'</span>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:6px;margin-top:10px;justify-content:center">'+
+        '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();abrirModalClienta(\''+c.id+'\')">Editar</button>'+
+        '<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarClienta(\''+c.id+'\')">Eliminar</button>'+
+      '</div>'+
+    '</div>';
+  }).join(''):'<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text3)">Sin clientas registradas<br><small>Agrega tu primera clienta</small></div>';
+}
+
+function abrirModalClienta(id){
+  var c=null;
+  if(id){var all=DB.get('clientas')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){c=all[i];break;}}}
+  gel('mcli-title').textContent=c?'Editar Clienta':'Nueva Clienta';
+  gel('mcli-id').value=c?c.id:'';
+  gel('mcli-nombre').value=c?c.nombre:'';
+  gel('mcli-telefono').value=c?(c.telefono||''):'';
+  gel('mcli-nacimiento').value=c?(c.nacimiento||''):'';
+  gel('mcli-forma').value=c?(c.formaFav||'Almendra'):'Almendra';
+  gel('mcli-largo').value=c?(c.largoFav||'Media'):'Media';
+  gel('mcli-color').value=c?(c.colorFav||''):'';
+  gel('mcli-notas').value=c?(c.notas||''):'';
+  openModal('modalClienta');
+}
+
+function guardarClienta(){
+  var id=gel('mcli-id').value;
+  var c={
+    id:id||uid(),
+    nombre:gel('mcli-nombre').value.trim(),
+    telefono:gel('mcli-telefono').value.trim(),
+    nacimiento:gel('mcli-nacimiento').value,
+    formaFav:gel('mcli-forma').value,
+    largoFav:gel('mcli-largo').value,
+    colorFav:gel('mcli-color').value.trim(),
+    notas:gel('mcli-notas').value.trim()
+  };
+  if(!c.nombre){showToast('Nombre requerido','danger');return;}
+  var all=DB.get('clientas')||[];
+  if(id){var i=-1;for(var j=0;j<all.length;j++){if(all[j].id===id){i=j;break;}}if(i>=0)all[i]=c;else all.push(c);}
+  else all.push(c);
+  DB.set('clientas',all);
+  closeModal('modalClienta');
+  renderClientas();
+  showToast('Clienta guardada','success');
+}
+
+function eliminarClienta(id){
+  if(!confirm('Eliminar esta clienta?'))return;
+  var all=DB.get('clientas')||[];
+  DB.set('clientas',all.filter(function(c){return c.id!==id;}));
+  renderClientas();
+  showToast('Clienta eliminada','info');
+}
+
+function verClienta(id){
+  abrirModalClienta(id);
+}
+
+// ── AGENDA / CITAS ──
+var _agendaWeekOffset=0;
+
+function getWeekDates(offset){
+  var d=new Date();d.setDate(d.getDate()-d.getDay()+1+(offset*7));
+  var days=[];
+  for(var i=0;i<7;i++){var dd=new Date(d);dd.setDate(d.getDate()+i);days.push(dd);}
+  return days;
+}
+
+function renderAgenda(){
+  var days=getWeekDates(_agendaWeekOffset);
+  var citas=DB.get('citas')||[];
+  var clientas=DB.get('clientas')||[];
+  var servicios=DB.get('servicios')||[];
+  var wl=gel('agenda-week-label');
+  if(wl)wl.textContent=days[0].toLocaleDateString('es-VE',{day:'2-digit',month:'short'})+' – '+days[6].toLocaleDateString('es-VE',{day:'2-digit',month:'short',year:'numeric'});
+  var grid=gel('agenda-semana');if(!grid)return;
+  var today=todayStr();
+  grid.innerHTML=days.map(function(d){
+    var ds=d.toISOString().slice(0,10);
+    var dayNames=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+    var dayName=dayNames[d.getDay()];
+    var dayNum=d.getDate();
+    var isToday=ds===today;
+    var dayCitas=citas.filter(function(c){return c.fecha===ds;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
+    return'<div class="agenda-day'+(isToday?' agenda-day-today':'')+'">'+
+      '<div class="agenda-day-header">'+
+        '<div class="agenda-day-name">'+dayName+'</div>'+
+        '<div class="agenda-day-num'+(isToday?' today-num':'')+'">'+dayNum+'</div>'+
+      '</div>'+
+      '<div class="agenda-day-citas">'+
+        dayCitas.map(function(c){
+          var cli=null;for(var i=0;i<clientas.length;i++){if(clientas[i].id===c.clientaId){cli=clientas[i];break;}}
+          var serv=null;for(var j=0;j<servicios.length;j++){if(servicios[j].id===c.servicioId){serv=servicios[j];break;}}
+          return'<div class="cita-card cita-'+c.estado+'" onclick="verCita(\''+c.id+'\')" title="'+c.hora+' — '+(cli?cli.nombre:'?')+'">'+
+            '<div class="cita-hora">'+c.hora+'</div>'+
+            '<div class="cita-cliente">'+(cli?cli.nombre:'Sin clienta')+'</div>'+
+            '<div class="cita-servicio">'+(serv?serv.emoji+' '+serv.nombre:'Sin servicio')+'</div>'+
+            '<div class="cita-precio">'+fmt$(c.precio||0)+'</div>'+
+          '</div>';
+        }).join('')+
+        '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;font-size:11px;opacity:0.7" onclick="abrirModalCita(\''+ds+'\')">+ Cita</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function agendaSemanaAnterior(){_agendaWeekOffset--;renderAgenda();}
+function agendaSiguienteSemana(){_agendaWeekOffset++;renderAgenda();}
+function agendaHoy(){_agendaWeekOffset=0;renderAgenda();}
+
+function abrirModalCita(fechaPreset,id){
+  var c=null;
+  if(id){var all=DB.get('citas')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){c=all[i];break;}}}
+  gel('mcita-title').textContent=c?'Editar Cita':'Nueva Cita';
+  gel('mcita-id').value=c?c.id:'';
+  var clientas=DB.get('clientas')||[];
+  gel('mcita-clienta').innerHTML='<option value="">— Seleccionar clienta —</option>'+clientas.map(function(cl){return'<option value="'+cl.id+'"'+(c&&c.clientaId===cl.id?' selected':'')+'>'+cl.nombre+'</option>';}).join('');
+  var servs=DB.get('servicios')||[];
+  gel('mcita-servicio').innerHTML='<option value="">— Seleccionar servicio —</option>'+servs.map(function(s){return'<option value="'+s.id+'"'+(c&&c.servicioId===s.id?' selected':'')+'>'+s.emoji+' '+s.nombre+' — '+fmt$(s.precio)+'</option>';}).join('');
+  gel('mcita-fecha').value=c?c.fecha:(fechaPreset||todayStr());
+  gel('mcita-hora').value=c?c.hora:'10:00';
+  gel('mcita-precio').value=c?c.precio:'';
+  var durEl=gel('mcita-duracion');if(durEl)durEl.value=c?(c.duracion||60):60;
+  gel('mcita-nota').value=c?(c.nota||''):'';
+  gel('mcita-tecnica').value=c?(c.tecnica||getCfg().tecnica||''):'';
+  openModal('modalCita');
+}
+
+function autoFillCitaPrecio(){
+  var sid=gel('mcita-servicio').value;
+  if(!sid)return;
+  var servs=DB.get('servicios')||[];
+  var s=null;for(var i=0;i<servs.length;i++){if(servs[i].id===sid){s=servs[i];break;}}
+  if(s){
+    gel('mcita-precio').value=s.precio;
+    var durEl=gel('mcita-duracion');if(durEl)durEl.value=s.duracion;
+  }
+}
+
+function guardarCita(){
+  var id=gel('mcita-id').value;
+  var c={
+    id:id||uid(),
+    clientaId:gel('mcita-clienta').value,
+    servicioId:gel('mcita-servicio').value,
+    fecha:gel('mcita-fecha').value,
+    hora:gel('mcita-hora').value,
+    precio:parseFloat(gel('mcita-precio').value)||0,
+    nota:gel('mcita-nota').value.trim(),
+    tecnica:gel('mcita-tecnica').value.trim(),
+    estado:'pendiente',
+    ts:Date.now()
+  };
+  if(!c.clientaId){showToast('Selecciona una clienta','danger');return;}
+  if(!c.fecha){showToast('Selecciona la fecha','danger');return;}
+  var all=DB.get('citas')||[];
+  if(id){var i=-1;for(var j=0;j<all.length;j++){if(all[j].id===id){i=j;break;}}if(i>=0)all[i]=c;else all.push(c);}
+  else all.push(c);
+  DB.set('citas',all);
+  closeModal('modalCita');
+  renderAgenda();
+  showToast('Cita guardada','success');
+}
+
+function verCita(id){
+  abrirModalCita(null,id);
+}
+
+function cobrarCita(id){
+  var all=DB.get('citas')||[];
+  var c=null;for(var i=0;i<all.length;i++){if(all[i].id===id){c=all[i];break;}}
+  if(!c)return;
+  var clientas=DB.get('clientas')||[];
+  var servs=DB.get('servicios')||[];
+  var cli=null;for(var i=0;i<clientas.length;i++){if(clientas[i].id===c.clientaId){cli=clientas[i];break;}}
+  var serv=null;for(var j=0;j<servs.length;j++){if(servs[j].id===c.servicioId){serv=servs[j];break;}}
+  closeModal('modalCita');
+  var tit=gel('mcobro-titulo');if(tit)tit.textContent='Cobrar Cita';
+  var det=gel('mcobro-detalle');
+  if(det)det.innerHTML=(cli?'<strong>'+cli.nombre+'</strong><br>':'')+(serv?serv.emoji+' '+serv.nombre+'<br>':'')+'Fecha: '+c.fecha+' '+c.hora;
+  var totEl=gel('mcobro-total');if(totEl)totEl.textContent=fmt$(c.precio);
+  var cfg=getCfg();
+  var bsEl=gel('mcobro-total-bs');if(bsEl)bsEl.textContent='≈ Bs '+(c.precio*(cfg.tasa||40)).toFixed(2);
+  var cidEl=gel('mcobro-cita-id');if(cidEl)cidEl.value=id;
+  var monEl=gel('mcobro-monto');if(monEl)monEl.value=c.precio;
+  document.querySelectorAll('.metodo-btn').forEach(function(b){b.classList.remove('active-metodo');});
+  openModal('modalCobro');
+}
+
+function confirmarCobro(){
+  var cidEl=gel('mcobro-cita-id');var id=cidEl?cidEl.value:'';
+  var metodo=document.querySelector('.metodo-btn.active-metodo');
+  if(!metodo){showToast('Selecciona metodo de pago','danger');return;}
+  var metodoLabel=metodo.textContent.trim();
+  var monto=parseFloat((gel('mcobro-monto')||{}).value)||0;
+  var all=DB.get('citas')||[];
+  var idx=-1;for(var i=0;i<all.length;i++){if(all[i].id===id){idx=i;break;}}
+  if(idx>=0){all[idx].estado='completada';all[idx].cobrado=monto;all[idx].metodo=metodoLabel;all[idx].cobradoTs=Date.now();}
+  DB.set('citas',all);
+  var c=idx>=0?all[idx]:null;
+  var ventas=DB.get('ventas')||[];
+  ventas.push({id:uid(),citaId:id,clientaId:c?c.clientaId:'',total:monto,metodo:metodoLabel,fecha:todayStr(),ts:Date.now()});
+  DB.set('ventas',ventas);
+  var caja=DB.get('caja_actual');
+  if(caja&&caja.abierta){
+    caja.movimientos=caja.movimientos||[];
+    caja.movimientos.push({tipo:'entrada',desc:metodoLabel+' — Cita',monto:monto,ts:Date.now()});
+    caja.totalEntradas=(caja.totalEntradas||0)+monto;
+    DB.set('caja_actual',caja);
+  }
+  closeModal('modalCobro');
+  showToast('Cobro registrado — '+fmt$(monto),'success');
+  renderDashboard();
+  renderAgenda();
+}
+
+function selMetodoPago(el){
+  document.querySelectorAll('.metodo-btn').forEach(function(b){b.classList.remove('active-metodo');});
+  el.classList.add('active-metodo');
+  var monto=parseFloat((gel('mcobro-monto')||{}).value)||0;
+  var cfg=getCfg();
+  var bsEl=gel('mcobro-total-bs');
+  if(bsEl)bsEl.textContent='≈ Bs '+(monto*(cfg.tasa||40)).toFixed(2);
+}
+
+// ── MATERIALES ──
+function renderMateriales(){
+  var q=(gel('mat-search')||{}).value||'';
+  var all=DB.get('materiales')||[];
+  var f=all.filter(function(m){return!q||m.nombre.toLowerCase().includes(q.toLowerCase());});
+  var tb=gel('mat-tbody');if(!tb)return;
+  tb.innerHTML=f.length?f.map(function(m){
+    var sc=m.stock<=0?'var(--danger)':m.stock<=(m.stockMin||2)?'var(--warn)':'var(--success)';
+    return'<tr>'+
+      '<td><strong>'+m.nombre+'</strong></td>'+
+      '<td><span class="badge badge-rose">'+m.cat+'</span></td>'+
+      '<td><strong style="color:'+sc+'">'+m.stock+'</strong></td>'+
+      '<td style="color:var(--text2)">'+m.unidad+'</td>'+
+      '<td style="color:var(--text3)">'+m.stockMin+'</td>'+
+      (m.costo?'<td style="font-family:var(--mono);color:var(--gold)">'+fmt$(m.costo)+'</td>':'<td style="color:var(--text3)">—</td>')+
+      '<td>'+
+        '<button class="btn btn-ghost btn-sm" onclick="abrirModalMaterial(\''+m.id+'\')">Editar</button> '+
+        '<button class="btn btn-danger btn-sm" onclick="eliminarMaterial(\''+m.id+'\')">Eliminar</button>'+
+      '</td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:30px">Sin materiales registrados</td></tr>';
+}
+
+function abrirModalMaterial(id){
+  var m=null;
+  if(id){var all=DB.get('materiales')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){m=all[i];break;}}}
+  gel('mmat-title').textContent=m?'Editar Material':'Nuevo Material';
+  gel('mmat-id').value=m?m.id:'';
+  gel('mmat-nombre').value=m?m.nombre:'';
+  gel('mmat-cat').value=m?(m.cat||'Polvos Acrilicos'):'Polvos Acrilicos';
+  gel('mmat-stock').value=m?m.stock:0;
+  gel('mmat-stockmin').value=m?(m.stockMin||2):2;
+  gel('mmat-unidad').value=m?(m.unidad||'Unidad'):'Unidad';
+  gel('mmat-costo').value=m?(m.costo||''):'';
+  openModal('modalMaterial');
+}
+
+function guardarMaterial(){
+  var id=gel('mmat-id').value;
+  var m={
+    id:id||uid(),
+    nombre:gel('mmat-nombre').value.trim(),
+    cat:gel('mmat-cat').value,
+    stock:parseFloat(gel('mmat-stock').value)||0,
+    stockMin:parseFloat(gel('mmat-stockmin').value)||2,
+    unidad:gel('mmat-unidad').value,
+    costo:parseFloat(gel('mmat-costo').value)||0
+  };
+  if(!m.nombre){showToast('Nombre requerido','danger');return;}
+  var all=DB.get('materiales')||[];
+  if(id){var i=-1;for(var j=0;j<all.length;j++){if(all[j].id===id){i=j;break;}}if(i>=0)all[i]=m;else all.push(m);}
+  else all.push(m);
+  DB.set('materiales',all);
+  closeModal('modalMaterial');
+  renderMateriales();
+  showToast('Material guardado','success');
+}
+
+function eliminarMaterial(id){
+  if(!confirm('Eliminar este material?'))return;
+  var all=DB.get('materiales')||[];
+  DB.set('materiales',all.filter(function(m){return m.id!==id;}));
+  renderMateriales();
+  showToast('Material eliminado','info');
+}
+
+// ── CAJA ──
+function renderCaja(){
+  var caja=DB.get('caja_actual');
+  var ca=gel('caja-abierta');var cc=gel('caja-cerrada');
+  if(!caja||!caja.abierta){
+    if(ca)ca.style.display='none';
+    if(cc)cc.style.display='block';
+    return;
+  }
+  if(ca)ca.style.display='block';
+  if(cc)cc.style.display='none';
+  set$('caja-apertura-hora',fmtDateTime(caja.ts));
+  set$('caja-base-usd',fmt$(caja.baseUsd||0));
+  set$('caja-base-bs','Bs '+(caja.baseBs||0).toFixed(2));
+  var movs=caja.movimientos||[];
+  var totalE=0;for(var i=0;i<movs.length;i++){if(movs[i].tipo==='entrada')totalE+=movs[i].monto;}
+  var totalS=0;for(var i=0;i<movs.length;i++){if(movs[i].tipo==='salida')totalS+=movs[i].monto;}
+  set$('caja-total-entradas',fmt$(totalE+(caja.baseUsd||0)));
+  set$('caja-total-salidas',fmt$(totalS));
+  set$('caja-balance',fmt$(totalE+(caja.baseUsd||0)-totalS));
+  var ml=gel('caja-movs-list');
+  if(ml){
+    ml.innerHTML=movs.length?movs.slice().reverse().map(function(m){
+      var esE=m.tipo==='entrada';
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card);border-radius:8px;margin-bottom:6px">'+
+        '<div>'+
+          '<span style="font-size:16px">'+(esE?'↑':'↓')+'</span> '+
+          '<span style="color:var(--text);font-size:13px">'+m.desc+'</span>'+
+          '<div style="font-size:11px;color:var(--text3)">'+fmtDateTime(m.ts)+'</div>'+
+        '</div>'+
+        '<span style="font-family:var(--mono);color:'+(esE?'var(--success)':'var(--danger)')+'">'+
+          (esE?'+':'-')+fmt$(m.monto)+'</span>'+
+      '</div>';
+    }).join(''):'<div style="text-align:center;color:var(--text3);padding:20px">Sin movimientos</div>';
+  }
+}
+
+function abrirCaja(){
+  var baseUsd=parseFloat((gel('caja-monto-usd')||{}).value)||0;
+  var baseBs=parseFloat((gel('caja-monto-bs')||{}).value)||0;
+  var caja={abierta:true,ts:Date.now(),baseUsd:baseUsd,baseBs:baseBs,movimientos:[],totalEntradas:0,totalSalidas:0};
+  DB.set('caja_actual',caja);
+  renderCaja();
+  showToast('Caja abierta','success');
+}
+
+function cerrarCaja(){
+  if(!confirm('Cerrar la caja del dia?'))return;
+  var caja=DB.get('caja_actual');
+  if(!caja)return;
+  caja.abierta=false;caja.cierreTs=Date.now();
+  var hist=DB.get('caja_historial')||[];hist.push(caja);DB.set('caja_historial',hist);
+  DB.remove('caja_actual');
+  renderCaja();
+  showToast('Caja cerrada y archivada','success');
+}
+
+function abrirMovCaja(tipo){
+  var monto=parseFloat(prompt((tipo==='entrada'?'Monto de entrada $:':'Monto de salida $:'))||'0')||0;
+  if(!monto||monto<=0)return;
+  var desc=prompt('Descripcion:')||tipo;
+  var caja=DB.get('caja_actual');
+  if(!caja||!caja.abierta){showToast('Abre la caja primero','warn');return;}
+  caja.movimientos=caja.movimientos||[];
+  caja.movimientos.push({tipo:tipo,desc:desc,monto:monto,ts:Date.now()});
+  DB.set('caja_actual',caja);
+  renderCaja();
+  showToast((tipo==='entrada'?'Entrada':'Salida')+' registrada — '+fmt$(monto),'success');
+}
+
+function cajaSyncBs(){
+  var usd=parseFloat((gel('caja-monto-usd')||{}).value)||0;
+  var tasa=getCfg().tasa||40;
+  var bsEl=gel('caja-monto-bs');if(bsEl)bsEl.value=(usd*tasa).toFixed(2);
+}
+function cajaSyncUsd(){
+  var bs=parseFloat((gel('caja-monto-bs')||{}).value)||0;
+  var tasa=getCfg().tasa||40;
+  var usdEl=gel('caja-monto-usd');if(usdEl)usdEl.value=(bs/tasa).toFixed(2);
+}
+
+// ── DASHBOARD + REPORTES ──
+function renderDashboard(){
+  var today=todayStr();
+  var citas=DB.get('citas')||[];
+  var ventas=DB.get('ventas')||[];
+  var citasHoy=citas.filter(function(c){return c.fecha===today;});
+  var ventasHoy=ventas.filter(function(v){return v.fecha===today;});
+  var ingresosHoy=0;for(var i=0;i<ventasHoy.length;i++)ingresosHoy+=ventasHoy[i].total;
+  var clientas=DB.get('clientas')||[];
+  set$('dash-citas-hoy',citasHoy.length);
+  set$('dash-ingresos-hoy',fmt$(ingresosHoy));
+  set$('dash-clientas-total',clientas.length);
+  set$('dash-servicios-total',ventas.length);
+  var dah=gel('dash-agenda-hoy');
+  var servs=DB.get('servicios')||[];
+  if(dah){
+    var sorted=citasHoy.slice().sort(function(a,b){return a.hora.localeCompare(b.hora);});
+    dah.innerHTML=sorted.length?sorted.map(function(c){
+      var cli=null;for(var i=0;i<clientas.length;i++){if(clientas[i].id===c.clientaId){cli=clientas[i];break;}}
+      var serv=null;for(var j=0;j<servs.length;j++){if(servs[j].id===c.servicioId){serv=servs[j];break;}}
+      return'<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--card);border-radius:10px;margin-bottom:8px;border-left:3px solid var(--fuchsia)">'+
+        '<div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--rose);min-width:50px">'+c.hora+'</div>'+
+        '<div style="flex:1">'+
+          '<div style="font-weight:600">'+(cli?cli.nombre:'Sin clienta')+'</div>'+
+          '<div style="font-size:12px;color:var(--text2)">'+(serv?serv.emoji+' '+serv.nombre:'Sin servicio')+'</div>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:6px">'+
+          '<span style="font-family:var(--mono);color:var(--gold)">'+fmt$(c.precio)+'</span>'+
+          (c.estado==='pendiente'?'<button class="btn btn-primary btn-sm" onclick="cobrarCita(\''+c.id+'\')">Cobrar</button>':'<span class="badge badge-success">Pagado</span>')+
+        '</div>'+
+      '</div>';
+    }).join(''):'<div style="text-align:center;color:var(--text3);padding:30px">Sin citas para hoy</div>';
+  }
+  var ts=gel('dash-top-servicios');
+  if(ts){
+    var cnt={};
+    for(var i=0;i<ventas.length;i++){
+      var v=ventas[i];
+      if(v.citaId){
+        var c=null;for(var j=0;j<citas.length;j++){if(citas[j].id===v.citaId){c=citas[j];break;}}
+        if(c&&c.servicioId){cnt[c.servicioId]=(cnt[c.servicioId]||0)+1;}
+      }
+    }
+    var top=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a];}).slice(0,5);
+    ts.innerHTML=top.length?top.map(function(sid){
+      var s=null;for(var i=0;i<servs.length;i++){if(servs[i].id===sid){s=servs[i];break;}}
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--card);border-radius:8px;margin-bottom:6px">'+
+        '<span>'+(s?s.emoji+' '+s.nombre:sid)+'</span>'+
+        '<span class="badge badge-fuchsia">'+cnt[sid]+'x</span>'+
+      '</div>';
+    }).join(''):'<div style="color:var(--text3);text-align:center;padding:20px">Sin datos</div>';
+  }
+}
+
+function renderReportes(){
+  var desde=(gel('rep-desde')||{}).value||todayStr().slice(0,7)+'-01';
+  var hasta=(gel('rep-hasta')||{}).value||todayStr();
+  var ventas=DB.get('ventas')||[];
+  var citas=DB.get('citas')||[];
+  var servs=DB.get('servicios')||[];
+  var f=ventas.filter(function(v){return v.fecha>=desde&&v.fecha<=hasta;});
+  var total=0;for(var i=0;i<f.length;i++)total+=f[i].total;
+  var cfg=getCfg();
+  set$('rep-total-ingresos',fmt$(total));
+  set$('rep-total-bs','Bs '+(total*(cfg.tasa||40)).toFixed(2));
+  set$('rep-citas-count',f.length);
+  var bySvc={};
+  for(var i=0;i<f.length;i++){
+    var v=f[i];
+    if(v.citaId){
+      var c=null;for(var j=0;j<citas.length;j++){if(citas[j].id===v.citaId){c=citas[j];break;}}
+      if(c){var sid=c.servicioId;if(!bySvc[sid])bySvc[sid]={count:0,total:0};bySvc[sid].count++;bySvc[sid].total+=v.total;}
+    }
+  }
+  var topSvc=Object.keys(bySvc).sort(function(a,b){return bySvc[b].total-bySvc[a].total;});
+  if(topSvc.length){
+    var ts=null;for(var i=0;i<servs.length;i++){if(servs[i].id===topSvc[0]){ts=servs[i];break;}}
+    set$('rep-top-servicio',ts?ts.nombre:'—');
+  } else {
+    set$('rep-top-servicio','—');
+  }
+  var tb=gel('rep-tbody');
+  if(tb){
+    tb.innerHTML=topSvc.length?topSvc.map(function(sid){
+      var s=null;for(var i=0;i<servs.length;i++){if(servs[i].id===sid){s=servs[i];break;}}
+      var d=bySvc[sid];
+      return'<tr>'+
+        '<td>'+(s?s.emoji+' '+s.nombre:sid)+'</td>'+
+        '<td style="text-align:center"><strong>'+d.count+'</strong></td>'+
+        '<td style="font-family:var(--mono);color:var(--gold)">'+fmt$(d.total)+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--text2)">'+fmt$(d.total/d.count)+'</td>'+
+      '</tr>';
+    }).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:30px">Sin ventas en el periodo</td></tr>';
+  }
+}
+
+// ── STARTUP ──
+(function(){
+  var today=todayStr();
+  var fromEl=document.getElementById('rep-desde');
+  var toEl=document.getElementById('rep-hasta');
+  if(fromEl)fromEl.value=today.slice(0,7)+'-01';
+  if(toEl)toEl.value=today;
+  _ironLockInit();
+})();
+</script>
+</body>
+</html>
