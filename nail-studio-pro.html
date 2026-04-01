@@ -1297,12 +1297,24 @@
     ============================================================ */
     @media (max-width: 768px) {
       :root { --sidebar-w: 0px; }
-      .sidebar { transform: translateX(-240px); transition: transform 0.3s; }
-      .sidebar.open { transform: translateX(0); --sidebar-w: 240px; }
+      .sidebar { transform: translateX(-240px); transition: transform 0.3s; position:fixed; z-index:9000; }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay { display:block !important; }
       .main-content { margin-left: 0; }
-      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
       .agenda-semana { grid-template-columns: 40px repeat(3,1fr); }
+      #btn-hamburger { display:block !important; }
+      .topbar { padding: 0 12px; }
+      #topbar-title { font-size: 15px; }
+      .pages-container { padding: 12px; }
+      .section-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .section-header .btn { width: 100%; justify-content: center; }
+      .reporte-filtros { flex-direction: column; }
+      .stat-card { padding: 14px; }
+      .stat-value { font-size: 26px; }
+      .login-box { max-width: 100%; border-radius: 16px; margin: 8px; padding: 20px; }
     }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:8999; }
   /* ═══ POS ═══ */
   .pos-layout{display:grid;grid-template-columns:1fr 370px;gap:16px;height:calc(100vh - 130px);overflow:hidden}
   .pos-grid-panel{display:flex;flex-direction:column;gap:10px;overflow:hidden}
@@ -1436,6 +1448,7 @@
 ================================================================ -->
 <div id="app" style="display:none">
 
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
@@ -1518,7 +1531,10 @@
 
     <!-- TOPBAR -->
     <header class="topbar">
-      <div id="topbar-title">Dashboard</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="btn-hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;cursor:pointer;font-size:22px;color:var(--text);padding:0 4px;line-height:1" title="Menú">☰</button>
+        <div id="topbar-title">Dashboard</div>
+      </div>
       <div id="topbar-actions">
         <button class="btn btn-primary btn-sm" id="btn-nueva-cita" onclick="abrirModalCita()">
           📅 Nueva Cita
@@ -1896,57 +1912,94 @@
             <div class="section-title">📊 Reportes</div>
             <div class="section-subtitle">Análisis de rendimiento del salón</div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="exportarReporte()">📥 Exportar</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportarReporte()">📥 Exportar CSV</button>
         </div>
 
-        <div class="reporte-filtros">
-          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
-            <label class="form-label" style="white-space:nowrap">Desde:</label>
-            <input type="date" class="form-input" id="rep-fecha-desde" style="width:160px">
+        <!-- Filtros -->
+        <div class="reporte-filtros" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px">
+          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin:0">
+            <label class="form-label" style="white-space:nowrap;margin:0">Desde:</label>
+            <input type="date" class="form-input" id="rep-desde" style="width:148px">
           </div>
-          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
-            <label class="form-label" style="white-space:nowrap">Hasta:</label>
-            <input type="date" class="form-input" id="rep-fecha-hasta" style="width:160px">
+          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin:0">
+            <label class="form-label" style="white-space:nowrap;margin:0">Hasta:</label>
+            <input type="date" class="form-input" id="rep-hasta" style="width:148px">
           </div>
-          <button class="btn btn-primary btn-sm" onclick="generarReporte()">📊 Generar</button>
-          <button class="btn btn-ghost btn-sm" onclick="reporteMesActual()">Este mes</button>
-          <button class="btn btn-ghost btn-sm" onclick="reporteHoy()">Hoy</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="generarReporte()">📊 Generar</button>
+            <button class="btn btn-ghost btn-sm" onclick="reporteMesActual()">Este mes</button>
+            <button class="btn btn-ghost btn-sm" onclick="reporteHoy()">Hoy</button>
+          </div>
         </div>
 
-        <div class="grid-3" style="margin-bottom:24px">
+        <!-- Stats principales -->
+        <div class="grid-3" style="margin-bottom:18px">
           <div class="stat-card">
             <span class="stat-icon">💵</span>
             <div class="stat-label">Ingresos período</div>
-            <div class="stat-value gold" id="rep-ingresos">$0.00</div>
+            <div class="stat-value gold" id="rep-total-ingresos">$0.00</div>
+            <div class="stat-sub" id="rep-total-bs">Bs 0.00</div>
           </div>
           <div class="stat-card">
             <span class="stat-icon">📅</span>
-            <div class="stat-label">Citas realizadas</div>
-            <div class="stat-value fuchsia" id="rep-citas">0</div>
+            <div class="stat-label">Servicios realizados</div>
+            <div class="stat-value fuchsia" id="rep-citas-count">0</div>
           </div>
           <div class="stat-card">
             <span class="stat-icon">🏆</span>
             <div class="stat-label">Servicio top</div>
-            <div class="stat-value rose" id="rep-top-serv" style="font-size:18px;font-family:var(--body)">—</div>
+            <div class="stat-value rose" id="rep-top-servicio" style="font-size:16px;font-family:var(--body)">—</div>
           </div>
         </div>
 
+        <!-- Fórmula 50/30/20 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">💡 Fórmula de Distribución Financiera</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Basada en los ingresos del período seleccionado</div>
+          <div class="grid-3" style="gap:10px">
+            <div style="background:rgba(201,149,106,0.1);border:1px solid rgba(201,149,106,0.3);border-radius:10px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:900;color:var(--gold);font-family:var(--mono)" id="formula-50">$0.00</div>
+              <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:4px">50% Ganancias</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px">Tu ingreso personal</div>
+            </div>
+            <div style="background:rgba(214,51,132,0.1);border:1px solid rgba(214,51,132,0.3);border-radius:10px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:900;color:var(--fuchsia);font-family:var(--mono)" id="formula-30">$0.00</div>
+              <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:4px">30% Gastos</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px">Materiales y operación</div>
+            </div>
+            <div style="background:rgba(179,136,255,0.1);border:1px solid rgba(179,136,255,0.3);border-radius:10px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:900;color:var(--lila);font-family:var(--mono)" id="formula-20">$0.00</div>
+              <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:4px">20% Reinversión</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px">Crecer el negocio</div>
+            </div>
+          </div>
+          <!-- Porcentajes personalizables -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:600">DISTRIBUCIÓN RÁPIDA POR %</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button onclick="aplicarFormula(50,30,20)" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(201,149,106,0.12);color:var(--gold);cursor:pointer;font-size:11px;font-weight:700">50/30/20</button>
+              <button onclick="aplicarFormula(60,25,15)" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer;font-size:11px">60/25/15</button>
+              <button onclick="aplicarFormula(40,35,25)" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer;font-size:11px">40/35/25</button>
+              <button onclick="aplicarFormula(70,20,10)" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text2);cursor:pointer;font-size:11px">70/20/10</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla por servicio -->
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Desglose por Servicio</div>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Clienta</th>
                 <th>Servicio</th>
-                <th>Duración</th>
-                <th>Método Pago</th>
+                <th style="text-align:center">Veces</th>
                 <th>Total $</th>
-                <th>Total Bs</th>
+                <th>Promedio $</th>
               </tr>
             </thead>
             <tbody id="rep-tbody">
-              <tr><td colspan="7">
-                <div class="empty-state"><span class="empty-state-icon">📊</span><div class="empty-state-text">Selecciona un rango de fechas y genera el reporte</div></div>
+              <tr><td colspan="4">
+                <div class="empty-state"><span class="empty-state-icon">📊</span><div class="empty-state-text">Selecciona un rango de fechas y presiona Generar</div></div>
               </td></tr>
             </tbody>
           </table>
@@ -2833,6 +2886,12 @@ function _appInit(){
   },true);
 }
 
+function toggleSidebar(){
+  var sb=gel('sidebar'),ov=gel('sidebar-overlay');
+  if(sb)sb.classList.toggle('open');
+  if(ov)ov.style.display=sb&&sb.classList.contains('open')?'block':'none';
+}
+
 function showPage(page,el){
   _currentPage=page;
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -3514,6 +3573,68 @@ function renderDashboard(){
   }
 }
 
+function generarReporte(){ renderReportes(); }
+
+function reporteHoy(){
+  var t=todayStr();
+  var fd=gel('rep-desde'),fh=gel('rep-hasta');
+  if(fd)fd.value=t; if(fh)fh.value=t;
+  renderReportes();
+}
+
+function reporteMesActual(){
+  var t=todayStr();
+  var fd=gel('rep-desde'),fh=gel('rep-hasta');
+  if(fd)fd.value=t.slice(0,7)+'-01'; if(fh)fh.value=t;
+  renderReportes();
+}
+
+function exportarReporte(){
+  var ventas=DB.get('ventas')||[];
+  var desde=(gel('rep-desde')||{}).value||todayStr().slice(0,7)+'-01';
+  var hasta=(gel('rep-hasta')||{}).value||todayStr();
+  var f=ventas.filter(function(v){return v.fecha>=desde&&v.fecha<=hasta;});
+  if(!f.length){showToast('Sin datos para exportar','warn');return;}
+  var cfg=getCfg();
+  var csv='Fecha,Clienta,Servicio,Método,Total $,Total Bs\n';
+  f.forEach(function(v){
+    csv+='"'+v.fecha+'","'+(v.clienta||'—')+'","'+(v.servicio||'—')+'","'+(v.metodo||'—')+'","'+fmt$(v.total)+'","'+fmtBs(v.total*(cfg.tasa||40))+'"\n';
+  });
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='reporte-nail-studio-'+desde+'-al-'+hasta+'.csv';
+  a.click();
+  showToast('Reporte exportado','ok');
+}
+
+var _formulaPct={g:50,ga:30,r:20};
+function aplicarFormula(g,ga,r){
+  _formulaPct={g:g,ga:ga,r:r};
+  // resaltar botón activo
+  document.querySelectorAll('[onclick^="aplicarFormula"]').forEach(function(b){
+    b.style.background='rgba(255,255,255,0.04)';b.style.color='var(--text2)';
+  });
+  event.target.style.background='rgba(201,149,106,0.2)';event.target.style.color='var(--gold)';
+  // recalcular con el total actual
+  var total=parseFloat((gel('rep-total-ingresos')||{}).textContent||'0')||0;
+  _actualizarFormula(total);
+}
+
+function _actualizarFormula(total){
+  var g=_formulaPct.g||50, ga=_formulaPct.ga||30, r=_formulaPct.r||20;
+  set$('formula-50',fmt$(total*g/100));
+  set$('formula-30',fmt$(total*ga/100));
+  set$('formula-20',fmt$(total*r/100));
+  // Labels
+  var labels=document.querySelectorAll('[onclick^="aplicarFormula"]');
+  labels.forEach(function(b){
+    var m=b.getAttribute('onclick').match(/aplicarFormula\((\d+),(\d+),(\d+)\)/);
+    if(m&&parseInt(m[1])===g&&parseInt(m[2])===ga&&parseInt(m[3])===r){
+      b.style.background='rgba(201,149,106,0.2)';b.style.color='var(--gold)';
+    }
+  });
+}
+
 function renderReportes(){
   var desde=(gel('rep-desde')||{}).value||todayStr().slice(0,7)+'-01';
   var hasta=(gel('rep-hasta')||{}).value||todayStr();
@@ -3521,38 +3642,53 @@ function renderReportes(){
   var citas=DB.get('citas')||[];
   var servs=DB.get('servicios')||[];
   var f=ventas.filter(function(v){return v.fecha>=desde&&v.fecha<=hasta;});
-  var total=0;for(var i=0;i<f.length;i++)total+=f[i].total;
+  var total=0; for(var i=0;i<f.length;i++)total+=f[i].total;
   var cfg=getCfg();
   set$('rep-total-ingresos',fmt$(total));
   set$('rep-total-bs','Bs '+(total*(cfg.tasa||40)).toFixed(2));
   set$('rep-citas-count',f.length);
+  // Fórmula 50/30/20
+  _actualizarFormula(total);
+  // Agrupar por servicio
   var bySvc={};
   for(var i=0;i<f.length;i++){
     var v=f[i];
+    var sid=v.servicioId||v.servicio||'sin-cat';
+    if(!bySvc[sid])bySvc[sid]={count:0,total:0,nombre:v.servicio||sid,emoji:'💅'};
+    bySvc[sid].count++; bySvc[sid].total+=v.total;
+    // también buscar por citaId
     if(v.citaId){
-      var c=null;for(var j=0;j<citas.length;j++){if(citas[j].id===v.citaId){c=citas[j];break;}}
-      if(c){var sid=c.servicioId;if(!bySvc[sid])bySvc[sid]={count:0,total:0};bySvc[sid].count++;bySvc[sid].total+=v.total;}
+      var c=null; for(var j=0;j<citas.length;j++){if(citas[j].id===v.citaId){c=citas[j];break;}}
+      if(c){
+        var s2=null; for(var k=0;k<servs.length;k++){if(servs[k].id===c.servicioId){s2=servs[k];break;}}
+        if(s2){bySvc[sid].nombre=s2.nombre; bySvc[sid].emoji=s2.emoji||'💅';}
+      }
     }
   }
   var topSvc=Object.keys(bySvc).sort(function(a,b){return bySvc[b].total-bySvc[a].total;});
+  // Top servicio
   if(topSvc.length){
-    var ts=null;for(var i=0;i<servs.length;i++){if(servs[i].id===topSvc[0]){ts=servs[i];break;}}
-    set$('rep-top-servicio',ts?ts.nombre:'—');
+    var td=bySvc[topSvc[0]];
+    set$('rep-top-servicio',(td.emoji||'💅')+' '+td.nombre);
   } else {
     set$('rep-top-servicio','—');
   }
+  // Tabla
   var tb=gel('rep-tbody');
   if(tb){
-    tb.innerHTML=topSvc.length?topSvc.map(function(sid){
-      var s=null;for(var i=0;i<servs.length;i++){if(servs[i].id===sid){s=servs[i];break;}}
-      var d=bySvc[sid];
-      return'<tr>'+
-        '<td>'+(s?s.emoji+' '+s.nombre:sid)+'</td>'+
-        '<td style="text-align:center"><strong>'+d.count+'</strong></td>'+
-        '<td style="font-family:var(--mono);color:var(--gold)">'+fmt$(d.total)+'</td>'+
-        '<td style="font-family:var(--mono);color:var(--text2)">'+fmt$(d.total/d.count)+'</td>'+
-      '</tr>';
-    }).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:30px">Sin ventas en el periodo</td></tr>';
+    if(!topSvc.length){
+      tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:30px">Sin ventas en el período seleccionado</td></tr>';
+    } else {
+      tb.innerHTML=topSvc.map(function(sid){
+        var d=bySvc[sid];
+        return'<tr>'+
+          '<td>'+(d.emoji||'💅')+' '+d.nombre+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:var(--fuchsia)">'+d.count+'</td>'+
+          '<td style="font-family:var(--mono);color:var(--gold)">'+fmt$(d.total)+'</td>'+
+          '<td style="font-family:var(--mono);color:var(--text2)">'+fmt$(d.total/d.count)+'</td>'+
+        '</tr>';
+      }).join('');
+    }
   }
 }
 
@@ -3767,6 +3903,16 @@ function cerrarQRScanner(){
   var toEl=document.getElementById('rep-hasta');
   if(fromEl)fromEl.value=today.slice(0,7)+'-01';
   if(toEl)toEl.value=today;
+  // Cerrar sidebar al tocar fuera en móvil al navegar
+  document.querySelectorAll('.nav-item').forEach(function(ni){
+    ni.addEventListener('click',function(){
+      if(window.innerWidth<=768){
+        var sb=gel('sidebar'),ov=gel('sidebar-overlay');
+        if(sb)sb.classList.remove('open');
+        if(ov)ov.style.display='none';
+      }
+    });
+  });
   _ironLockInit();
 })();
 </script>
