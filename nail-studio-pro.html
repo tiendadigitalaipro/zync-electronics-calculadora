@@ -1119,6 +1119,17 @@
       color: var(--rose);
       box-shadow: 0 0 10px rgba(201,149,106,0.15);
     }
+    .metodo-pago-btn.metodo-selected {
+      background: linear-gradient(135deg, var(--fuchsia), var(--lila)) !important;
+      color: white !important;
+      border-color: var(--fuchsia) !important;
+      transform: scale(1.05);
+    }
+    .emoji-opt.selected {
+      background: rgba(214,51,132,0.3) !important;
+      border-color: var(--fuchsia) !important;
+      transform: scale(1.15);
+    }
 
     /* ============================================================
        COBRO RESUMEN
@@ -2518,27 +2529,31 @@ function renderServicios(){
 function abrirModalServicio(id){
   var s=null;
   if(id){var all=DB.get('servicios')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){s=all[i];break;}}}
-  gel('mserv-title').textContent=s?'Editar Servicio':'Nuevo Servicio';
-  gel('mserv-id').value=s?s.id:'';
-  gel('mserv-nombre').value=s?s.nombre:'';
-  gel('mserv-emoji').value=s?(s.emoji||'💅'):'💅';
-  gel('mserv-cat').value=s?s.cat:'Unas Acrilicas';
-  gel('mserv-precio').value=s?s.precio:'';
-  gel('mserv-duracion').value=s?s.duracion:60;
-  gel('mserv-desc').value=s?(s.desc||''):'';
+  gel('modal-serv-titulo').textContent=s?'Editar Servicio':'Nuevo Servicio';
+  gel('serv-edit-id').value=s?s.id:'';
+  gel('serv-nombre').value=s?s.nombre:'';
+  _emojiServSeleccionado=s?(s.emoji||'💅'):'💅';
+  var prev=gel('modal-serv-icon-preview');if(prev)prev.textContent=_emojiServSeleccionado;
+  document.querySelectorAll('#serv-emoji-picker .emoji-opt').forEach(function(e){
+    e.classList.toggle('selected',e.getAttribute('data-emoji')===_emojiServSeleccionado);
+  });
+  gel('serv-categoria').value=s?s.cat:'Unas Acrilicas';
+  gel('serv-precio-usd').value=s?s.precio:'';
+  gel('serv-duracion').value=s?s.duracion:60;
+  gel('serv-descripcion').value=s?(s.desc||''):'';
   openModal('modalServicio');
 }
 
 function guardarServicio(){
-  var id=gel('mserv-id').value;
+  var id=gel('serv-edit-id').value;
   var s={
     id:id||uid(),
-    emoji:gel('mserv-emoji').value||'💅',
-    nombre:gel('mserv-nombre').value.trim(),
-    cat:gel('mserv-cat').value,
-    precio:parseFloat(gel('mserv-precio').value)||0,
-    duracion:parseInt(gel('mserv-duracion').value)||60,
-    desc:gel('mserv-desc').value.trim()
+    emoji:_emojiServSeleccionado||'💅',
+    nombre:gel('serv-nombre').value.trim(),
+    cat:gel('serv-categoria').value,
+    precio:parseFloat(gel('serv-precio-usd').value)||0,
+    duracion:parseInt(gel('serv-duracion').value)||60,
+    desc:gel('serv-descripcion').value.trim()
   };
   if(!s.nombre){showToast('Nombre requerido','danger');return;}
   var all=DB.get('servicios')||[];
@@ -2586,29 +2601,29 @@ function renderClientas(){
 function abrirModalClienta(id){
   var c=null;
   if(id){var all=DB.get('clientas')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){c=all[i];break;}}}
-  gel('mcli-title').textContent=c?'Editar Clienta':'Nueva Clienta';
-  gel('mcli-id').value=c?c.id:'';
-  gel('mcli-nombre').value=c?c.nombre:'';
-  gel('mcli-telefono').value=c?(c.telefono||''):'';
-  gel('mcli-nacimiento').value=c?(c.nacimiento||''):'';
-  gel('mcli-forma').value=c?(c.formaFav||'Almendra'):'Almendra';
-  gel('mcli-largo').value=c?(c.largoFav||'Media'):'Media';
-  gel('mcli-color').value=c?(c.colorFav||''):'';
-  gel('mcli-notas').value=c?(c.notas||''):'';
+  gel('modal-cli-titulo').textContent=c?'Editar Clienta':'Nueva Clienta';
+  gel('cli-edit-id').value=c?c.id:'';
+  gel('cli-nombre').value=c?c.nombre:'';
+  gel('cli-tel').value=c?(c.telefono||''):'';
+  gel('cli-nacimiento').value=c?(c.nacimiento||''):'';
+  gel('cli-forma').value=c?(c.formaFav||'Almendra'):'Almendra';
+  gel('cli-largo').value=c?(c.largoFav||'Media'):'Media';
+  gel('cli-color').value=c?(c.colorFav||''):'';
+  gel('cli-notas').value=c?(c.notas||''):'';
   openModal('modalClienta');
 }
 
 function guardarClienta(){
-  var id=gel('mcli-id').value;
+  var id=gel('cli-edit-id').value;
   var c={
     id:id||uid(),
-    nombre:gel('mcli-nombre').value.trim(),
-    telefono:gel('mcli-telefono').value.trim(),
-    nacimiento:gel('mcli-nacimiento').value,
-    formaFav:gel('mcli-forma').value,
-    largoFav:gel('mcli-largo').value,
-    colorFav:gel('mcli-color').value.trim(),
-    notas:gel('mcli-notas').value.trim()
+    nombre:gel('cli-nombre').value.trim(),
+    telefono:gel('cli-tel').value.trim(),
+    nacimiento:gel('cli-nacimiento').value,
+    formaFav:gel('cli-forma').value,
+    largoFav:gel('cli-largo').value,
+    colorFav:gel('cli-color').value.trim(),
+    notas:gel('cli-notas').value.trim()
   };
   if(!c.nombre){showToast('Nombre requerido','danger');return;}
   var all=DB.get('clientas')||[];
@@ -2687,43 +2702,44 @@ function agendaHoy(){_agendaWeekOffset=0;renderAgenda();}
 function abrirModalCita(fechaPreset,id){
   var c=null;
   if(id){var all=DB.get('citas')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){c=all[i];break;}}}
-  gel('mcita-title').textContent=c?'Editar Cita':'Nueva Cita';
-  gel('mcita-id').value=c?c.id:'';
+  gel('modal-cita-titulo').textContent=c?'Editar Cita':'Nueva Cita';
+  gel('cita-edit-id').value=c?c.id:'';
   var clientas=DB.get('clientas')||[];
-  gel('mcita-clienta').innerHTML='<option value="">— Seleccionar clienta —</option>'+clientas.map(function(cl){return'<option value="'+cl.id+'"'+(c&&c.clientaId===cl.id?' selected':'')+'>'+cl.nombre+'</option>';}).join('');
+  gel('cita-clienta').innerHTML='<option value="">— Seleccionar clienta —</option>'+clientas.map(function(cl){return'<option value="'+cl.id+'"'+(c&&c.clientaId===cl.id?' selected':'')+'>'+cl.nombre+'</option>';}).join('');
   var servs=DB.get('servicios')||[];
-  gel('mcita-servicio').innerHTML='<option value="">— Seleccionar servicio —</option>'+servs.map(function(s){return'<option value="'+s.id+'"'+(c&&c.servicioId===s.id?' selected':'')+'>'+s.emoji+' '+s.nombre+' — '+fmt$(s.precio)+'</option>';}).join('');
-  gel('mcita-fecha').value=c?c.fecha:(fechaPreset||todayStr());
-  gel('mcita-hora').value=c?c.hora:'10:00';
-  gel('mcita-precio').value=c?c.precio:'';
-  var durEl=gel('mcita-duracion');if(durEl)durEl.value=c?(c.duracion||60):60;
-  gel('mcita-nota').value=c?(c.nota||''):'';
-  gel('mcita-tecnica').value=c?(c.tecnica||getCfg().tecnica||''):'';
+  gel('cita-servicio').innerHTML='<option value="">— Seleccionar servicio —</option>'+servs.map(function(s){return'<option value="'+s.id+'"'+(c&&c.servicioId===s.id?' selected':'')+'>'+s.emoji+' '+s.nombre+' — '+fmt$(s.precio)+'</option>';}).join('');
+  gel('cita-fecha').value=c?c.fecha:(fechaPreset||todayStr());
+  gel('cita-hora').value=c?c.hora:'10:00';
+  gel('cita-precio').value=c?c.precio:'';
+  var durEl=gel('cita-duracion');if(durEl)durEl.value=c?(c.duracion||60):60;
+  gel('cita-nota').value=c?(c.nota||''):'';
+  gel('cita-tecnica').value=c?(c.tecnica||getCfg().tecnica||''):'';
   openModal('modalCita');
 }
 
 function autoFillCitaPrecio(){
-  var sid=gel('mcita-servicio').value;
+  var sid=gel('cita-servicio').value;
   if(!sid)return;
   var servs=DB.get('servicios')||[];
   var s=null;for(var i=0;i<servs.length;i++){if(servs[i].id===sid){s=servs[i];break;}}
   if(s){
-    gel('mcita-precio').value=s.precio;
-    var durEl=gel('mcita-duracion');if(durEl)durEl.value=s.duracion;
+    gel('cita-precio').value=s.precio;
+    var durEl=gel('cita-duracion');if(durEl)durEl.value=s.duracion;
   }
 }
 
 function guardarCita(){
-  var id=gel('mcita-id').value;
+  var id=gel('cita-edit-id').value;
   var c={
     id:id||uid(),
-    clientaId:gel('mcita-clienta').value,
-    servicioId:gel('mcita-servicio').value,
-    fecha:gel('mcita-fecha').value,
-    hora:gel('mcita-hora').value,
-    precio:parseFloat(gel('mcita-precio').value)||0,
-    nota:gel('mcita-nota').value.trim(),
-    tecnica:gel('mcita-tecnica').value.trim(),
+    clientaId:gel('cita-clienta').value,
+    servicioId:gel('cita-servicio').value,
+    fecha:gel('cita-fecha').value,
+    hora:gel('cita-hora').value,
+    precio:parseFloat(gel('cita-precio').value)||0,
+    duracion:parseInt((gel('cita-duracion')||{}).value)||60,
+    nota:gel('cita-nota').value.trim(),
+    tecnica:gel('cita-tecnica').value.trim(),
     estado:'pendiente',
     ts:Date.now()
   };
@@ -2751,24 +2767,23 @@ function cobrarCita(id){
   var cli=null;for(var i=0;i<clientas.length;i++){if(clientas[i].id===c.clientaId){cli=clientas[i];break;}}
   var serv=null;for(var j=0;j<servs.length;j++){if(servs[j].id===c.servicioId){serv=servs[j];break;}}
   closeModal('modalCita');
-  var tit=gel('mcobro-titulo');if(tit)tit.textContent='Cobrar Cita';
-  var det=gel('mcobro-detalle');
+  var det=gel('cobro-clienta-serv');
   if(det)det.innerHTML=(cli?'<strong>'+cli.nombre+'</strong><br>':'')+(serv?serv.emoji+' '+serv.nombre+'<br>':'')+'Fecha: '+c.fecha+' '+c.hora;
-  var totEl=gel('mcobro-total');if(totEl)totEl.textContent=fmt$(c.precio);
+  var totEl=gel('cobro-total-display');if(totEl)totEl.textContent=fmt$(c.precio);
   var cfg=getCfg();
-  var bsEl=gel('mcobro-total-bs');if(bsEl)bsEl.textContent='≈ Bs '+(c.precio*(cfg.tasa||40)).toFixed(2);
-  var cidEl=gel('mcobro-cita-id');if(cidEl)cidEl.value=id;
-  var monEl=gel('mcobro-monto');if(monEl)monEl.value=c.precio;
-  document.querySelectorAll('.metodo-btn').forEach(function(b){b.classList.remove('active-metodo');});
+  var bsEl=gel('cobro-total-bs');if(bsEl)bsEl.textContent='≈ Bs '+(c.precio*(cfg.tasa||40)).toFixed(2);
+  var cidEl=gel('cobro-cita-id');if(cidEl)cidEl.value=id;
+  var monEl=gel('cobro-monto-usd');if(monEl)monEl.value=c.precio;
+  document.querySelectorAll('.metodo-pago-btn').forEach(function(b){b.classList.remove('metodo-selected');});
   openModal('modalCobro');
 }
 
 function confirmarCobro(){
-  var cidEl=gel('mcobro-cita-id');var id=cidEl?cidEl.value:'';
-  var metodo=document.querySelector('.metodo-btn.active-metodo');
+  var cidEl=gel('cobro-cita-id');var id=cidEl?cidEl.value:'';
+  var metodo=document.querySelector('.metodo-pago-btn.metodo-selected');
   if(!metodo){showToast('Selecciona metodo de pago','danger');return;}
-  var metodoLabel=metodo.textContent.trim();
-  var monto=parseFloat((gel('mcobro-monto')||{}).value)||0;
+  var metodoLabel=(metodo.getAttribute('data-metodo')||metodo.textContent).trim();
+  var monto=parseFloat((gel('cobro-monto-usd')||{}).value)||0;
   var all=DB.get('citas')||[];
   var idx=-1;for(var i=0;i<all.length;i++){if(all[i].id===id){idx=i;break;}}
   if(idx>=0){all[idx].estado='completada';all[idx].cobrado=monto;all[idx].metodo=metodoLabel;all[idx].cobradoTs=Date.now();}
@@ -2791,12 +2806,64 @@ function confirmarCobro(){
 }
 
 function selMetodoPago(el){
-  document.querySelectorAll('.metodo-btn').forEach(function(b){b.classList.remove('active-metodo');});
-  el.classList.add('active-metodo');
-  var monto=parseFloat((gel('mcobro-monto')||{}).value)||0;
+  document.querySelectorAll('.metodo-pago-btn').forEach(function(b){b.classList.remove('metodo-selected');});
+  el.classList.add('metodo-selected');
+  var monto=parseFloat((gel('cobro-monto-usd')||{}).value)||0;
   var cfg=getCfg();
-  var bsEl=gel('mcobro-total-bs');
+  var bsEl=gel('cobro-total-bs');
   if(bsEl)bsEl.textContent='≈ Bs '+(monto*(cfg.tasa||40)).toFixed(2);
+}
+
+// ── FUNCIONES AUXILIARES (llamadas desde HTML) ──
+var _emojiServSeleccionado='💅';
+
+function seleccionarEmojiServ(el){
+  document.querySelectorAll('#serv-emoji-picker .emoji-opt').forEach(function(e){e.classList.remove('selected');});
+  el.classList.add('selected');
+  _emojiServSeleccionado=el.getAttribute('data-emoji');
+  var prev=gel('modal-serv-icon-preview');
+  if(prev)prev.textContent=_emojiServSeleccionado;
+}
+
+function seleccionarMetodo(el){
+  document.querySelectorAll('.metodo-pago-btn').forEach(function(b){b.classList.remove('metodo-selected');});
+  el.classList.add('metodo-selected');
+  var monto=parseFloat((gel('cobro-monto-usd')||{}).value)||0;
+  var cfg=getCfg();
+  var bsEl=gel('cobro-total-bs');
+  if(bsEl)bsEl.textContent='≈ Bs '+(monto*(cfg.tasa||40)).toFixed(2);
+}
+
+function autoFillCita(){}
+
+function autoFillCitaServicio(){
+  var sid=(gel('cita-servicio')||{}).value;
+  if(!sid)return;
+  var servs=DB.get('servicios')||[];
+  var s=servs.find(function(x){return x.id===sid;});
+  if(s){
+    var pEl=gel('cita-precio');if(pEl)pEl.value=s.precio;
+    var dEl=gel('cita-duracion');if(dEl)dEl.value=s.duracion;
+  }
+}
+
+function calcPrecioBsServ(){
+  var usd=parseFloat((gel('serv-precio-usd')||{}).value)||0;
+  var bsEl=gel('serv-precio-bs');
+  if(bsEl)bsEl.value=(usd*(getCfg().tasa||40)).toFixed(2);
+}
+
+function calcCobroBS(){
+  var usd=parseFloat((gel('cobro-monto-usd')||{}).value)||0;
+  var bsEl=gel('cobro-monto-bs');
+  if(bsEl)bsEl.value=(usd*(getCfg().tasa||40)).toFixed(2);
+}
+
+function guardarCitaYCobrar(){
+  guardarCita();
+  var all=DB.get('citas')||[];
+  var last=all[all.length-1];
+  if(last)setTimeout(function(){cobrarCita(last.id);},300);
 }
 
 // ── MATERIALES ──
@@ -2824,27 +2891,27 @@ function renderMateriales(){
 function abrirModalMaterial(id){
   var m=null;
   if(id){var all=DB.get('materiales')||[];for(var i=0;i<all.length;i++){if(all[i].id===id){m=all[i];break;}}}
-  gel('mmat-title').textContent=m?'Editar Material':'Nuevo Material';
-  gel('mmat-id').value=m?m.id:'';
-  gel('mmat-nombre').value=m?m.nombre:'';
-  gel('mmat-cat').value=m?(m.cat||'Polvos Acrilicos'):'Polvos Acrilicos';
-  gel('mmat-stock').value=m?m.stock:0;
-  gel('mmat-stockmin').value=m?(m.stockMin||2):2;
-  gel('mmat-unidad').value=m?(m.unidad||'Unidad'):'Unidad';
-  gel('mmat-costo').value=m?(m.costo||''):'';
+  gel('modal-mat-titulo').textContent=m?'Editar Material':'Nuevo Material';
+  gel('mat-edit-id').value=m?m.id:'';
+  gel('mat-nombre').value=m?m.nombre:'';
+  gel('mat-categoria').value=m?(m.cat||'Polvos Acrilicos'):'Polvos Acrilicos';
+  gel('mat-stock').value=m?m.stock:0;
+  gel('mat-stock-min').value=m?(m.stockMin||2):2;
+  gel('mat-unidad').value=m?(m.unidad||'Unidad'):'Unidad';
+  gel('mat-costo').value=m?(m.costo||''):'';
   openModal('modalMaterial');
 }
 
 function guardarMaterial(){
-  var id=gel('mmat-id').value;
+  var id=gel('mat-edit-id').value;
   var m={
     id:id||uid(),
-    nombre:gel('mmat-nombre').value.trim(),
-    cat:gel('mmat-cat').value,
-    stock:parseFloat(gel('mmat-stock').value)||0,
-    stockMin:parseFloat(gel('mmat-stockmin').value)||2,
-    unidad:gel('mmat-unidad').value,
-    costo:parseFloat(gel('mmat-costo').value)||0
+    nombre:gel('mat-nombre').value.trim(),
+    cat:gel('mat-categoria').value,
+    stock:parseFloat(gel('mat-stock').value)||0,
+    stockMin:parseFloat(gel('mat-stock-min').value)||2,
+    unidad:gel('mat-unidad').value,
+    costo:parseFloat(gel('mat-costo').value)||0
   };
   if(!m.nombre){showToast('Nombre requerido','danger');return;}
   var all=DB.get('materiales')||[];
