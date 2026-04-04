@@ -192,6 +192,22 @@ input,select,textarea{font-family:var(--body)}
 .badge-pen{background:rgba(201,149,106,0.12);color:var(--rose);border:1px solid rgba(201,149,106,0.25)}
 .badge-exp{background:rgba(224,82,82,0.12);color:var(--danger);border:1px solid rgba(224,82,82,0.25)}
 .badge-off{background:rgba(123,94,138,0.15);color:var(--text3);border:1px solid rgba(123,94,138,0.25)}
+.badge-blocked{background:rgba(224,82,82,0.12);color:var(--danger);border:1px solid rgba(224,82,82,0.25)}
+.badge-paused{background:rgba(244,201,122,0.12);color:var(--warn);border:1px solid rgba(244,201,122,0.25)}
+
+/* ════════ LICENSE ACTION BUTTONS ════════ */
+.license-actions{display:flex;gap:4px;padding:10px 16px;border-top:1px solid var(--border2);background:rgba(0,0,0,0.1)}
+.license-actions .btn-icon-action{width:30px;height:30px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s;background:none}
+.license-actions .btn-activate{color:var(--success);border:1px solid rgba(76,175,135,0.3)}
+.license-actions .btn-activate:hover{background:rgba(76,175,135,0.12)}
+.license-actions .btn-block{color:var(--danger);border:1px solid rgba(224,82,82,0.3)}
+.license-actions .btn-block:hover{background:rgba(224,82,82,0.12)}
+.license-actions .btn-pause{color:var(--warn);border:1px solid rgba(244,201,122,0.3)}
+.license-actions .btn-pause:hover{background:rgba(244,201,122,0.12)}
+.license-actions .btn-share{color:#7C9AFF;border:1px solid rgba(124,154,255,0.3)}
+.license-actions .btn-share:hover{background:rgba(124,154,255,0.12)}
+.license-actions .btn-delete{color:var(--danger);border:1px solid rgba(224,82,82,0.3)}
+.license-actions .btn-delete:hover{background:rgba(224,82,82,0.12)}
 
 /* ════════ TOAST ════════ */
 #toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 20px;font-size:13px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;max-width:360px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);backdrop-filter:blur(10px)}
@@ -322,9 +338,30 @@ input,select,textarea{font-family:var(--body)}
         <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">
           Genera un código <strong style="color:var(--fuchsia)">DEMO</strong> que permite al cliente usar la app por exactamente 5 días desde su activación.
         </div>
+        <div class="section-label"><i class="fa-solid fa-user"></i> Información del Cliente</div>
         <div class="form-group">
-          <label class="form-label">Nota interna <span style="color:var(--text3);font-weight:400;text-transform:none">(opcional)</span></label>
-          <input type="text" id="demo-nota" class="form-input" placeholder="Nombre del prospecto, referencia...">
+          <label class="form-label">Nombre del Negocio <span class="req">*</span></label>
+          <input type="text" id="demo-negocio" class="form-input" placeholder="Ej: Beauty Nails Studio">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono / WhatsApp <span class="req">*</span></label>
+          <input type="tel" id="demo-telefono" class="form-input" placeholder="+58 412 1234567">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">ID Dispositivo <span style="color:var(--text3);font-weight:400;text-transform:none">(opcional)</span></label>
+            <input type="text" id="demo-device" class="form-input mono" placeholder="NS-XXXX-XXXX-XXXX (opcional)" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Días de Prueba</label>
+            <select id="demo-dias" class="form-select">
+              <option value="3">3 días</option>
+              <option value="5" selected>5 días</option>
+              <option value="7">7 días</option>
+              <option value="10">10 días</option>
+              <option value="15">15 días</option>
+            </select>
+          </div>
         </div>
         <button class="btn btn-primary btn-block" onclick="generarDEMO()" style="margin-top:4px">
           <i class="fa-solid fa-bolt"></i> Generar Código DEMO
@@ -332,8 +369,12 @@ input,select,textarea{font-family:var(--body)}
         <!-- Result -->
         <div class="result-box demo-result" id="result-demo">
           <div class="result-title"><i class="fa-solid fa-circle-check"></i> Código DEMO generado</div>
+          <div id="result-demo-client" style="font-size:11px;color:var(--text2);margin-bottom:10px;display:none">
+            <div style="margin-bottom:2px"><i class="fa-solid fa-store" style="color:var(--fuchsia)"></i> <span id="result-demo-negocio"></span></div>
+            <div><i class="fa-solid fa-phone" style="color:var(--fuchsia)"></i> <span id="result-demo-telefono"></span></div>
+          </div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:10px">
-            <i class="fa-solid fa-hourglass-half"></i> Expira 5 días después de la activación del cliente.
+            <i class="fa-solid fa-hourglass-half"></i> Expira <span id="result-demo-dias-text">5</span> días después de la activación del cliente.
           </div>
           <div class="result-code-item">
             <div class="result-code-text" id="result-demo-code">NS-DEMO-XXXXXX-XXXX</div>
@@ -472,12 +513,13 @@ input,select,textarea{font-family:var(--body)}
    CONSTANTS
    ════════════════════════════════════════════ */
 var _SIGN_SALT = 'NAILSTUDIO2026';
-var _ADMIN_PW_DEFAULT = 'NS2026ADMIN';
+var _ADMIN_PW_DEFAULT = 'NSP2026ADMIN';
 var _DB_KEY = 'ns_licencias_admin';
 var _SYNC_KEY = 'ns_licencias_generadas';
 var _loggedIn = false;
 var _lastProResult = null;
 var _lastDemoCode = null;
+var _lastDemoEntry = null;
 var _currentFilter = 'all';
 
 /* ════════════════════════════════════════════
@@ -550,7 +592,7 @@ function loginAdmin() {
   var pw = (document.getElementById('admin-pw') || {}).value || '';
   var db = getDB();
   var adminPw = db.adminPw || _ADMIN_PW_DEFAULT;
-  if (pw === adminPw || pw === _ADMIN_PW_DEFAULT) {
+  if (pw === adminPw || pw === _ADMIN_PW_DEFAULT || pw === 'NSP2026ADMIN') {
     _loggedIn = true;
     document.getElementById('loginPanel').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
@@ -692,7 +734,22 @@ function generarPRO() {
    GENERATE DEMO
    ════════════════════════════════════════════ */
 function generarDEMO() {
-  var nota = (document.getElementById('demo-nota').value || '').trim();
+  var negocio = (document.getElementById('demo-negocio').value || '').trim();
+  var telefono = (document.getElementById('demo-telefono').value || '').trim();
+  var device = (document.getElementById('demo-device').value || '').trim().toUpperCase();
+  var dias = parseInt(document.getElementById('demo-dias').value) || 5;
+
+  // Validate required
+  if (!negocio) { toast('El nombre del negocio es obligatorio', 'warn'); document.getElementById('demo-negocio').focus(); return; }
+  if (!telefono) { toast('El teléfono / WhatsApp es obligatorio', 'warn'); document.getElementById('demo-telefono').focus(); return; }
+
+  // Validate device ID format if provided
+  if (device && !device.match(/^NS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
+    toast('Formato de Device ID inválido (NS-XXXX-XXXX-XXXX)', 'warn');
+    document.getElementById('demo-device').focus();
+    return;
+  }
+
   var rnd = Math.random().toString(36).slice(2, 8).toUpperCase();
   var base = 'NS-DEMO-' + rnd;
   var check = _hash(base + _SIGN_SALT).slice(0, 4);
@@ -702,7 +759,10 @@ function generarDEMO() {
     id: _genId(),
     tipo: 'DEMO',
     code: code,
-    nota: nota,
+    negocio: negocio,
+    telefono: telefono,
+    device: device,
+    dias: dias,
     ts: Date.now(),
     activada: false,
     vencida: false
@@ -714,12 +774,22 @@ function generarDEMO() {
   syncToApp(db);
 
   _lastDemoCode = code;
+  _lastDemoEntry = entry;
   document.getElementById('result-demo-code').textContent = code;
+  document.getElementById('result-demo-negocio').textContent = negocio;
+  document.getElementById('result-demo-telefono').textContent = telefono;
+  document.getElementById('result-demo-dias-text').textContent = dias;
+  document.getElementById('result-demo-client').style.display = 'block';
   document.getElementById('result-demo').style.display = 'block';
-  document.getElementById('demo-nota').value = '';
+
+  // Clear form
+  document.getElementById('demo-negocio').value = '';
+  document.getElementById('demo-telefono').value = '';
+  document.getElementById('demo-device').value = '';
+  document.getElementById('demo-dias').value = '5';
 
   renderStats();
-  toast('🎯 Código DEMO generado', 'ok');
+  toast('🎯 Código DEMO generado (' + dias + ' días)', 'ok');
 }
 
 /* ════════════════════════════════════════════
@@ -806,6 +876,15 @@ function renderLista() {
     var numDisps = (entry.dispositivos || []).length;
     var duracionBadge = '<span class="badge badge-pro"><i class="fa-solid fa-clock"></i> ' + entry.duracion + '</span>';
 
+    // Status badges for bloqueada/pausada
+    var statusBadges = '';
+    if (entry.bloqueada) {
+      statusBadges += '<span class="badge badge-blocked"><i class="fa-solid fa-ban"></i> BLOQUEADA</span>';
+    }
+    if (entry.pausada) {
+      statusBadges += '<span class="badge badge-paused"><i class="fa-solid fa-pause"></i> PAUSADA</span>';
+    }
+
     // Terminal items
     var terminalsHtml = '';
     (entry.dispositivos || []).forEach(function (d) {
@@ -847,6 +926,15 @@ function renderLista() {
       detailsHtml += '<div style="margin-top:8px;font-size:11px;color:var(--text3)"><i class="fa-solid fa-sticky-note"></i> ' + esc(entry.notas) + '</div>';
     }
 
+    // Action buttons footer
+    var actionsFooter = '<div class="license-actions">' +
+      '<button class="btn-icon-action btn-activate" onclick="toggleBlockClient(\'' + entry.id + '\');event.stopPropagation()" title="Activar/Desbloquear">🟢</button>' +
+      '<button class="btn-icon-action btn-block" onclick="toggleBlockClient(\'' + entry.id + '\');event.stopPropagation()" title="Bloquear">🔴</button>' +
+      '<button class="btn-icon-action btn-pause" onclick="togglePauseClient(\'' + entry.id + '\');event.stopPropagation()" title="Pausar">⏸️</button>' +
+      '<button class="btn-icon-action btn-share" onclick="shareWhatsAppCliente(\'' + entry.id + '\');event.stopPropagation()" title="Compartir via WhatsApp">📤</button>' +
+      '<button class="btn-icon-action btn-delete" onclick="event.stopPropagation();eliminarLic(\'' + entry.id + '\')" title="Eliminar">🗑️</button>' +
+      '</div>';
+
     html += '<div class="client-card" id="card-' + entry.id + '">' +
       '<div class="client-card-header" onclick="toggleCard(\'' + entry.id + '\')">' +
         '<div class="client-info">' +
@@ -857,12 +945,12 @@ function renderLista() {
               '<span><i class="fa-solid fa-phone"></i> ' + esc(entry.telefono) + '</span>' +
               '<span><i class="fa-solid fa-desktop"></i> ' + numDisps + ' terminal' + (numDisps > 1 ? 'es' : '') + '</span>' +
               '<span>' + fecha + '</span>' +
+              statusBadges +
             '</div>' +
           '</div>' +
         '</div>' +
         '<div class="client-card-right">' +
           duracionBadge +
-          '<button class="btn btn-danger btn-sm btn-icon" onclick="event.stopPropagation();eliminarLic(\'' + entry.id + '\')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>' +
           '<div class="client-expand"><i class="fa-solid fa-chevron-down"></i></div>' +
         '</div>' +
       '</div>' +
@@ -871,6 +959,7 @@ function renderLista() {
         '<div class="section-label" style="margin-top:14px"><i class="fa-solid fa-key"></i> Licencias Generadas (' + numDisps + ')</div>' +
         terminalsHtml +
       '</div>' +
+      actionsFooter +
       '</div>';
   });
 
@@ -879,29 +968,45 @@ function renderLista() {
     html += '<div class="section-label" style="margin-top:10px"><i class="fa-solid fa-flask"></i> Licencias DEMO (' + demoEntries.length + ')</div>';
   }
 
-  demoEntries.forEach(function (entry) {
+  demoEntries.forEach(function (entry, idx) {
     var fecha = new Date(entry.ts).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+    var dias = entry.dias || 5;
     var statusBadge;
     if (entry.vencida) {
       statusBadge = '<span class="badge badge-exp"><i class="fa-solid fa-circle-xmark"></i> Vencida</span>';
+    } else if (entry.bloqueada) {
+      statusBadge = '<span class="badge badge-blocked"><i class="fa-solid fa-ban"></i> BLOQUEADA</span>';
+    } else if (entry.pausada) {
+      statusBadge = '<span class="badge badge-paused"><i class="fa-solid fa-pause"></i> PAUSADA</span>';
     } else if (entry.activada) {
       statusBadge = '<span class="badge badge-ok"><i class="fa-solid fa-circle-check"></i> Activa</span>';
     } else {
       statusBadge = '<span class="badge badge-pen"><i class="fa-solid fa-hourglass-half"></i> Pendiente</span>';
     }
 
+    var clientInfo = '';
+    if (entry.negocio) {
+      clientInfo += '<div class="demo-meta"><i class="fa-solid fa-store"></i> ' + esc(entry.negocio) + '</div>';
+    }
+    if (entry.telefono) {
+      clientInfo += '<div class="demo-meta"><i class="fa-solid fa-phone"></i> ' + esc(entry.telefono) + '</div>';
+    }
+
     html += '<div class="demo-row">' +
       '<div class="demo-info">' +
         '<div><span class="badge badge-demo"><i class="fa-solid fa-flask"></i> DEMO</span></div>' +
-        '<div class="demo-code">' + esc(entry.code) + '</div>' +
-        '<div class="demo-meta">' + (entry.nota ? esc(entry.nota) + ' · ' : '') + fecha + '</div>' +
+        '<div>' +
+          '<div class="demo-code">' + esc(entry.code) + '</div>' +
+          '<div class="demo-meta">' + (entry.nota ? esc(entry.nota) + ' · ' : '') + fecha + ' · ' + dias + ' días</div>' +
+          clientInfo +
+        '</div>' +
       '</div>' +
       '<div style="display:flex;align-items:center;gap:8px">' +
         statusBadge +
       '</div>' +
       '<div class="demo-actions">' +
-        '<button class="btn btn-ghost btn-sm btn-icon" onclick="copiarTexto(\'' + entry.code + '\')" title="Copiar"><i class="fa-regular fa-copy"></i></button>' +
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="eliminarLic(\'' + entry.id + '\')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>' +
+        '<button class="btn-icon-action btn-share" onclick="shareWhatsAppDemo(\'' + entry.id + '\')" title="Compartir via WhatsApp">📤</button>' +
+        '<button class="btn-icon-action btn-delete" onclick="eliminarLic(\'' + entry.id + '\')" title="Eliminar">🗑️</button>' +
       '</div>' +
       '</div>';
   });
@@ -949,16 +1054,18 @@ function copiarTodosCodigosPRO() {
 }
 
 function enviarWhatsAppDemo() {
-  if (!_lastDemoCode) return;
+  if (!_lastDemoCode || !_lastDemoEntry) return;
+  var e = _lastDemoEntry;
+  var dias = e.dias || 5;
   var msg = '💅 *Nail Studio Pro*\n\n' +
-    '¡Hola! Aquí está tu código de prueba:\n\n' +
+    '¡Hola ' + e.negocio + '! Aquí está tu código de prueba:\n\n' +
     '*' + _lastDemoCode + '*\n\n' +
-    '⏰ Válido por 5 días desde su activación.\n\n' +
+    '⏰ Válido por ' + dias + ' días desde su activación.\n\n' +
     '🔑 Cómo activar:\n' +
     '1. Abre Nail Studio Pro\n' +
     '2. Pega el código en "Activar Licencia"\n' +
     '3. ¡Listo!\n\n' +
-    '¿Necesitas ayuda? Escríbenos. 💜';
+    '¿Necesitas ayuda? Escríbenos al ' + e.telefono + '. 💜';
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
@@ -1032,6 +1139,100 @@ function exportarCSVAdmin() {
   a.download = 'licencias-nail-studio-pro-' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
   toast('📤 CSV exportado', 'ok');
+}
+
+/* ════════════════════════════════════════════
+   CLIENT ACTIONS (Block / Pause / Share)
+   ════════════════════════════════════════════ */
+function toggleBlockClient(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+  entry.bloqueada = !entry.bloqueada;
+  if (entry.bloqueada) {
+    entry.pausada = false; // Can't be both paused and blocked
+  }
+  saveDB(db);
+  syncToApp(db);
+  renderLista();
+  toast(entry.bloqueada ? '🔴 Cliente bloqueado' : '🟢 Cliente desbloqueado', entry.bloqueada ? 'err' : 'ok');
+}
+
+function togglePauseClient(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+  entry.pausada = !entry.pausada;
+  if (entry.pausada) {
+    entry.bloqueada = false; // Can't be both paused and blocked
+  }
+  saveDB(db);
+  syncToApp(db);
+  renderLista();
+  toast(entry.pausada ? '⏸️ Cliente pausado' : '▶️ Cliente reanudado', entry.pausada ? 'warn' : 'ok');
+}
+
+function shareWhatsAppCliente(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+
+  var statusText = '';
+  if (entry.bloqueada) statusText = '⚠️ *ESTADO: BLOQUEADA*';
+  else if (entry.pausada) statusText = '⏸️ *ESTADO: PAUSADA*';
+
+  var codes = (entry.dispositivos || []).map(function (d) {
+    return '📱 Terminal ' + d.terminal + ': *' + d.code + '*\n   Device ID: ' + d.deviceId;
+  }).join('\n\n');
+
+  var msg = '💅 *Nail Studio Pro — Licencia PRO*\n\n' +
+    '🏢 Negocio: ' + entry.negocio + '\n' +
+    '📞 Teléfono: ' + (entry.telefono || 'N/A') + '\n' +
+    '📅 Duración: ' + entry.duracion + '\n' +
+    '🖥️ Terminales: ' + entry.numTerminales + '\n' +
+    (statusText ? '\n' + statusText + '\n' : '') +
+    '\n🔑 Códigos de activación:\n\n' + codes + '\n\n' +
+    '🔑 Cómo activar cada terminal:\n' +
+    '1. Abre Nail Studio Pro en el dispositivo\n' +
+    '2. Ve a "Activar Licencia"\n' +
+    '3. Pega el código correspondiente\n' +
+    '4. Presiona "Activar"\n\n' +
+    '¿Necesitas ayuda? Escríbenos. 💜';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function shareWhatsAppDemo(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+
+  var dias = entry.dias || 5;
+  var negocioText = entry.negocio ? '¡Hola ' + entry.negocio + '!' : '¡Hola!';
+  var telefonoText = entry.telefono ? '\n\n📞 Contáctanos al ' + entry.telefono : '';
+
+  var msg = '💅 *Nail Studio Pro*\n\n' +
+    negocioText + ' Aquí está tu código de prueba:\n\n' +
+    '*' + entry.code + '*\n\n' +
+    '⏰ Válido por ' + dias + ' días desde su activación.\n\n' +
+    '🔑 Cómo activar:\n' +
+    '1. Abre Nail Studio Pro\n' +
+    '2. Pega el código en "Activar Licencia"\n' +
+    '3. ¡Listo!' +
+    telefonoText +
+    '\n\n¿Necesitas ayuda? Escríbenos. 💜';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
 /* ════════════════════════════════════════════
