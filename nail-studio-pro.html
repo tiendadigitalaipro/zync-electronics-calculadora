@@ -4723,22 +4723,24 @@ function abrirQRScanner(){
 
 function _scanQRLoop(video){
   if(!video||video.paused||video.ended)return;
-  if(typeof BarcodeDetector!=='undefined'){
-    var bd=new BarcodeDetector({formats:['qr_code']});
-    bd.detect(video).then(function(codes){
-      if(!codes.length)return;
-      var raw=codes[0].rawValue;
-      set$('qr-result','✅ QR: '+raw);
-      var servs=DB.get('servicios')||[];
-      var s=servs.find(function(x){return x.id===raw||x.nombre.toLowerCase()===raw.toLowerCase();});
-      if(s){cerrarQRScanner();addPOS(s.id);showToast('💅 '+s.nombre+' agregado','success');return;}
-      var cls=DB.get('clientas')||[];
-      var cli=cls.find(function(x){return x.id===raw;});
-      if(cli){cerrarQRScanner();var cs=gel('pos-clienta');if(cs)cs.value=cli.id;showToast('👤 '+cli.nombre+' seleccionada','success');return;}
-      showToast('QR no reconocido','warn');cerrarQRScanner();
-    }).catch(function(){});
+  if(typeof BarcodeDetector==='undefined'){
+    // BarcodeDetector no disponible en este navegador (Firefox) — detener el loop
+    var el=gel('qr-result');if(el)el.innerHTML='⚠️ Escáner QR no soportado en este navegador. Use Chrome.';
+    return;
   }
-  setTimeout(function(){_scanQRLoop(video);},600);
+  var bd=new BarcodeDetector({formats:['qr_code']});
+  bd.detect(video).then(function(codes){
+    if(!codes.length){setTimeout(function(){_scanQRLoop(video);},600);return;}
+    var raw=codes[0].rawValue;
+    set$('qr-result','✅ QR: '+raw);
+    var servs=DB.get('servicios')||[];
+    var s=servs.find(function(x){return x.id===raw||x.nombre.toLowerCase()===raw.toLowerCase();});
+    if(s){cerrarQRScanner();addPOS(s.id);showToast('💅 '+s.nombre+' agregado','success');return;}
+    var cls=DB.get('clientas')||[];
+    var cli=cls.find(function(x){return x.id===raw;});
+    if(cli){cerrarQRScanner();var cs=gel('pos-clienta');if(cs)cs.value=cli.id;showToast('👤 '+cli.nombre+' seleccionada','success');return;}
+    showToast('QR no reconocido','warn');cerrarQRScanner();
+  }).catch(function(){setTimeout(function(){_scanQRLoop(video);},600);});
 }
 
 function cerrarQRScanner(){
