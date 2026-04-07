@@ -3721,7 +3721,7 @@ function confirmarCobro(){
   ventas.push({id:uid(),citaId:id,clientaId:c?c.clientaId:'',total:monto,metodo:metodoLabel,fecha:todayStr(),ts:Date.now()});
   DB.set('ventas',ventas);
   var caja=DB.get('caja_actual');
-  if(caja&&caja.abierta){
+  if(caja&&caja.abierta&&metodoLabel!=='Fiado'){
     caja.movimientos=caja.movimientos||[];
     caja.movimientos.push({tipo:'entrada',desc:metodoLabel+' — Cita',monto:monto,ts:Date.now()});
     caja.totalEntradas=(caja.totalEntradas||0)+monto;
@@ -4648,7 +4648,7 @@ function _procesarCobroPos(){
   var venta={id:uid(),items:_nsCart.map(function(i){return{id:i.id,nombre:i.nombre,emoji:i.emoji,precio:i.precio,qty:i.qty};}),subtotal:sub,descuentoPct:pct,total:total,metodo:_posCobroMetodo,clientaId:clientaId,fecha:todayStr(),ts:Date.now()};
   var ventas=DB.get('ventas')||[];ventas.push(venta);DB.set('ventas',ventas);
   var caja=DB.get('caja_actual');
-  if(caja&&caja.abierta){caja.movimientos=caja.movimientos||[];caja.movimientos.push({tipo:'entrada',desc:_posCobroMetodo+' — POS',monto:total,ts:Date.now()});DB.set('caja_actual',caja);}
+  if(caja&&caja.abierta&&_posCobroMetodo!=='Fiado'){caja.movimientos=caja.movimientos||[];caja.movimientos.push({tipo:'entrada',desc:_posCobroMetodo+' — POS',monto:total,ts:Date.now()});DB.set('caja_actual',caja);}
   closeModal('modalPosCobro');
   // Build receipt data
   var clientas=DB.get('clientas')||[];
@@ -4723,24 +4723,22 @@ function abrirQRScanner(){
 
 function _scanQRLoop(video){
   if(!video||video.paused||video.ended)return;
-  if(typeof BarcodeDetector==='undefined'){
-    // BarcodeDetector no disponible en este navegador (Firefox) — detener el loop
-    var el=gel('qr-result');if(el)el.innerHTML='⚠️ Escáner QR no soportado en este navegador. Use Chrome.';
-    return;
+  if(typeof BarcodeDetector!=='undefined'){
+    var bd=new BarcodeDetector({formats:['qr_code']});
+    bd.detect(video).then(function(codes){
+      if(!codes.length)return;
+      var raw=codes[0].rawValue;
+      set$('qr-result','✅ QR: '+raw);
+      var servs=DB.get('servicios')||[];
+      var s=servs.find(function(x){return x.id===raw||x.nombre.toLowerCase()===raw.toLowerCase();});
+      if(s){cerrarQRScanner();addPOS(s.id);showToast('💅 '+s.nombre+' agregado','success');return;}
+      var cls=DB.get('clientas')||[];
+      var cli=cls.find(function(x){return x.id===raw;});
+      if(cli){cerrarQRScanner();var cs=gel('pos-clienta');if(cs)cs.value=cli.id;showToast('👤 '+cli.nombre+' seleccionada','success');return;}
+      showToast('QR no reconocido','warn');cerrarQRScanner();
+    }).catch(function(){});
   }
-  var bd=new BarcodeDetector({formats:['qr_code']});
-  bd.detect(video).then(function(codes){
-    if(!codes.length){setTimeout(function(){_scanQRLoop(video);},600);return;}
-    var raw=codes[0].rawValue;
-    set$('qr-result','✅ QR: '+raw);
-    var servs=DB.get('servicios')||[];
-    var s=servs.find(function(x){return x.id===raw||x.nombre.toLowerCase()===raw.toLowerCase();});
-    if(s){cerrarQRScanner();addPOS(s.id);showToast('💅 '+s.nombre+' agregado','success');return;}
-    var cls=DB.get('clientas')||[];
-    var cli=cls.find(function(x){return x.id===raw;});
-    if(cli){cerrarQRScanner();var cs=gel('pos-clienta');if(cs)cs.value=cli.id;showToast('👤 '+cli.nombre+' seleccionada','success');return;}
-    showToast('QR no reconocido','warn');cerrarQRScanner();
-  }).catch(function(){setTimeout(function(){_scanQRLoop(video);},600);});
+  setTimeout(function(){_scanQRLoop(video);},600);
 }
 
 function cerrarQRScanner(){
