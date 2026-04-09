@@ -13,12 +13,13 @@ import { OpenPositions } from '@/components/open-positions';
 import { RiskManagementPanel } from '@/components/risk-management';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bot, Wifi, WifiOff, Zap, ChevronDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Bot, Wifi, WifiOff, Zap } from 'lucide-react';
+import { useEffect, useCallback } from 'react';
 
 export default function Home() {
   const {
     isConnected,
+    isAuthorized,
     isAutoTrading,
     isSessionPaused,
     currentSymbol,
@@ -29,13 +30,49 @@ export default function Home() {
     winCount,
     lossCount,
     totalTrades,
+    toggleAutoTrading,
+    placeTrade,
   } = useTradingStore();
-
-  const [showRightPanel, setShowRightPanel] = useState(true);
 
   useEffect(() => {
     loadTradeHistory().catch(console.error);
   }, []);
+
+  // ─── Keyboard Shortcuts ──────────────────────────────────────
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Ignore if user is typing in an input
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+    switch (e.key.toLowerCase()) {
+      case 'b':
+        // B = Buy CALL
+        if (isConnected && isAuthorized) {
+          e.preventDefault();
+          placeTrade('CALL');
+        }
+        break;
+      case 's':
+        // S = Sell PUT
+        if (isConnected && isAuthorized) {
+          e.preventDefault();
+          placeTrade('PUT');
+        }
+        break;
+      case ' ':
+        // Space = Toggle Auto Trading
+        if (isConnected && isAuthorized) {
+          e.preventDefault();
+          toggleAutoTrading();
+        }
+        break;
+    }
+  }, [isConnected, isAuthorized, placeTrade, toggleAutoTrading]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const marketLabel = currentSymbol
     .replace('BOOM1000', 'Boom 1000')
@@ -189,6 +226,26 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* Keyboard Shortcuts Bar */}
+      {isConnected && isAuthorized && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0a0e17]/90 backdrop-blur-sm border-t border-border/30 py-1.5 px-3 hidden lg:block">
+          <div className="max-w-[1800px] mx-auto flex items-center justify-center gap-6 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-secondary/80 border border-border/40 font-mono text-foreground text-[9px]">B</kbd>
+              Buy CALL
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-secondary/80 border border-border/40 font-mono text-foreground text-[9px]">S</kbd>
+              Buy PUT
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-secondary/80 border border-border/40 font-mono text-foreground text-[9px]">Space</kbd>
+              Toggle Auto
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-border/30 mt-4 py-3">

@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   keywords: ["trading bot", "deriv", "synthetic indices", "automated trading", "boom", "crash", "volatility"],
   authors: [{ name: "SynthTrade Pro" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/trading-bot-logo.png",
   },
 };
 
