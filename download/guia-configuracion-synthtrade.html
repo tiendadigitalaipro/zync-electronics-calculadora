@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guia de Configuracion - SynthTrade Pro</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0e17;
+      color: #e5e7eb;
+      line-height: 1.7;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 25mm 20mm;
+      background: #0a0e17;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    /* Cover Page */
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      min-height: 297mm;
+      padding: 30mm 20mm;
+      background: linear-gradient(135deg, #0a0e17 0%, #111827 50%, #0a0e17 100%);
+    }
+
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(ellipse at 50% 30%, rgba(245, 158, 11, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cover-logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 30px;
+      box-shadow: 0 20px 60px rgba(245, 158, 11, 0.3);
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover h1 {
+      font-size: 36px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      position: relative;
+      z-index: 1;
+      margin-bottom: 8px;
+    }
+
+    .cover h1 span {
+      color: #f59e0b;
+    }
+
+    .cover .subtitle {
+      font-size: 16px;
+      color: #9ca3af;
+      font-weight: 400;
+      margin-bottom: 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover .badge {
+      display: inline-block;
+      padding: 8px 24px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 100px;
+      color: #f59e0b;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover .version {
+      margin-top: 60px;
+      font-size: 11px;
+      color: #4b5563;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Section Headers */
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid rgba(245, 158, 11, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2 .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #0a0e17;
+      font-size: 14px;
+      font-weight: 800;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f59e0b;
+      margin-top: 24px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 12.5px;
+      color: #d1d5db;
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+
+    /* Code Blocks */
+    .code-block {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 14px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #a5f3fc;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .code-block .label {
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      background: #f59e0b;
+      color: #0a0e17;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .code-block.green { color: #86efac; }
+    .code-block.amber { color: #fcd34d; }
+
+    /* Step Boxes */
+    .step-box {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-left: 4px solid #f59e0b;
+      border-radius: 0 10px 10px 0;
+      padding: 16px 20px;
+      margin: 14px 0;
+    }
+
+    .step-box .step-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-box .step-title .icon {
+      color: #f59e0b;
+      font-size: 16px;
+    }
+
+    .step-box p {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+      text-align: left;
+    }
+
+    /* Warning Box */
+    .warning {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 14px 0;
+      display: flex;
+      gap: 12px;
+    }
+
+    .warning .icon {
+      color: #f59e0b;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .warning p {
+      font-size: 11.5px;
+      color: #fcd34d;
+      margin: 0;
+      text-align: left;
+    }
+
+    /* Success Box */
+    .success {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 14px 0;
+      display: flex;
+      gap: 12px;
+    }
+
+    .success .icon {
+      color: #10b981;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .success p {
+      font-size: 11.5px;
+      color: #86efac;
+      margin: 0;
+      text-align: left;
+    }
+
+    /* Info Box */
+    .info {
+      background: rgba(56, 189, 248, 0.06);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 14px 0;
+      display: flex;
+      gap: 12px;
+    }
+
+    .info .icon {
+      color: #38bdf8;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .info p {
+      font-size: 11.5px;
+      color: #bae6fd;
+      margin: 0;
+      text-align: left;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 11.5px;
+    }
+
+    thead th {
+      background: #1f2937;
+      color: #f59e0b;
+      font-weight: 600;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    thead th:first-child { border-radius: 8px 0 0 0; }
+    thead th:last-child { border-radius: 0 8px 0 0; }
+
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #1f2937;
+      color: #d1d5db;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:last-child td:first-child { border-radius: 0 0 0 8px; }
+    tbody tr:last-child td:last-child { border-radius: 0 0 8px 0; }
+
+    /* Lists */
+    ul, ol {
+      padding-left: 20px;
+      margin: 10px 0;
+    }
+
+    li {
+      font-size: 12px;
+      color: #d1d5db;
+      margin-bottom: 6px;
+      padding-left: 6px;
+    }
+
+    li strong { color: #f9fafb; }
+
+    /* Link style */
+    a {
+      color: #f59e0b;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    /* Separator */
+    .sep {
+      height: 1px;
+      background: linear-gradient(to right, transparent, #374151, transparent);
+      margin: 24px 0;
+    }
+
+    /* Footer */
+    .footer {
+      position: absolute;
+      bottom: 15mm;
+      left: 20mm;
+      right: 20mm;
+      text-align: center;
+      font-size: 9px;
+      color: #4b5563;
+      border-top: 1px solid #1f2937;
+      padding-top: 10px;
+    }
+
+    /* Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .card-sm {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .card-sm .card-icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .card-sm .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .card-sm .card-desc {
+      font-size: 10px;
+      color: #6b7280;
+    }
+
+    /* Keyboard shortcut */
+    kbd {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #f59e0b;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== COVER PAGE ==================== -->
+  <div class="page cover">
+    <div class="cover-logo">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+        <polyline points="16 7 22 7 22 13" />
+      </svg>
+    </div>
+    <h1>SynthTrade<span>Pro</span></h1>
+    <div class="subtitle">Guia Completa de Configuracion e Instalacion</div>
+    <div class="badge">Bot de Trading para Indices Sinteticos de Deriv</div>
+    <div class="version">Version 1.0 &mdash; Abril 2026</div>
+    <div class="footer">SinthTrade Pro &mdash; Todos los derechos reservados</div>
+  </div>
+
+  <!-- ==================== PAGE 2: OVERVIEW ==================== -->
+  <div class="page">
+
+    <h2><span class="num">1</span> Requisitos Previos</h2>
+    <p>Antes de comenzar, asegurate de tener los siguientes elementos preparados. El bot esta disenado para funcionar en cualquier computadora moderna con conexion a internet.</p>
+
+    <div class="grid-3" style="margin: 20px 0;">
+      <div class="card-sm">
+        <div class="card-icon">&#128187;</div>
+        <div class="card-title">Computadora</div>
+        <div class="card-desc">Windows 10/11, macOS o Linux con al menos 4GB de RAM</div>
+      </div>
+      <div class="card-sm">
+        <div class="card-icon">&#127760;</div>
+        <div class="card-title">Internet</div>
+        <div class="card-desc">Conexion estable a internet para comunicarse con los servidores de Deriv</div>
+      </div>
+      <div class="card-sm">
+        <div class="card-icon">&#128274;</div>
+        <div class="card-title">Cuenta Deriv</div>
+        <div class="card-desc">Cuenta demo (recomendada) o real en deriv.com</div>
+      </div>
+    </div>
+
+    <h2><span class="num">2</span> Opciones de Uso</h2>
+    <p>Tienes dos opciones principales para usar el bot de trading. La Opcion A es la mas rapida y sencilla, mientras que la Opcion B te permite ejecutar el bot directamente en tu computadora.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Caracteristica</th>
+          <th>Opcion A: Usar desde el Navegador</th>
+          <th>Opcion B: Instalar en tu Laptop</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Dificultad</strong></td>
+          <td>Muy facil</td>
+          <td>Intermedia</td>
+        </tr>
+        <tr>
+          <td><strong>Herramientas necesarias</strong></td>
+          <td>Solo un navegador web</td>
+          <td>Node.js, Git, Terminal</td>
+        </tr>
+        <tr>
+          <td><strong>Tiempo estimado</strong></td>
+          <td>5 minutos</td>
+          <td>15-20 minutos</td>
+        </tr>
+        <tr>
+          <td><strong>Funcionalidad completa</strong></td>
+          <td>Si</td>
+          <td>Si</td>
+        </tr>
+        <tr>
+          <td><strong>Acceso 24/7</strong></td>
+          <td>Si (mientras la ventana este abierta)</td>
+          <td>Si</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="success">
+      <div class="icon">&#10004;</div>
+      <p><strong>Recomendacion:</strong> Si solo quieres usar el bot de inmediato, selecciona la Opcion A. Si quieres tener control total del codigo y ejecutarlo localmente, ve a la Opcion B.</p>
+    </div>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+  <!-- ==================== PAGE 3: OPTION A ==================== -->
+  <div class="page">
+
+    <h2><span class="num">A</span> Opcion A: Usar el Bot desde el Navegador</h2>
+    <p>Esta es la forma mas rapida de comenzar. El bot ya esta alojado y funcionando. Solo necesitas abrirlo en tu navegador, conectar tu token de API de Deriv y comenzar a operar.</p>
+
+    <h3>Paso 1: Crear Cuenta en Deriv</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9312;</span> Registrarse en Deriv</div>
+      <p>Abre tu navegador y ve a <strong>https://app.deriv.com</strong></p>
+      <p>Haz clic en <strong>"Sign up"</strong> y completa el formulario de registro con tu correo electronico.</p>
+      <p>Verifica tu correo electronico siguiendo el enlace que Deriv te enviara.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9313;</span> Usar Cuenta DEMO (Recomendado)</div>
+      <p>Despues de registrarte, Deriv te otorga automaticamente una <strong>cuenta demo con $10,000 USD virtuales</strong>.</p>
+      <p>Es MUY recomendable que pruebes el bot primero con la cuenta demo antes de usar dinero real. Puedes cambiar entre cuenta demo y real en cualquier momento desde el menu de Deriv.</p>
+    </div>
+
+    <div class="warning">
+      <div class="icon">&#9888;</div>
+      <p><strong>Importante:</strong> Nunca uses dinero que no puedas permitirte perder. El trading de indices sinteticos conlleva un alto riesgo. Siempre prueba tus estrategias con la cuenta demo primero.</p>
+    </div>
+
+    <h3>Paso 2: Obtener el Token de API</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9314;</span> Generar Token de API</div>
+      <p>Desde tu cuenta de Deriv, ve a <strong>Settings &gt; API Token</strong> (o ve directamente a <strong>https://app.deriv.com/account/api-token</strong>).</p>
+      <p>Haz clic en <strong>"Create"</strong> para crear un nuevo token.</p>
+      <p>Asigna un nombre al token (por ejemplo: "SynthTrade Bot").</p>
+      <p>Selecciona los siguientes <strong>scopes (permisos)</strong> obligatoriamente:</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Scope</th>
+          <th>Descripcion</th>
+          <th>Necesario</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Trade</strong></td>
+          <td>Permite al bot comprar y vender contratos</td>
+          <td>Si</td>
+        </tr>
+        <tr>
+          <td><strong>Payments</strong></td>
+          <td>Permite consultar balance y transacciones</td>
+          <td>Si</td>
+        </tr>
+        <tr>
+          <td><strong>Admin</strong></td>
+          <td>Acceso completo a funciones administrativas</td>
+          <td>Si</td>
+        </tr>
+        <tr>
+          <td><strong>Read</strong></td>
+          <td>Permite leer datos de la cuenta</td>
+          <td>Recomendado</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9315;</span> Copiar y Guardar el Token</div>
+      <p>Haz clic en <strong>"Create token"</strong>. Deriv generara una cadena de texto larga (el token).</p>
+      <p><strong>Copia el token</strong> y guardalo en un lugar seguro. Lo necesitaras para conectar el bot. Este token es como una contrasena: NO lo compartas con nadie.</p>
+    </div>
+
+    <div class="info">
+      <div class="icon">&#128274;</div>
+      <p><strong>Seguridad:</strong> El token de API da acceso completo a tu cuenta de trading. Guardalo como guardarias cualquier contrasena importante. Si crees que alguien tiene tu token, eliminalo inmediatamente desde la seccion de API Token en Deriv y genera uno nuevo.</p>
+    </div>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+  <!-- ==================== PAGE 4: OPTION A CONTINUED ==================== -->
+  <div class="page">
+
+    <h3>Paso 3: Conectar el Bot</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9316;</span> Abrir SynthTrade Pro</div>
+      <p>Abre el enlace del bot en tu navegador (Chrome, Firefox, Edge, etc.). El bot carga una interfaz profesional tipo terminal de trading.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9317;</span> Pegar el Token de API</div>
+      <p>En el panel izquierdo, encontraras la seccion <strong>"Connection"</strong>.</p>
+      <p>Haz clic en el campo de texto que dice <strong>"Enter Deriv API Token"</strong>.</p>
+      <p><strong>Pega tu token de API</strong> (usando Ctrl+V o clic derecho &gt; Pegar).</p>
+      <p>Haz clic en el boton <strong>"Connect"</strong> (verde).</p>
+    </div>
+
+    <div class="success">
+      <div class="icon">&#10004;</div>
+      <p><strong>Listo!</strong> Cuando veas el indicador verde "Live" en la barra superior, significa que estas conectado a Deriv. Veras tu balance de cuenta demo reflejado en la pantalla.</p>
+    </div>
+
+    <h3>Paso 4: Comenzar a Operar</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9318;</span> Seleccionar Mercado</div>
+      <p>En el panel izquierdo, bajo <strong>"Synthetic Markets"</strong>, selecciona un indice sintetico. Recomendamos comenzar con <strong>Volatility 10</strong> (R_10) ya que tiene menor volatilidad.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9319;</span> Activar Estrategia</div>
+      <p>En el panel de <strong>"Strategy Engine"</strong>, activa al menos una estrategia. La estrategia <strong>RSI</strong> es la mas recomendada para principiantes.</p>
+      <p>Activa el interruptor de <strong>"Auto Trading"</strong> si quieres que el bot opere automaticamente, o usa los botones CALL/PUT manualmente.</p>
+    </div>
+
+    <h2><span class="num">3</span> Configuracion de Gestion de Riesgo</h2>
+    <p>Antes de activar el auto-trading, configura los limites de riesgo en el panel <strong>"Risk Management"</strong>. Esto protege tu capital de perdidas excesivas.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parametro</th>
+          <th>Valor Recomendado (Inicio)</th>
+          <th>Descripcion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Stake Amount</strong></td>
+          <td>$0.35 - $1.00</td>
+          <td>Cantidad por operacion</td>
+        </tr>
+        <tr>
+          <td><strong>Max Daily Loss</strong></td>
+          <td>$10 - $20</td>
+          <td>El bot se detiene al alcanzar esta perdida</td>
+        </tr>
+        <tr>
+          <td><strong>Profit Target</strong></td>
+          <td>$10 - $50</td>
+          <td>El bot se detiene al alcanzar esta ganancia</td>
+        </tr>
+        <tr>
+          <td><strong>Max Trades/Session</strong></td>
+          <td>20 - 30</td>
+          <td>Maximo de operaciones por sesion</td>
+        </tr>
+        <tr>
+          <td><strong>Stop After Losses</strong></td>
+          <td>3 - 5</td>
+          <td>Se detiene tras N perdidas consecutivas</td>
+        </tr>
+        <tr>
+          <td><strong>Min Confidence</strong></td>
+          <td>60% - 70%</td>
+          <td>Confianza minima para abrir operacion</td>
+        </tr>
+        <tr>
+          <td><strong>Martingale</strong></td>
+          <td>Desactivado</td>
+          <td>Activar solo si tienes experiencia</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+  <!-- ==================== PAGE 5: KEYBOARD SHORTCUTS & FEATURES ==================== -->
+  <div class="page">
+
+    <h2><span class="num">4</span> Atajos de Teclado</h2>
+    <p>Para operar mas rapido, puedes usar atajos de teclado cuando el bot esta conectado. Estos funcionan cuando no estas escribiendo en ningun campo de texto.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Tecla</th>
+          <th>Accion</th>
+          <th>Descripcion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><kbd>B</kbd></td>
+          <td><strong>Comprar CALL</strong></td>
+          <td>Abre una operacion de compra instantaneamente</td>
+        </tr>
+        <tr>
+          <td><kbd>S</kbd></td>
+          <td><strong>Comprar PUT</strong></td>
+          <td>Abre una operacion de venta instantaneamente</td>
+        </tr>
+        <tr>
+          <td><kbd>Espacio</kbd></td>
+          <td><strong>Activar/Desactivar Auto-Trading</strong></td>
+          <td>Alterna el modo de trading automatico</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2><span class="num">5</span> Estrategias Disponibles</h2>
+    <p>El bot incluye 4 estrategias profesionales de trading que pueden combinarse entre si. Cuando multiples estrategias estan activas, el bot usa un sistema de consenso: solo opera cuando la mayoria de estrategias coinciden en la misma direccion.</p>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#128200;</span> RSI (Relative Strength Index)</div>
+      <p>Calcula el RSI con periodo 14. Compra cuando el RSI baja de 30 (sobreventa) y vende cuando sube de 70 (sobrecompra). Es ideal para mercados con rangos definidos y para detectar reversiones de precio. Es la estrategia mas estable y recomendada para principiantes.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#128201;</span> MA Crossover (Cruce de Medias Moviles)</div>
+      <p>Usa dos medias moviles: rapida (5 periodos) y lenta (20 periodos). Genera senal de compra cuando la MA rapida cruza por encima de la MA lenta (Golden Cross), y senal de venta cuando cruza por debajo (Death Cross). Excelente para identificar tendencias de mediano plazo.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#128202;</span> Bollinger Bands (Bandas de Bollinger)</div>
+      <p>Calcula bandas superior e inferior con 2 desviaciones estandar sobre una media movil de 20 periodos. Compra cuando el precio toca la banda inferior (posible rebote) y vende cuando toca la banda superior (posible retroceso). Efectivo en mercados con volatilidad variable.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9889;</span> Spike Detection (Deteccion de Espigas)</div>
+      <p>Detecta movimientos bruscos de precio que superan 2.5 veces la desviacion estandar. Especialmente disenado para indices Boom y Crash, donde los saltos de precio son frequentes. Opera en la direccion del impulso del precio. Esta estrategia es la mas agresiva.</p>
+    </div>
+
+    <div class="info">
+      <div class="icon">&#128161;</div>
+      <p><strong>Tip:</strong> Para mejores resultados, activa RSI + Bollinger Bands. Estas dos estrategias se complementan bien: RSI detecta sobrecompra/sobreventa mientras que Bollinger Bands confirma los extremos de precio con soporte estadistico.</p>
+    </div>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+  <!-- ==================== PAGE 6: OPTION B - LOCAL SETUP ==================== -->
+  <div class="page">
+
+    <h2><span class="num">B</span> Opcion B: Instalar en tu Laptop</h2>
+    <p>Si prefieres ejecutar el bot directamente en tu computadora, sigue estos pasos. Necesitaras conocimientos basicos de uso de terminal/linea de comandos.</p>
+
+    <h3>Herramientas Necesarias</h3>
+
+    <div class="grid-2">
+      <div class="step-box">
+        <div class="step-title"><span class="icon">&#128187;</span> Node.js (v18+)</div>
+        <p>Entorno de ejecucion de JavaScript. Descarga desde nodejs.org</p>
+      </div>
+      <div class="step-box">
+        <div class="step-title"><span class="icon">&#128268;</span> Git</div>
+        <p>Sistema de control de versiones. Descarga desde git-scm.com</p>
+      </div>
+    </div>
+
+    <h3>Paso 1: Instalar Node.js</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9312;</span> Descargar e Instalar Node.js</div>
+      <p>Ve a <strong>https://nodejs.org</strong> y descarga la version LTS (Long Term Support) para tu sistema operativo.</p>
+      <p>Ejecuta el instalador y sigue las instrucciones por defecto.</p>
+      <p>Verifica la instalacion abriendo una terminal y ejecutando:</p>
+    </div>
+
+    <div class="code-block green">
+      <span class="label">Terminal</span>
+      node --version<br>
+      npm --version
+    </div>
+
+    <p>Deberias ver numeros de version como <strong>v18.x.x</strong> o <strong>v20.x.x</strong>. Si aparece un error, reinicia tu computadora e intenta de nuevo.</p>
+
+    <h3>Paso 2: Instalar Bun (Runtime de JavaScript)</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9313;</span> Instalar Bun</div>
+      <p>Bun es un runtime de JavaScript ultrarapido. Abre una terminal y ejecuta:</p>
+    </div>
+
+    <div class="code-block green">
+      <span class="label">Terminal (Windows - PowerShell)</span>
+      powershell -c "irm bun.sh/install.ps1 | iex"
+    </div>
+
+    <div class="code-block green">
+      <span class="label">Terminal (macOS / Linux)</span>
+      curl -fsSL https://bun.sh/install | bash
+    </div>
+
+    <p>Verifica con <strong>bun --version</strong>. Deberia mostrar la version instalada.</p>
+
+    <h3>Paso 3: Obtener el Codigo del Bot</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9314;</span> Clonar o Descargar el Proyecto</div>
+      <p>Si tienes acceso al repositorio Git, clona el proyecto:</p>
+    </div>
+
+    <div class="code-block green">
+      <span class="label">Terminal</span>
+      git clone &lt;URL_DEL_REPOSITORIO&gt;<br>
+      cd synthtrade-pro
+    </div>
+
+    <p>Alternativamente, si recibiste los archivos comprimidos, descomprime la carpeta y abrela en tu terminal.</p>
+
+    <h3>Paso 4: Instalar Dependencias</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9315;</span> Ejecutar la Instalacion</div>
+      <p>Dentro de la carpeta del proyecto, ejecuta:</p>
+    </div>
+
+    <div class="code-block green">
+      <span class="label">Terminal</span>
+      bun install
+    </div>
+
+    <p>Este comando descargara todas las dependencias necesarias (React, Next.js, shadcn/ui, Prisma, recharts, etc.). Puede tardar 1-2 minutos dependiendo de tu conexion a internet.</p>
+
+    <h3>Paso 5: Configurar la Base de Datos</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9316;</span> Sincronizar la Base de Datos SQLite</div>
+      <p>El bot usa SQLite (almacenamiento local) para guardar el historial de operaciones:</p>
+    </div>
+
+    <div class="code-block green">
+      <span class="label">Terminal</span>
+      bun run db:push
+    </div>
+
+    <p>Este comando crea automaticamente la base de datos local con las tablas necesarias.</p>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+  <!-- ==================== PAGE 7: RUN LOCALLY ==================== -->
+  <div class="page">
+
+    <h3>Paso 6: Iniciar el Bot Localmente</h3>
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9317;</span> Ejecutar el Servidor de Desarrollo</div>
+      <p>Para iniciar el bot en tu computadora, ejecuta:</p>
+    </div>
+
+    <div class="code-block green">
+      <span class="label">Terminal</span>
+      bun run dev
+    </div>
+
+    <p>Veras un mensaje en la terminal indicando que el servidor esta corriendo. Generalmente estara disponible en <strong>http://localhost:3000</strong></p>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9318;</span> Abrir en el Navegador</div>
+      <p>Abre tu navegador web y ve a la direccion que indico la terminal (generalmente <strong>http://localhost:3000</strong>).</p>
+      <p>Ahora puedes seguir los mismos pasos de la Opcion A: pegar tu token de API, seleccionar mercado, configurar estrategia y comenzar a operar.</p>
+    </div>
+
+    <div class="success">
+      <div class="icon">&#10004;</div>
+      <p><strong>Listo!</strong> El bot esta corriendo localmente en tu computadora. La ventana del navegador debe permanecer abierta para que el bot pueda operar. No cierres la terminal mientras uses el bot.</p>
+    </div>
+
+    <h2><span class="num">6</span> Indices Sinteticos Disponibles</h2>
+    <p>El bot soporta 12 indices sinteticos de Deriv, organizados en 3 categorias. Cada categoria tiene caracteristicas unicas que se adaptan a diferentes estrategias.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Indice</th>
+          <th>Simbolo</th>
+          <th>Categoria</th>
+          <th>Estrategia Recomendada</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Boom 1000</td>
+          <td>BOOM1000</td>
+          <td>Boom/Crash</td>
+          <td>Spike Detection</td>
+        </tr>
+        <tr>
+          <td>Crash 1000</td>
+          <td>CRASH1000</td>
+          <td>Boom/Crash</td>
+          <td>Spike Detection</td>
+        </tr>
+        <tr>
+          <td>Volatility 10</td>
+          <td>R_10</td>
+          <td>Volatility</td>
+          <td>RSI + Bollinger</td>
+        </tr>
+        <tr>
+          <td>Volatility 25</td>
+          <td>R_25</td>
+          <td>Volatility</td>
+          <td>RSI + Bollinger</td>
+        </tr>
+        <tr>
+          <td>Volatility 50</td>
+          <td>R_50</td>
+          <td>Volatility</td>
+          <td>MA Crossover</td>
+        </tr>
+        <tr>
+          <td>Volatility 75</td>
+          <td>R_75</td>
+          <td>Volatility</td>
+          <td>MA Crossover</td>
+        </tr>
+        <tr>
+          <td>Volatility 100</td>
+          <td>R_100</td>
+          <td>Volatility</td>
+          <td>Bollinger + Spike</td>
+        </tr>
+        <tr>
+          <td>Jump 10</td>
+          <td>JD10</td>
+          <td>Jump</td>
+          <td>Spike Detection</td>
+        </tr>
+        <tr>
+          <td>Jump 25</td>
+          <td>JD25</td>
+          <td>Jump</td>
+          <td>Spike Detection</td>
+        </tr>
+        <tr>
+          <td>Jump 50</td>
+          <td>JD50</td>
+          <td>Jump</td>
+          <td>MA Crossover</td>
+        </tr>
+        <tr>
+          <td>Jump 75</td>
+          <td>JD75</td>
+          <td>Jump</td>
+          <td>MA Crossover</td>
+        </tr>
+        <tr>
+          <td>Jump 100</td>
+          <td>JD100</td>
+          <td>Jump</td>
+          <td>Bollinger + Spike</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+  <!-- ==================== PAGE 8: TIPS & SOLVED PROBLEMS ==================== -->
+  <div class="page">
+
+    <h2><span class="num">7</span> Consejos para Operar con Exito</h2>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#127919;</span> Comienza Siempre con Cuenta Demo</div>
+      <p>Usa la cuenta demo durante al menos 1-2 semanas antes de considerar dinero real. Evalua el rendimiento del bot, ajusta las estrategias y familiarizate con la interfaz sin riesgo financiero. Un buen indicador es mantener un win rate superior al 55% de forma consistente en demo antes de pasar a real.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#128200;</span> Usa Multiples Estrategias</div>
+      <p>Activar 2-3 estrategias simultaneamente mejora la fiabilidad. El sistema de consenso solo opera cuando la mayoria de estrategias coinciden, reduciendo falsas senales. La combinacion RSI + Bollinger Bands es especialmente efectiva para indices de volatilidad.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#128176;</span> Empieza con Stakes Pequenos</div>
+      <p>Comienza con $0.35 - $1.00 por operacion, incluso en cuenta demo. Esto te permite tomar mas operaciones, acumular mas datos estadisticos y ajustar la configuracion sin agotar tu capital rapido. Aumenta gradualmente solo cuando tu confianza en la configuracion sea alta.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#9201;</span> Configura los Limites de Riesgo</div>
+      <p>Nunca operes sin limites de riesgo. Configura un maximo de perdida diaria ($10-20 para empezar), limite de trades por sesion (20-30), y detencion por perdidas consecutivas (3-5). Estos parametros evitan que una mala racha destruya tu capital.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#128202;</span> Desactiva Martingale al Principio</div>
+      <p>El sistema Martingale (duplicar la apuesta tras cada perdida) puede generar ganancias rapidas pero tambien perdidas masivas. Mantenlo desactivado hasta que tengas al menos 2 semanas de datos positivos consistentes en cuenta demo.</p>
+    </div>
+
+    <div class="step-box">
+      <div class="step-title"><span class="icon">&#128276;</span> Activa Sonidos y Notificaciones</div>
+      <p>En el panel de Risk Management, activa los efectos de sonido y las notificaciones del navegador. Asi podras escuchar cuando se abren o cierran operaciones sin estar mirando la pantalla constantemente.</p>
+    </div>
+
+    <h2><span class="num">8</span> Solucion de Problemas</h2>
+
+    <h3>No puedo conectarme a Deriv</h3>
+    <ul>
+      <li><strong>Verifica el token:</strong> Asegurate de que copiaste el token completo sin espacios extras al inicio o final.</li>
+      <li><strong>Scopes correctos:</strong> El token debe tener los scopes Trade, Payments y Admin habilitados.</li>
+      <li><strong>Token valido:</strong> Si eliminaste y recreaste el token, usa el nuevo. Los tokens antiguos se invalidan.</li>
+      <li><strong>Conexion a internet:</strong> Verifica que tu conexion este activa y no este bloqueada por un firewall.</li>
+    </ul>
+
+    <h3>El grafico no muestra datos</h3>
+    <ul>
+      <li><strong>Selecciona un mercado:</strong> Debes seleccionar al menos un indice sintetico para recibir datos de precio.</li>
+      <li><strong>Espera la carga:</strong> Los datos historicos pueden tardar unos segundos en cargar.</li>
+      <li><strong>Reconecta:</strong> Si el problema persiste, desconecta y vuelve a conectar.</li>
+    </ul>
+
+    <h3>El auto-trading no abre operaciones</h3>
+    <ul>
+      <li><strong>Confianza minima:</strong> El bot requiere al menos 60% de confianza por defecto para operar.</li>
+      <li><strong>Cooldown:</strong> Despues de cada operacion, hay un periodo de espera antes de la siguiente.</li>
+      <li><strong>Sesion pausada:</strong> Revisa si la sesion fue pausada por alcanzar un limite de riesgo.</li>
+      <li><strong>Minimo de ticks:</strong> El bot necesita al menos 50 ticks de datos antes de analizar.</li>
+      <li><strong>Estrategias activas:</strong> Asegurate de tener al menos una estrategia activada.</li>
+    </ul>
+
+    <h3>Error al abrir operaciones</h3>
+    <ul>
+      <li><strong>Balance insuficiente:</strong> Tu stake no puede ser mayor a tu balance disponible.</li>
+      <li><strong>Monto minimo:</strong> Deriv requiere un minimo de $0.35 por operacion.</li>
+      <li><strong>Token expirado:</strong> Si tu sesion expiro, desconecta y vuelve a conectar con tu token.</li>
+    </ul>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+  <!-- ==================== PAGE 9: FINAL PAGE ==================== -->
+  <div class="page">
+
+    <h2><span class="num">9</span> Estructura del Proyecto</h2>
+    <p>Si instalaste el bot localmente (Opcion B), esta es la estructura de archivos principal del proyecto:</p>
+
+    <div class="code-block amber">
+      <span class="label">Estructura del Proyecto</span>
+      synthtrade-pro/<br>
+      &nbsp;&nbsp;prisma/<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;schema.prisma&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Modelo de base de datos<br>
+      &nbsp;&nbsp;src/<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;app/<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;page.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Pagina principal<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;layout.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Layout general<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;globals.css&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Estilos globales<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;api/<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;trades/route.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# API de operaciones<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;settings/route.ts&nbsp;&nbsp;&nbsp;&nbsp; # API de configuracion<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;lib/<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;deriv-api.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Cliente WebSocket Deriv<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;strategies.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Motor de estrategias<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;store.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Estado global (Zustand)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;components/<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;connection-panel.tsx&nbsp;&nbsp; # Panel de conexion<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;market-selector.tsx&nbsp;&nbsp;&nbsp;&nbsp; # Selector de mercados<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;price-chart.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Grafico de precios<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;trading-controls.tsx&nbsp;&nbsp;&nbsp; # Controles de trading<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;strategy-panel.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Panel de estrategias<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;risk-management.tsx&nbsp;&nbsp;&nbsp;&nbsp; # Gestion de riesgo<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;performance-stats.tsx&nbsp;&nbsp; # Estadisticas<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;trade-history.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Historial de trades<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;open-positions.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Posiciones abiertas<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;activity-log.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Registro de actividad
+    </div>
+
+    <h2><span class="num">10</span> Resumen Rapido de Comandos</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Accion</th>
+          <th>Comando</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Instalar dependencias</td>
+          <td><code>bun install</code></td>
+        </tr>
+        <tr>
+          <td>Configurar base de datos</td>
+          <td><code>bun run db:push</code></td>
+        </tr>
+        <tr>
+          <td>Iniciar el bot</td>
+          <td><code>bun run dev</code></td>
+        </tr>
+        <tr>
+          <td>Verificar errores</td>
+          <td><code>bun run lint</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sep"></div>
+
+    <div class="warning">
+      <div class="icon">&#9888;</div>
+      <p><strong>Aviso Legal:</strong> El trading de indices sinteticos conlleva un riesgo significativo de perdida de capital. Este bot es una herramienta de automatizacion y no garantiza ganancias. Los resultados pasados no son indicativos de resultados futuros. Utiliza siempre dinero que puedas permitirte perder y opera con responsabilidad. El creador de este software no se responsabiliza de ninguna perdida financiera derivada del uso de esta herramienta.</p>
+    </div>
+
+    <div class="success">
+      <div class="icon">&#9733;</div>
+      <p><strong>SynthTrade Pro v1.0</strong> &mdash; Bot de Trading Automatizado para Indices Sinteticos de Deriv. Desarrollado con Next.js, TypeScript, Tailwind CSS, Recharts y Zustand.</p>
+    </div>
+
+    <div class="footer">SinthTrade Pro &mdash; Guia de Configuracion</div>
+  </div>
+
+</body>
+</html>
