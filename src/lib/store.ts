@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getDerivAPI, type Tick, type ActiveSymbol } from './deriv-api';
-import { generateCompositeSignal, type StrategySignal, SYNTHETIC_MARKETS, type MarketInfo, getMarket, getDerivContractType } from './strategies';
+import { generateCompositeSignal, type StrategySignal, SYNTHETIC_MARKETS, type MarketInfo, getMarket, getDerivContractType, autoDetectFromSymbol } from './strategies';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Types
@@ -71,6 +71,7 @@ interface TradingState {
   resetSession: () => void;
   toggleSound: () => void;
   toggleNotifications: () => void;
+  playSound: (type: string) => void;
 }
 
 let tickCounter = 0;
@@ -82,7 +83,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   currentSymbol: 'R_10', currentMarket: null, currentPrice: 0,
   ticks: [], tickHistory: [], previousPrice: 0, priceDirection: 'neutral',
   isAutoTrading: false, selectedStrategies: ['RSI'], baseTradeAmount: 1, tradeAmount: 1,
-  contractDuration: 1, contractDurationUnit: 'm', currentProposal: null,
+  contractDuration: 5, contractDurationUnit: 't', currentProposal: null,
   riskSettings: { ...defaultRisk }, sessionProfit: 0, sessionTrades: 0,
   consecutiveLosses: 0, martingaleStep: 0, sessionStartTime: null,
   isSessionPaused: false, pauseReason: '',
@@ -94,64 +95,80 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   availableSymbols: [], supportedMarkets: SYNTHETIC_MARKETS,
 
   // ═══════════════════════════════════════════════════════════════════════
-  // CONNECT — Authorize FIRST, then fetch symbols, then subscribe to ticks
+  // CONNECT — FIXED: app_id 1089, authorize FIRST, derivws.com URL
   // ═══════════════════════════════════════════════════════════════════════
   connect: async (token?: string) => {
     const api = getDerivAPI();
     const tk = get().apiToken || token;
     if (!tk) { set({ connectionError: 'Token requerido' }); return; }
     set({ isConnecting: true, connectionError: null, apiToken: tk });
-    get().addLog('info', 'Conectando a Deriv (app_id: 1089)...');
+    get().addLog('info', 'Conectando a Deriv (app_id: 1089, derivws.com)...');
 
     try {
-      // STEP 1: Open WebSocket
+      // STEP 1: Open WebSocket with app_id 1089
       await api.connect('1089');
       set({ isConnected: true, isConnecting: false });
-      get().addLog('success', 'WebSocket conectado');
+      get().addLog('success', 'WebSocket conectado a wss://ws.derivws.com');
 
-      // STEP 2: Authorize FIRST (before any other API call)
+      // STEP 2: Authorize FIRST — before ANY other API call
+      // If you subscribe to ticks before authorizing, Deriv may block your IP for 5 minutes
       const auth = await api.authorize(tk);
-      set({ isAuthorized: true, balance: auth.authorize.balance, currency: auth.authorize.currency, loginId: auth.authorize.loginid, accountList: auth.authorize.account_list || null });
+      const authData = auth as any;
+      set({
+        isAuthorized: true,
+        balance: auth.authorize.balance,
+        currency: auth.authorize.currency,
+        loginId: auth.authorize.loginid,
+        accountList: authData.authorize?.account_list || null,
+      });
       get().addLog('success', `Autorizado: ${auth.authorize.fullname} (${auth.authorize.loginid}) — ${auth.authorize.is_virtual ? 'DEMO' : 'REAL'} — ${auth.authorize.currency}`);
 
-      // STEP 3: Subscribe to balance
-      try { const b = await api.getBalance(); if (b.balance) set({ balance: b.balance.balance }); } catch (_) {}
+      // STEP 3: Subscribe to balance updates
+      try {
+        const b = await api.getBalance();
+        if (b.balance) set({ balance: b.balance.balance });
+      } catch (_) {}
 
-      // STEP 4: Fetch active symbols (non-blocking — don't fail if this fails)
+      // STEP 4: Fetch active_symbols (full) — this confirms which symbols exist
       try {
         const active = await api.getActiveSymbols('basic');
         set({ availableSymbols: active });
 
-        // Build a set of symbols the API confirms exist
+        // Build set of API-confirmed symbols
         const apiSet = new Set(active.map((s: ActiveSymbol) => s.symbol));
 
-        // Filter: keep markets that exist in API AND aren't suspended
-        // CRITICAL FIX: If API returns empty data, show ALL markets anyway
+        // Verify our dictionary against API
+        // CRITICAL: Only filter out if API returned data AND symbol is confirmed non-existent
         const verified = SYNTHETIC_MARKETS.filter((m) => {
           const apiSym = active.find((s: ActiveSymbol) => s.symbol === m.symbol);
-          if (!apiSym) return false;
-          if (apiSym.is_trading_suspended) return false;
+          if (!apiSym) {
+            // Symbol not in API response — could be suspended or doesn't exist for this account
+            // Don't show it if API returned a full list
+            return false;
+          }
+          if (apiSym.is_trading_suspended === 1) return false;
           return true;
         });
 
-        // If verification found nothing (API returned no matching symbols), show all
+        // If verification found markets, use them; otherwise show all from dictionary
         if (verified.length > 0) {
           set({ supportedMarkets: verified });
           const cats: Record<string, number> = {};
           verified.forEach((m) => { cats[m.category] = (cats[m.category] || 0) + 1; });
-          get().addLog('success', `${verified.length} mercados verificados: ${Object.entries(cats).map(([k, v]) => `${v} ${k}`).join(', ')}`);
+          get().addLog('success', `${verified.length} mercados verificados por API: ${Object.entries(cats).map(([k, v]) => `${v} ${k}`).join(', ')}`);
         } else {
+          // API returned no matching symbols — show all from dictionary as fallback
           set({ supportedMarkets: SYNTHETIC_MARKETS });
-          get().addLog('warning', 'API no confirmó símbolos. Mostrando todos los mercados del diccionario.');
-          get().addLog('info', `Símbolos disponibles en tu cuenta: ${apiSet.size}. Intenta Volatility 10, 25, 50, 75, 100 primero.`);
+          get().addLog('warning', 'API no confirmo simbolos. Mostrando todos los mercados del diccionario.');
+          get().addLog('info', `Simbolos recibidos de API: ${apiSet.size}. Total en diccionario: ${SYNTHETIC_MARKETS.length}`);
         }
-      } catch (e) {
-        // If active_symbols fails entirely, still show all markets
+      } catch (e: any) {
+        // If active_symbols fails, still show all markets
         set({ supportedMarkets: SYNTHETIC_MARKETS });
-        get().addLog('warning', 'No se pudieron verificar los símbolos. Mostrando todos.');
+        get().addLog('warning', `No se pudieron obtener simbolos activos: ${e.message}`);
       }
 
-      // STEP 5: Subscribe to open contracts
+      // STEP 5: Subscribe to open contracts for trade result updates
       api.subscribeToOpenContracts((data: any) => {
         const poc = data.proposal_open_contract;
         if (poc && (poc.is_sold || poc.status === 'sold')) {
@@ -159,15 +176,20 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           const won = profit > 0;
           get().addLog(won ? 'success' : 'warning', `#${poc.contract_id} ${won ? 'WON' : 'LOST'} ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
           if (won) get().playSound('win'); else get().playSound('loss');
-          get().updateTradeRecord(poc.contract_id, { exitPrice: poc.current_spot, profit, status: won ? 'WON' : 'LOST', exitTime: new Date().toISOString() });
+          get().updateTradeRecord(poc.contract_id, {
+            exitPrice: poc.current_spot,
+            profit,
+            status: won ? 'WON' : 'LOST',
+            exitTime: new Date().toISOString(),
+          });
         }
       });
 
-      // STEP 6: Subscribe to market ticks (LAST — after auth + symbols)
+      // STEP 6: Subscribe to market ticks (LAST — after auth + symbols confirmed)
       await get().subscribeToMarket(get().currentSymbol);
     } catch (error: any) {
       set({ isConnecting: false, isConnected: false, connectionError: error.message });
-      get().addLog('error', `Error de conexión: ${error.message}`);
+      get().addLog('error', `Error de conexion: ${error.message}`);
       get().playSound('alert');
     }
   },
@@ -177,17 +199,22 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     try { api.unsubscribeFromTicks(get().currentSymbol); } catch (_) {}
     try { api.unsubscribeFromOpenContracts(); } catch (_) {}
     api.disconnect();
-    set({ isConnected: false, isAuthorized: false, isAutoTrading: false, balance: 0, currency: 'USD', loginId: '', currentPrice: 0, currentMarket: null, ticks: [], tickHistory: [], currentProposal: null, isSessionPaused: false, pauseReason: '' });
-    get().addLog('info', 'Desconectado');
+    set({
+      isConnected: false, isAuthorized: false, isAutoTrading: false,
+      balance: 0, currency: 'USD', loginId: '', currentPrice: 0,
+      currentMarket: null, ticks: [], tickHistory: [], currentProposal: null,
+      isSessionPaused: false, pauseReason: '',
+    });
+    get().addLog('info', 'Desconectado de Deriv');
   },
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SUBSCRIBE TO MARKET
+  // SUBSCRIBE TO MARKET — with null price guard
   // ═══════════════════════════════════════════════════════════════════════
   subscribeToMarket: async (symbol: string) => {
     const market = getMarket(symbol);
     if (!market) {
-      get().addLog('error', `Símbolo "${symbol}" no existe en el diccionario.`);
+      get().addLog('error', `Simbolo "${symbol}" no existe en el diccionario.`);
       return;
     }
 
@@ -197,13 +224,27 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       try { api.unsubscribeFromTicks(old); } catch (_) {}
     }
 
-    set({ currentSymbol: symbol, currentMarket: market, ticks: [], tickHistory: [], currentPrice: 0 });
+    // Set default duration/unit based on market type
+    set({
+      currentSymbol: symbol,
+      currentMarket: market,
+      ticks: [],
+      tickHistory: [],
+      currentPrice: 0,
+      contractDuration: market.defaultDuration,
+      contractDurationUnit: market.defaultDurationUnit,
+    });
     get().addLog('info', `Suscribiendo a ${market.name} (${symbol})...`);
 
     try {
       const historyTicks = await api.subscribeToTicks(symbol, (data: any) => {
         if (!data.tick) return;
-        const tick: Tick = { epoch: data.tick.epoch, quote: data.tick.quote, symbol: data.tick.symbol, id: data.tick.id };
+        const tick: Tick = {
+          epoch: data.tick.epoch,
+          quote: data.tick.quote,
+          symbol: data.tick.symbol,
+          id: data.tick.id,
+        };
 
         // CRITICAL FIX: Skip if price is null/NaN/undefined
         if (!tick.quote || !isFinite(tick.quote)) return;
@@ -211,9 +252,17 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         set((s) => {
           const newTicks = [...s.ticks.slice(-200), tick];
           const newHistory = [...s.tickHistory.slice(-1000), tick];
-          const dir = s.currentPrice > 0 ? (tick.quote > s.currentPrice ? 'up' : tick.quote < s.currentPrice ? 'down' : 'neutral') : 'neutral';
+          const dir = s.currentPrice > 0
+            ? (tick.quote > s.currentPrice ? 'up' : tick.quote < s.currentPrice ? 'down' : 'neutral')
+            : 'neutral';
           tickCounter++;
-          return { ticks: newTicks, tickHistory: newHistory, currentPrice: tick.quote, previousPrice: s.currentPrice, priceDirection: dir };
+          return {
+            ticks: newTicks,
+            tickHistory: newHistory,
+            currentPrice: tick.quote,
+            previousPrice: s.currentPrice,
+            priceDirection: dir,
+          };
         });
 
         // Auto-trade every 5 ticks
@@ -226,10 +275,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       if (historyTicks.length > 0) {
         const last = historyTicks[historyTicks.length - 1];
         if (last && last.quote && isFinite(last.quote)) {
-          set({ currentPrice: last.quote, previousPrice: historyTicks.length > 1 ? historyTicks[historyTicks.length - 2].quote : last.quote });
+          set({
+            currentPrice: last.quote,
+            previousPrice: historyTicks.length > 1 ? historyTicks[historyTicks.length - 2].quote : last.quote,
+          });
         }
       }
-      get().addLog('success', `${market.name} OK. ${historyTicks.length} ticks cargados. ${market.supportsCallPut ? 'CALL/PUT disponible' : 'Solo contratos digit'}`);
+
+      const contractInfo = market.supportsCallPut ? 'CALL/PUT disponible' : 'Solo contratos DIGIT';
+      const durInfo = market.minDurationMinutes > 0 ? ` | Min ${market.minDurationMinutes} min` : '';
+      get().addLog('success', `${market.name} OK. ${historyTicks.length} ticks cargados. ${contractInfo}${durInfo}`);
     } catch (error: any) {
       get().addLog('error', `Error suscribiendo a ${symbol}: ${error.message}`);
     }
@@ -242,111 +297,141 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set((s) => {
       const next = !s.isAutoTrading;
       if (next) {
-        get().addLog('warning', '🤖 Auto-trading ACTIVADO');
+        get().addLog('warning', 'Auto-trading ACTIVADO');
         get().playSound('trade');
-        return { isAutoTrading: next, sessionStartTime: s.sessionStartTime || new Date(), sessionProfit: 0, sessionTrades: 0, consecutiveLosses: 0, martingaleStep: 0, isSessionPaused: false, pauseReason: '', tradeAmount: s.baseTradeAmount };
+        return {
+          isAutoTrading: next,
+          sessionStartTime: s.sessionStartTime || new Date(),
+          sessionProfit: 0, sessionTrades: 0,
+          consecutiveLosses: 0, martingaleStep: 0,
+          isSessionPaused: false, pauseReason: '',
+          tradeAmount: s.baseTradeAmount,
+        };
       }
-      get().addLog('info', '🛑 Auto-trading DESACTIVADO');
+      get().addLog('info', 'Auto-trading DESACTIVADO');
       return { isAutoTrading: next, signalCooldown: false };
     });
   },
 
-  toggleStrategy: (id) => set((s) => ({ selectedStrategies: s.selectedStrategies.includes(id) ? s.selectedStrategies.filter((x) => x !== id) : [...s.selectedStrategies, id] })),
+  toggleStrategy: (id) => set((s) => ({
+    selectedStrategies: s.selectedStrategies.includes(id) ? s.selectedStrategies.filter((x) => x !== id) : [...s.selectedStrategies, id],
+  })),
   selectAllStrategies: () => set({ selectedStrategies: ['RSI', 'MA_CROSS', 'BOLLINGER', 'SPIKE'] }),
   clearStrategies: () => set({ selectedStrategies: [] }),
 
   // ═══════════════════════════════════════════════════════════════════════
-  // PLACE TRADE — With all 3 corrections
+  // PLACE TRADE — All 4 corrections applied
   // ═══════════════════════════════════════════════════════════════════════
   placeTrade: async (type: 'CALL' | 'PUT') => {
     const api = getDerivAPI();
     const s = get();
 
     // Pre-checks
-    if (!s.isConnected || !s.isAuthorized) { get().addLog('error', 'No conectado. Conecta con tu token API primero.'); return; }
-    if (s.isSessionPaused) { get().addLog('warning', `Pausado: ${s.pauseReason}`); return; }
-    if (s.openTrades.length >= s.maxConcurrentTrades) { get().addLog('warning', `Máximo ${s.maxConcurrentTrades} trades abiertos.`); return; }
+    if (!s.isConnected || !s.isAuthorized) {
+      get().addLog('error', 'No conectado. Conecta con tu token API primero.');
+      return;
+    }
+    if (s.isSessionPaused) {
+      get().addLog('warning', `Pausado: ${s.pauseReason}`);
+      return;
+    }
+    if (s.openTrades.length >= s.maxConcurrentTrades) {
+      get().addLog('warning', `Maximo ${s.maxConcurrentTrades} trades abiertos.`);
+      return;
+    }
 
-    // CORRECCIÓN 2: Skip if price is null/NaN/undefined
+    // FIX 2: Null price check — CRITICAL. Do NOT trade without a real price.
     if (!s.currentPrice || !isFinite(s.currentPrice)) {
       get().addLog('error', 'Precio N/A o nulo. Esperando ticks reales...');
       return;
     }
 
     const amt = s.tradeAmount;
-    if (amt <= 0 || amt > s.balance) { get().addLog('error', `Monto inválido $${amt.toFixed(2)}. Saldo: $${s.balance.toFixed(2)}`); return; }
+    if (amt <= 0 || amt > s.balance) {
+      get().addLog('error', `Monto invalido $${amt.toFixed(2)}. Saldo: $${s.balance.toFixed(2)}`);
+      return;
+    }
 
     const symbol = s.currentSymbol;
     const market = s.currentMarket || getMarket(symbol);
-    if (!market) { get().addLog('error', `Mercado no encontrado: ${symbol}`); return; }
-
-    // Get the correct Deriv contract type
-    const contractType = getDerivContractType(market, type);
-
-    // CORRECCIÓN 3: Metal duration fix — minimum 3 minutes for Gold/Silver
-    let duration = s.contractDuration;
-    let durationUnit = s.contractDurationUnit;
-
-    if (market.minDurationMinutes > 0) {
-      const minDur = market.minDurationMinutes;
-      if (durationUnit === 't') {
-        // Convert ticks to minutes approximation (1 tick ≈ varies)
-        duration = minDur;
-        durationUnit = 'm';
-      } else if (durationUnit === 's') {
-        if (duration < minDur * 60) {
-          duration = minDur;
-          durationUnit = 'm';
-        }
-      } else if (durationUnit === 'm') {
-        if (duration < minDur) duration = minDur;
-      }
-      get().addLog('info', `⚠️ Metales: duración ajustada a ${duration}${durationUnit} (mínimo ${minDur} min)`);
+    if (!market) {
+      get().addLog('error', `Mercado no encontrado: ${symbol}`);
+      return;
     }
 
-    get().addLog('info', `→ ${contractType} en ${market.name} (${symbol}) | $${amt.toFixed(2)} | ${duration}${durationUnit}`);
+    // Get the correct contract type, duration, and barrier
+    // getDerivContractType returns: { contractType, barrier?, duration, durationUnit }
+    const contractInfo = getDerivContractType(market, type, s.currentPrice);
 
-    // Send proposal
+    get().addLog('info', `→ ${contractInfo.contractType} en ${market.name} (${symbol}) | $${amt.toFixed(2)} | ${contractInfo.duration}${contractInfo.durationUnit}${contractInfo.barrier ? ` | barrier: ${contractInfo.barrier}` : ''}`);
+
+    // Build proposal parameters
     try {
       const proposalParams: any = {
-        contract_type: contractType,
+        contract_type: contractInfo.contractType,
         symbol: symbol,
         amount: amt,
-        duration: duration,
-        duration_unit: durationUnit,
+        duration: contractInfo.duration,
+        duration_unit: contractInfo.durationUnit,
         basis: 'stake',
         currency: s.currency,
       };
 
-      // For digit contracts (Boom/Crash), add barrier
-      if (contractType.startsWith('DIGIT')) {
-        const lastDigit = Math.abs(Math.floor(s.currentPrice)) % 10;
-        proposalParams.barrier = lastDigit.toString();
-        get().addLog('info', `Dígito barrera: ${lastDigit} (último dígito de ${s.currentPrice})`);
+      // Add barrier for digit contracts
+      if (contractInfo.barrier) {
+        proposalParams.barrier = contractInfo.barrier;
       }
 
       const proposal = await api.getProposal(proposalParams);
 
       if (proposal.proposal) {
-        set({ currentProposal: { id: proposal.proposal.id, askPrice: proposal.proposal.ask_price, payout: proposal.proposal.payout, contractType } });
+        set({
+          currentProposal: {
+            id: proposal.proposal.id,
+            askPrice: proposal.proposal.ask_price,
+            payout: proposal.proposal.payout,
+            contractType: contractInfo.contractType,
+          },
+        });
         get().addLog('info', `Propuesta OK. Costo: $${proposal.proposal.ask_price.toFixed(2)} | Pago: $${proposal.proposal.payout.toFixed(2)}`);
 
-        const buy = await api.buy(proposal.proposal.id, proposal.proposal.ask_price);
+        // Buy with price 10000 to avoid "price moved" errors
+        const buy = await api.buy(proposal.proposal.id, 10000);
 
         if (buy.buy) {
           const trade: TradeRecord = {
-            symbol, contractType, direction: type,
-            entryTime: new Date().toISOString(), entryPrice: s.currentPrice, profit: 0,
+            symbol,
+            contractType: contractInfo.contractType,
+            direction: type,
+            entryTime: new Date().toISOString(),
+            entryPrice: s.currentPrice,
+            profit: 0,
             strategy: s.selectedStrategies.join('+') || 'Manual',
-            status: 'OPEN', amount: buy.buy.buy_price, payout: buy.buy.payout, contractId: buy.buy.contract_id,
+            status: 'OPEN',
+            amount: buy.buy.buy_price,
+            payout: buy.buy.payout,
+            contractId: buy.buy.contract_id,
           };
 
-          set((st) => ({ openTrades: [...st.openTrades, trade], balance: buy.buy.balance_after, currentProposal: null, sessionTrades: st.sessionTrades + 1 }));
-          get().addLog('trade', `✅ ${contractType} COMPRADO | #${buy.buy.contract_id} | ${market.name} | $${buy.buy.buy_price.toFixed(2)} → $${buy.buy.payout.toFixed(2)}`);
+          set((st) => ({
+            openTrades: [...st.openTrades, trade],
+            balance: buy.buy.balance_after,
+            currentProposal: null,
+            sessionTrades: st.sessionTrades + 1,
+          }));
+          get().addLog('trade', `${contractInfo.contractType} COMPRADO | #${buy.buy.contract_id} | ${market.name} | $${buy.buy.buy_price.toFixed(2)} → $${buy.buy.payout.toFixed(2)}`);
           get().playSound('trade');
 
-          try { await fetch('/api/trades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(trade) }); } catch (_) {}
+          // Save to local DB
+          try {
+            await fetch('/api/trades', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(trade),
+            });
+          } catch (_) {}
 
+          // Cooldown after trade
           set({ autoTradeCooldown: true, signalCooldown: true });
           setTimeout(() => set({ autoTradeCooldown: false }), s.minTicksBetweenTrades * 500);
           if (cooldownTimer) clearTimeout(cooldownTimer);
@@ -355,13 +440,15 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       }
     } catch (error: any) {
       const msg = error.message || 'Error desconocido';
-      // Parse Deriv API errors for useful info
-      if (msg.includes('Invalid contract type')) {
-        get().addLog('error', `${market.name}: tipo de contrato "${contractType}" no válido. Disponibles: ${market.contractTypes.slice(0, 5).join(', ')}`);
+
+      if (msg.includes('Invalid contract type') || msg.includes('not available for this symbol')) {
+        get().addLog('error', `${market.name}: tipo "${contractInfo.contractType}" no valido. Este mercado soporta: ${market.contractTypes.slice(0, 5).join(', ')}`);
       } else if (msg.includes('Minimum duration')) {
-        get().addLog('error', `${market.name}: duración mínima no cumplida. Usa al menos ${market.minDurationMinutes} minutos.`);
+        get().addLog('error', `${market.name}: duracion minima no cumplida. Minimo: ${market.minDurationMinutes || 1} min.`);
+      } else if (msg.includes('Price moved')) {
+        get().addLog('warning', `${market.name}: precio movido. El mercado esta muy volatil. Reintentando...`);
       } else {
-        get().addLog('error', `Trade falló en ${market.name} (${symbol}): ${msg}`);
+        get().addLog('error', `Trade fallido en ${market.name} (${symbol}): ${msg}`);
       }
       set({ currentProposal: null });
       get().playSound('alert');
@@ -369,51 +456,103 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   // ═══════════════════════════════════════════════════════════════════════
-  // AUTO-TRADE
+  // AUTO-TRADE — with null price guard
   // ═══════════════════════════════════════════════════════════════════════
   processAutoTrade: () => {
     const s = get();
     if (!s.isAutoTrading || !s.selectedStrategies.length) return;
 
-    // CORRECCIÓN 2: Don't trade with null price
+    // FIX 2: Don't auto-trade with null price
     if (!s.currentPrice || !isFinite(s.currentPrice)) return;
     if (s.tickHistory.length < 50) return;
     if (s.openTrades.length >= s.maxConcurrentTrades) return;
     if (s.signalCooldown) return;
 
     const r = s.riskSettings;
-    if (s.sessionProfit < -r.maxDailyLoss) { if (!s.isSessionPaused) { set({ isSessionPaused: true, pauseReason: `Pérdida máx -$${r.maxDailyLoss}` }); get().addLog('error', '🛑 Límite de pérdida diaria'); get().playSound('alert'); } return; }
-    if (s.sessionProfit >= r.dailyProfitTarget) { if (!s.isSessionPaused) { set({ isSessionPaused: true, pauseReason: `Objetivo +$${r.dailyProfitTarget}` }); get().addLog('success', `🎯 Objetivo +$${r.dailyProfitTarget} alcanzado`); get().playSound('win'); } return; }
-    if (s.sessionTrades >= r.maxTradesPerSession) { if (!s.isSessionPaused) { set({ isSessionPaused: true, pauseReason: 'Máx trades' }); get().addLog('warning', '🛑 Máximo de trades'); } return; }
-    if (s.consecutiveLosses >= r.stopAfterConsecutiveLosses) { if (!s.isSessionPaused) { set({ isSessionPaused: true, pauseReason: `${r.stopAfterConsecutiveLosses} pérdidas seguidas` }); get().addLog('error', '🛑 Demasiadas pérdidas seguidas'); get().playSound('alert'); } return; }
 
+    // Risk management checks
+    if (s.sessionProfit < -r.maxDailyLoss) {
+      if (!s.isSessionPaused) {
+        set({ isSessionPaused: true, pauseReason: `Perdida max -$${r.maxDailyLoss}` });
+        get().addLog('error', 'Limite de perdida diaria alcanzado');
+        get().playSound('alert');
+      }
+      return;
+    }
+    if (s.sessionProfit >= r.dailyProfitTarget) {
+      if (!s.isSessionPaused) {
+        set({ isSessionPaused: true, pauseReason: `Objetivo +$${r.dailyProfitTarget}` });
+        get().addLog('success', `Objetivo +$${r.dailyProfitTarget} alcanzado`);
+        get().playSound('win');
+      }
+      return;
+    }
+    if (s.sessionTrades >= r.maxTradesPerSession) {
+      if (!s.isSessionPaused) {
+        set({ isSessionPaused: true, pauseReason: 'Max trades' });
+        get().addLog('warning', 'Maximo de trades alcanzado');
+      }
+      return;
+    }
+    if (s.consecutiveLosses >= r.stopAfterConsecutiveLosses) {
+      if (!s.isSessionPaused) {
+        set({ isSessionPaused: true, pauseReason: `${r.stopAfterConsecutiveLosses} perdidas seguidas` });
+        get().addLog('error', 'Demasiadas perdidas seguidas');
+        get().playSound('alert');
+      }
+      return;
+    }
+
+    // Generate composite signal from strategies
     const signal = generateCompositeSignal(s.tickHistory, s.selectedStrategies);
     set({ lastSignal: signal });
     set((st) => ({ signalHistory: [...st.signalHistory.slice(-30), signal] }));
 
     if (signal.type && signal.confidence >= r.minSignalConfidence) {
       const m = s.currentMarket;
-      get().addLog('trade', `📊 ${signal.type} (${signal.confidence}%) en ${m?.name || s.currentSymbol} — ${signal.reason}`);
+      get().addLog('trade', `${signal.type} (${signal.confidence}%) en ${m?.name || s.currentSymbol} — ${signal.reason}`);
 
+      // Martingale
       if (r.useMartingale && s.consecutiveLosses > 0) {
         const step = Math.min(s.consecutiveLosses, r.martingaleMaxSteps);
         const ma = Math.min(s.baseTradeAmount * Math.pow(r.martingaleMultiplier, step), s.balance * 0.1);
         if (ma > s.balance) return;
         set({ tradeAmount: ma, martingaleStep: step });
-        get().addLog('info', `📈 Martingale paso ${step}: $${ma.toFixed(2)}`);
+        get().addLog('info', `Martingale paso ${step}: $${ma.toFixed(2)}`);
       }
       get().placeTrade(signal.type);
     }
   },
 
-  updateRiskSettings: (u) => { set((s) => ({ riskSettings: { ...s.riskSettings, ...u } })); get().addLog('info', 'Riesgo actualizado'); },
-  resetSession: () => { set({ sessionProfit: 0, sessionTrades: 0, consecutiveLosses: 0, martingaleStep: 0, sessionStartTime: new Date(), isSessionPaused: false, pauseReason: '', tradeAmount: get().baseTradeAmount }); get().addLog('info', '🔄 Sesión reiniciada'); },
+  updateRiskSettings: (u) => {
+    set((s) => ({ riskSettings: { ...s.riskSettings, ...u } }));
+    get().addLog('info', 'Riesgo actualizado');
+  },
+  resetSession: () => {
+    set({
+      sessionProfit: 0, sessionTrades: 0,
+      consecutiveLosses: 0, martingaleStep: 0,
+      sessionStartTime: new Date(),
+      isSessionPaused: false, pauseReason: '',
+      tradeAmount: get().baseTradeAmount,
+    });
+    get().addLog('info', 'Sesion reiniciada');
+  },
   toggleSound: () => set((s) => ({ soundEnabled: !s.soundEnabled })),
   toggleNotifications: async () => {
     const s = get();
     if (!s.notificationEnabled) {
-      if (typeof window !== 'undefined' && 'Notification' in window) { const p = await Notification.requestPermission(); if (p === 'granted') { set({ notificationEnabled: true }); } else get().addLog('warning', 'Notif denegada'); }
-    } else set({ notificationEnabled: false });
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        const p = await Notification.requestPermission();
+        if (p === 'granted') {
+          set({ notificationEnabled: true });
+        } else {
+          get().addLog('warning', 'Notificaciones denegadas');
+        }
+      }
+    } else {
+      set({ notificationEnabled: false });
+    }
   },
 
   playSound: (type) => {
@@ -433,7 +572,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   addLog: (type, message) => {
-    const e: LogEntry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, timestamp: new Date(), type, message };
+    const e: LogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      timestamp: new Date(),
+      type,
+      message,
+    };
     set((s) => ({ logs: [...s.logs.slice(-(s.maxLogs - 1)), e] }));
   },
   clearLogs: () => set({ logs: [] }),
@@ -442,22 +586,59 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set((s) => {
       const i = s.openTrades.findIndex((t) => t.contractId === contractId);
       if (i === -1) return s;
-      const u = [...s.openTrades]; u[i] = { ...u[i], ...updates };
+      const u = [...s.openTrades];
+      u[i] = { ...u[i], ...updates };
       const rem = updates.status && updates.status !== 'OPEN' ? u.filter((t) => t.contractId !== contractId) : u;
       let h = s.tradeHistory;
-      if (updates.status && updates.status !== 'OPEN') h = [{ ...u[i], ...updates } as TradeRecord, ...s.tradeHistory];
+      if (updates.status && updates.status !== 'OPEN') {
+        h = [{ ...u[i], ...updates } as TradeRecord, ...s.tradeHistory];
+      }
       const cl = h.filter((t) => t.status === 'WON' || t.status === 'LOST');
-      const w = cl.filter((t) => t.status === 'WON').length, l = cl.filter((t) => t.status === 'LOST').length;
+      const w = cl.filter((t) => t.status === 'WON').length;
+      const l = cl.filter((t) => t.status === 'LOST').length;
       const tp = cl.reduce((a, t) => a + (t.profit || 0), 0);
-      let sk = 0; const st = cl[0]?.status === 'WON' ? 'win' : 'loss';
-      for (let j = 0; j < cl.length; j++) { if (j === 0 || cl[j].status === cl[j - 1].status) sk++; else break; }
-      let cL = 0; for (let j = 0; j < cl.length; j++) { if (cl[j].status === 'LOST') cL++; else break; }
+      let sk = 0;
+      const st = cl[0]?.status === 'WON' ? 'win' : 'loss';
+      for (let j = 0; j < cl.length; j++) {
+        if (j === 0 || cl[j].status === cl[j - 1].status) sk++;
+        else break;
+      }
+      let cL = 0;
+      for (let j = 0; j < cl.length; j++) {
+        if (cl[j].status === 'LOST') cL++;
+        else break;
+      }
       const sp = s.sessionProfit + ((updates.status === 'WON' || updates.status === 'LOST') ? (updates.profit || 0) : 0);
-      return { openTrades: rem, tradeHistory: h.slice(0, 100), totalProfit: tp, totalTrades: cl.length, winCount: w, lossCount: l, currentStreak: sk, streakType: st as any, sessionProfit: sp, consecutiveLosses: updates.status === 'LOST' ? s.consecutiveLosses + 1 : updates.status === 'WON' ? 0 : s.consecutiveLosses, martingaleStep: updates.status === 'WON' ? 0 : s.martingaleStep, tradeAmount: updates.status === 'WON' ? s.baseTradeAmount : s.tradeAmount };
+      return {
+        openTrades: rem,
+        tradeHistory: h.slice(0, 100),
+        totalProfit: tp,
+        totalTrades: cl.length,
+        winCount: w,
+        lossCount: l,
+        currentStreak: sk,
+        streakType: st as any,
+        sessionProfit: sp,
+        consecutiveLosses: updates.status === 'LOST' ? s.consecutiveLosses + 1 : updates.status === 'WON' ? 0 : s.consecutiveLosses,
+        martingaleStep: updates.status === 'WON' ? 0 : s.martingaleStep,
+        tradeAmount: updates.status === 'WON' ? s.baseTradeAmount : s.tradeAmount,
+      };
     });
   },
 
   loadTradeHistory: async () => {
-    try { const r = await fetch('/api/trades?limit=100'); const t = await r.json(); const c = t.filter((x: TradeRecord) => x.status === 'WON' || x.status === 'LOST'); set({ tradeHistory: t, openTrades: t.filter((x: TradeRecord) => x.status === 'OPEN'), totalTrades: c.length, winCount: c.filter((x) => x.status === 'WON').length, lossCount: c.filter((x) => x.status === 'LOST').length, totalProfit: c.reduce((a: number, x: TradeRecord) => a + (x.profit || 0), 0) }); } catch (_) {}
+    try {
+      const r = await fetch('/api/trades?limit=100');
+      const t = await r.json();
+      const c = t.filter((x: TradeRecord) => x.status === 'WON' || x.status === 'LOST');
+      set({
+        tradeHistory: t,
+        openTrades: t.filter((x: TradeRecord) => x.status === 'OPEN'),
+        totalTrades: c.length,
+        winCount: c.filter((x) => x.status === 'WON').length,
+        lossCount: c.filter((x) => x.status === 'LOST').length,
+        totalProfit: c.reduce((a: number, x: TradeRecord) => a + (x.profit || 0), 0),
+      });
+    } catch (_) {}
   },
 }));

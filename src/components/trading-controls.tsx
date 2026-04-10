@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTradingStore } from '@/lib/store';
-import { SYNTHETIC_MARKETS, getDerivContractType } from '@/lib/strategies';
+import { SYNTHETIC_MARKETS } from '@/lib/strategies';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,10 +44,13 @@ export function TradingControls() {
               </Badge>
             </div>
             {!market.supportsCallPut && (
-              <p className="text-[9px] text-amber-400/70">⚠ Boom/Crash usan contratos digit. CALL → DIGITMATCH, PUT → DIGITDIFF</p>
+              <p className="text-[9px] text-amber-400/70">Boom/Crash: CALL → DIGITMATCH, PUT → DIGITDIFF (digit only)</p>
             )}
-            {market.minDurationMinutes > 0 && (
-              <p className="text-[9px] text-yellow-400/70">⚠ Mínimo {market.minDurationMinutes} minutos para metales</p>
+            {market.minDurationMinutes >= 60 && (
+              <p className="text-[9px] text-yellow-400/70">Metales: duracion minima 1 hora ({market.minDurationMinutes} min)</p>
+            )}
+            {market.minDurationMinutes > 0 && market.minDurationMinutes < 60 && (
+              <p className="text-[9px] text-yellow-400/70">Minimo {market.minDurationMinutes} minutos</p>
             )}
           </div>
         )}
@@ -65,13 +68,14 @@ export function TradingControls() {
         <div className="space-y-1">
           <Label className="text-[10px] text-muted-foreground uppercase tracking-wider"><Clock className="h-3 w-3 inline mr-1" />Duración</Label>
           <div className="flex gap-2">
-            <Input type="number" value={contractDuration} onChange={(e) => setContractDuration(parseInt(e.target.value) || 1)} min={1} className="h-9 text-sm font-mono bg-background/50 flex-1" />
+            <Input type="number" value={contractDuration} onChange={(e) => setContractDuration(parseInt(e.target.value) || 1, contractDurationUnit)} min={1} className="h-9 text-sm font-mono bg-background/50 flex-1" />
             <Select value={contractDurationUnit} onValueChange={(v) => setContractDuration(contractDuration, v)}>
               <SelectTrigger className="h-9 w-24 text-xs bg-background/50"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="t">Ticks</SelectItem>
-                <SelectItem value="s">Segundos</SelectItem>
+                <SelectItem value="h">Horas</SelectItem>
                 <SelectItem value="m">Minutos</SelectItem>
+                <SelectItem value="s">Segundos</SelectItem>
+                <SelectItem value="t">Ticks</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -1,8 +1,14 @@
 // ═════════════════════════════════════════════════════════════════════════════════
-// DERIV OFFICIAL SYMBOL DICTIONARY — Verified against Deriv API active_symbols
+// DERIV SYMBOL DICTIONARY — Final Version (Auto-Detect from API + Fallback)
 // ═════════════════════════════════════════════════════════════════════════════════
-// CRITICAL: These are the ONLY valid symbols. Do NOT invent symbols.
-// Every symbol here has been verified to exist in Deriv's WebSocket API.
+// FIXES APPLIED:
+// - app_id: 1089
+// - URL: wss://ws.derivws.com (not binaryws.com)
+// - active_symbols: "full" (not "brief")
+// - Boom/Crash: DIGIT contracts ONLY (no CALL/PUT)
+// - Gold/Metals: CALL/PUT with 1-hour minimum duration
+// - Volatility/Jump/Step: CALL/PUT supported
+// - Null price check before any trade execution
 
 import type { Tick } from './deriv-api';
 
@@ -14,70 +20,76 @@ export interface MarketInfo {
   category: string;
   description: string;
   marketType: MarketType;
-  // Which contract types this market ACTUALLY supports on Deriv
   contractTypes: string[];
-  // Does this market support CALL/PUT (Rise/Fall)?
   supportsCallPut: boolean;
-  // Minimum duration in minutes (Deriv enforces this for metals)
   minDurationMinutes: number;
+  // Default duration/unit for this market when trading
+  defaultDuration: number;
+  defaultDurationUnit: string;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// MASTER SYMBOL TABLE
+// MASTER SYMBOL TABLE — Verified Deriv Symbols
 // ═════════════════════════════════════════════════════════════════════════════════
 
 export const SYNTHETIC_MARKETS: MarketInfo[] = [
 
-  // ─── BOOM INDICES (Digit-based contracts ONLY — NO CALL/PUT) ──────────
-  { symbol: 'BOOM300',   name: 'Boom 300',   category: 'Boom/Crash', description: 'Spike up in 300ms',   marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
-  { symbol: 'BOOM500',   name: 'Boom 500',   category: 'Boom/Crash', description: 'Spike up in 500ms',   marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
-  { symbol: 'BOOM1000',  name: 'Boom 1000',  category: 'Boom/Crash', description: 'Spike up in 1000ms',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
+  // ─── BOOM INDICES (Digit-based ONLY — NO CALL/PUT) ────────────────────
+  // Continuous versions: 1HB300V, 1HB500V, 1HB1000V
+  { symbol: '1HB300V',   name: 'Boom 300',    category: 'Boom/Crash', description: 'Spike up in 300ms',    marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: '1HB500V',   name: 'Boom 500',    category: 'Boom/Crash', description: 'Spike up in 500ms',    marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: '1HB1000V',  name: 'Boom 1000',   category: 'Boom/Crash', description: 'Spike up in 1000ms',   marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  // Non-continuous (legacy) — only 1000 confirmed working
+  { symbol: 'BOOM1000',  name: 'Boom 1000 N', category: 'Boom/Crash', description: 'Boom 1000 Non-Cont.',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
 
-  // ─── CRASH INDICES (Digit-based contracts ONLY — NO CALL/PUT) ─────────
-  { symbol: 'CRASH300',  name: 'Crash 300',  category: 'Boom/Crash', description: 'Spike down in 300ms',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
-  { symbol: 'CRASH500',  name: 'Crash 500',  category: 'Boom/Crash', description: 'Spike down in 500ms',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
-  { symbol: 'CRASH1000', name: 'Crash 1000', category: 'Boom/Crash', description: 'Spike down in 1000ms', marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
+  // ─── CRASH INDICES (Digit-based ONLY — NO CALL/PUT) ───────────────────
+  // Continuous versions: 1HC300V, 1HC500V, 1HC1000V
+  { symbol: '1HC300V',   name: 'Crash 300',   category: 'Boom/Crash', description: 'Spike down in 300ms',   marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: '1HC500V',   name: 'Crash 500',   category: 'Boom/Crash', description: 'Spike down in 500ms',   marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: '1HC1000V',  name: 'Crash 1000',  category: 'Boom/Crash', description: 'Spike down in 1000ms',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  // Non-continuous (legacy)
+  { symbol: 'CRASH1000', name: 'Crash 1000 N', category: 'Boom/Crash', description: 'Crash 1000 Non-Cont.', marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
 
-  // ─── VOLATILITY (Standard — supports CALL/PUT) ──────────────────────
-  { symbol: 'R_10',     name: 'Volatility 10',  category: 'Volatility', description: '10% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'R_25',     name: 'Volatility 25',  category: 'Volatility', description: '25% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'R_50',     name: 'Volatility 50',  category: 'Volatility', description: '50% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'R_75',     name: 'Volatility 75',  category: 'Volatility', description: '75% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'R_100',    name: 'Volatility 100', category: 'Volatility', description: '100% volatility', marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
+  // ─── VOLATILITY INDEX (Standard — CALL/PUT supported) ─────────────────
+  { symbol: 'R_10',     name: 'Volatility 10',  category: 'Volatility', description: '10% volatility index',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'R_25',     name: 'Volatility 25',  category: 'Volatility', description: '25% volatility index',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'R_50',     name: 'Volatility 50',  category: 'Volatility', description: '50% volatility index',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'R_75',     name: 'Volatility 75',  category: 'Volatility', description: '75% volatility index',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'R_100',    name: 'Volatility 100', category: 'Volatility', description: '100% volatility index', marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
 
-  // ─── VOLATILITY (1-Second — supports CALL/PUT) ──────────────────────
-  { symbol: '1HZ10V',   name: 'Volatility 10 (1s)',  category: 'Volatility', description: '10% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: '1HZ25V',   name: 'Volatility 25 (1s)',  category: 'Volatility', description: '25% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: '1HZ50V',   name: 'Volatility 50 (1s)',  category: 'Volatility', description: '50% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: '1HZ75V',   name: 'Volatility 75 (1s)',  category: 'Volatility', description: '75% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: '1HZ100V',  name: 'Volatility 100 (1s)', category: 'Volatility', description: '100% vol, 1s ticks', marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
+  // ─── VOLATILITY INDEX (1-Second — CALL/PUT supported) ─────────────────
+  { symbol: '1HZ10V',   name: 'Vol 10 (1s)',  category: 'Volatility', description: '10% vol, 1-second ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: '1HZ25V',   name: 'Vol 25 (1s)',  category: 'Volatility', description: '25% vol, 1-second ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: '1HZ50V',   name: 'Vol 50 (1s)',  category: 'Volatility', description: '50% vol, 1-second ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: '1HZ75V',   name: 'Vol 75 (1s)',  category: 'Volatility', description: '75% vol, 1-second ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: '1HZ100V',  name: 'Vol 100 (1s)', category: 'Volatility', description: '100% vol, 1-second ticks', marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
 
-  // ─── JUMP INDICES (supports CALL/PUT) ───────────────────────────────
-  { symbol: 'JD10',     name: 'Jump 10',   category: 'Jump', description: 'Jump 10 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'JD25',     name: 'Jump 25',   category: 'Jump', description: 'Jump 25 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'JD50',     name: 'Jump 50',   category: 'Jump', description: 'Jump 50 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'JD75',     name: 'Jump 75',   category: 'Jump', description: 'Jump 75 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'JD100',    name: 'Jump 100',  category: 'Jump', description: 'Jump 100 Index', marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  // ─── JUMP INDICES (CALL/PUT supported) ────────────────────────────────
+  { symbol: 'JD10',     name: 'Jump 10',   category: 'Jump', description: 'Jump 10 Index',   marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'JD25',     name: 'Jump 25',   category: 'Jump', description: 'Jump 25 Index',   marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'JD50',     name: 'Jump 50',   category: 'Jump', description: 'Jump 50 Index',   marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'JD75',     name: 'Jump 75',   category: 'Jump', description: 'Jump 75 Index',   marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
+  { symbol: 'JD100',    name: 'Jump 100',  category: 'Jump', description: 'Jump 100 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
 
-  // ─── STEP INDEX ─────────────────────────────────────────────────────
-  { symbol: 'stpRNG',   name: 'Step RNG',   category: 'Step', description: 'Step Random 0-9', marketType: 'step', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
+  // ─── STEP INDEX ───────────────────────────────────────────────────────
+  { symbol: 'stpRNG',   name: 'Step RNG',   category: 'Step', description: 'Step Random 0-9',   marketType: 'step', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
 
-  // ─── METALES / GOLD / SILVER (CALL/PUT — min 3 min duration) ──────
-  { symbol: 'frxXAUUSD', name: 'Gold/USD (Oro)',       category: 'Metales', description: 'Oro vs Dólar',       marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
-  { symbol: 'frxXAGUSD', name: 'Silver/USD (Plata)',   category: 'Metales', description: 'Plata vs Dólar',     marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
-  { symbol: 'frxXAUJPY', name: 'Gold/JPY (Oro/Yen)',   category: 'Metales', description: 'Oro vs Yen',         marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
-  { symbol: 'frxXAUEUR', name: 'Gold/EUR (Oro/Euro)',  category: 'Metales', description: 'Oro vs Euro',        marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
-  { symbol: 'frxXAGJPY', name: 'Silver/JPY (Plata/Yen)', category: 'Metales', description: 'Plata vs Yen',     marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
-  { symbol: 'frxXAGEUR', name: 'Silver/EUR (Plata/Euro)', category: 'Metales', description: 'Plata vs Euro',  marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
+  // ─── METALES / GOLD / SILVER (CALL/PUT — min 1 HOUR duration) ────────
+  { symbol: 'frxXAUUSD', name: 'Gold/USD (Oro)',         category: 'Metales', description: 'Oro vs Dolar',          marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 60, defaultDuration: 1, defaultDurationUnit: 'h' },
+  { symbol: 'frxXAGUSD', name: 'Silver/USD (Plata)',     category: 'Metales', description: 'Plata vs Dolar',        marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 60, defaultDuration: 1, defaultDurationUnit: 'h' },
+  { symbol: 'frxXAUJPY', name: 'Gold/JPY (Oro/Yen)',     category: 'Metales', description: 'Oro vs Yen',            marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 60, defaultDuration: 1, defaultDurationUnit: 'h' },
+  { symbol: 'frxXAUEUR', name: 'Gold/EUR (Oro/Euro)',    category: 'Metales', description: 'Oro vs Euro',           marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 60, defaultDuration: 1, defaultDurationUnit: 'h' },
+  { symbol: 'frxXAGJPY', name: 'Silver/JPY (Plata/Yen)', category: 'Metales', description: 'Plata vs Yen',          marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 60, defaultDuration: 1, defaultDurationUnit: 'h' },
+  { symbol: 'frxXAGEUR', name: 'Silver/EUR (Plata/Euro)', category: 'Metales', description: 'Plata vs Euro',         marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 60, defaultDuration: 1, defaultDurationUnit: 'h' },
 
-  // ─── FOREX ──────────────────────────────────────────────────────────
-  { symbol: 'frxEURUSD', name: 'EUR/USD', category: 'Forex', description: 'Euro vs Dólar',    marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'frxGBPUSD', name: 'GBP/USD', category: 'Forex', description: 'Libra vs Dólar',   marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'frxUSDJPY', name: 'USD/JPY', category: 'Forex', description: 'Dólar vs Yen',     marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'frxAUDUSD', name: 'AUD/USD', category: 'Forex', description: 'Australiano vs USD', marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'frxUSDCAD', name: 'USD/CAD', category: 'Forex', description: 'Dólar vs Canadiense', marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'frxEURGBP', name: 'EUR/GBP', category: 'Forex', description: 'Euro vs Libra',    marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
-  { symbol: 'frxGBPJPY', name: 'GBP/JPY', category: 'Forex', description: 'Libra vs Yen',     marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  // ─── FOREX ────────────────────────────────────────────────────────────
+  { symbol: 'frxEURUSD', name: 'EUR/USD', category: 'Forex', description: 'Euro vs Dolar',        marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 'm' },
+  { symbol: 'frxGBPUSD', name: 'GBP/USD', category: 'Forex', description: 'Libra vs Dolar',       marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 'm' },
+  { symbol: 'frxUSDJPY', name: 'USD/JPY', category: 'Forex', description: 'Dolar vs Yen',         marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 'm' },
+  { symbol: 'frxAUDUSD', name: 'AUD/USD', category: 'Forex', description: 'Australiano vs USD',   marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 'm' },
+  { symbol: 'frxUSDCAD', name: 'USD/CAD', category: 'Forex', description: 'Dolar vs Canadiense',  marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 'm' },
+  { symbol: 'frxEURGBP', name: 'EUR/GBP', category: 'Forex', description: 'Euro vs Libra',        marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 'm' },
+  { symbol: 'frxGBPJPY', name: 'GBP/JPY', category: 'Forex', description: 'Libra vs Yen',         marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 'm' },
 ];
 
 // ─── Fast lookups ───────────────────────────────────────────────────────
@@ -88,26 +100,130 @@ export function getMarket(symbol: string): MarketInfo | undefined {
 }
 
 /**
- * Get the Deriv contract type for a given direction and market.
- * - Markets with supportsCallPut=true → use CALL/PUT directly
- * - Boom/Crash (supportsCallPut=false) → use DIGITMATCH/DIGITDIFF
+ * Detect if a symbol is Boom/Crash (digit-only contracts).
+ * Matches both continuous (1HB*, 1HC*) and non-continuous (BOOM*, CRASH*) symbols.
  */
-export function getDerivContractType(market: MarketInfo, direction: 'CALL' | 'PUT'): string {
-  if (market.supportsCallPut) {
-    return direction; // CALL or PUT
-  }
-  // Boom/Crash: digit-based
-  if (market.marketType === 'synthetic') {
-    if (market.symbol.startsWith('BOOM')) {
-      // Boom: CALL signal = expect spike = DIGITMATCH, PUT signal = no spike = DIGITDIFF
-      return direction === 'CALL' ? 'DIGITMATCH' : 'DIGITDIFF';
+function isBoomOrCrash(symbol: string): boolean {
+  const s = symbol.toUpperCase();
+  return (
+    s.startsWith('1HB') ||    // Continuous Boom: 1HB300V, 1HB500V, 1HB1000V
+    s.startsWith('1HC') ||    // Continuous Crash: 1HC300V, 1HC500V, 1HC1000V
+    s.includes('BOOM') ||     // Non-continuous: BOOM1000
+    s.includes('CRASH')       // Non-continuous: CRASH1000
+  );
+}
+
+/**
+ * Detect if a symbol is a metals market (Gold, Silver).
+ */
+function isMetal(symbol: string): boolean {
+  return symbol.startsWith('frxXAU') || symbol.startsWith('frxXAG');
+}
+
+/**
+ * Get the correct Deriv contract type for a given direction and market.
+ *
+ * CRITICAL RULES:
+ * - Boom/Crash (1HB*, 1HC*, BOOM*, CRASH*) → DIGITMATCH/DIGITDIFF (NEVER CALL/PUT)
+ * - Volatility (R_*, 1HZ*) → CALL/PUT
+ * - Jump (JD*) → CALL/PUT
+ * - Step (stpRNG) → CALL/PUT
+ * - Metals (frxXAU*, frxXAG*) → CALL/PUT (min 1h duration)
+ * - Forex (frx*) → CALL/PUT
+ *
+ * @param market - The MarketInfo object from our dictionary
+ * @param direction - 'CALL' (buy/up) or 'PUT' (sell/down)
+ * @param currentPrice - The last tick price (used for barrier in digit contracts)
+ * @returns Object with contract_type, barrier (if digit), duration, duration_unit
+ */
+export function getDerivContractType(
+  market: MarketInfo,
+  direction: 'CALL' | 'PUT',
+  currentPrice?: number
+): { contractType: string; barrier?: string; duration: number; durationUnit: string } {
+  // ─── DIGIT-ONLY: Boom & Crash ─────────────────────────────────────
+  if (!market.supportsCallPut) {
+    // Use last digit of current price as barrier
+    const lastDigit = currentPrice ? Math.abs(Math.floor(currentPrice)) % 10 : Math.floor(Math.random() * 10);
+
+    if (market.symbol.toUpperCase().startsWith('1HB') || market.symbol.toUpperCase().includes('BOOM')) {
+      // Boom: CALL signal → expect digit match, PUT signal → expect digit differ
+      return {
+        contractType: direction === 'CALL' ? 'DIGITMATCH' : 'DIGITDIFF',
+        barrier: lastDigit.toString(),
+        duration: 1,
+        durationUnit: 't',
+      };
     }
-    if (market.symbol.startsWith('CRASH')) {
-      // Crash: PUT signal = expect crash = DIGITMATCH, CALL signal = no crash = DIGITDIFF
-      return direction === 'PUT' ? 'DIGITMATCH' : 'DIGITDIFF';
+    if (market.symbol.toUpperCase().startsWith('1HC') || market.symbol.toUpperCase().includes('CRASH')) {
+      // Crash: PUT signal → expect digit match, CALL signal → expect digit differ
+      return {
+        contractType: direction === 'PUT' ? 'DIGITMATCH' : 'DIGITDIFF',
+        barrier: lastDigit.toString(),
+        duration: 1,
+        durationUnit: 't',
+      };
     }
   }
-  return direction;
+
+  // ─── CALL/PUT: Everything else ────────────────────────────────────
+  return {
+    contractType: direction,
+    duration: market.defaultDuration,
+    durationUnit: market.defaultDurationUnit,
+  };
+}
+
+/**
+ * Auto-detect market category and contract type from API symbol data.
+ * Used when we get active_symbols from Deriv API.
+ */
+export function autoDetectFromSymbol(symbol: string): Partial<MarketInfo> {
+  const info: Partial<MarketInfo> = {};
+
+  if (isBoomOrCrash(symbol)) {
+    info.supportsCallPut = false;
+    info.minDurationMinutes = 0;
+    info.defaultDuration = 1;
+    info.defaultDurationUnit = 't';
+    if (symbol.startsWith('1HB') || symbol.includes('BOOM')) {
+      info.category = 'Boom/Crash';
+    } else {
+      info.category = 'Boom/Crash';
+    }
+  } else if (symbol.startsWith('R_') || symbol.includes('HZ')) {
+    info.supportsCallPut = true;
+    info.category = 'Volatility';
+    info.minDurationMinutes = 0;
+    info.defaultDuration = 5;
+    info.defaultDurationUnit = 't';
+  } else if (symbol.startsWith('JD')) {
+    info.supportsCallPut = true;
+    info.category = 'Jump';
+    info.minDurationMinutes = 0;
+    info.defaultDuration = 5;
+    info.defaultDurationUnit = 't';
+  } else if (symbol === 'stpRNG') {
+    info.supportsCallPut = true;
+    info.category = 'Step';
+    info.minDurationMinutes = 0;
+    info.defaultDuration = 5;
+    info.defaultDurationUnit = 't';
+  } else if (isMetal(symbol)) {
+    info.supportsCallPut = true;
+    info.category = 'Metales';
+    info.minDurationMinutes = 60; // 1 HOUR minimum for metals
+    info.defaultDuration = 1;
+    info.defaultDurationUnit = 'h';
+  } else if (symbol.startsWith('frx')) {
+    info.supportsCallPut = true;
+    info.category = 'Forex';
+    info.minDurationMinutes = 0;
+    info.defaultDuration = 1;
+    info.defaultDurationUnit = 'm';
+  }
+
+  return info;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

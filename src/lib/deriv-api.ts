@@ -112,6 +112,8 @@ export interface ActiveSymbol {
   symbol: string;
   display_name: string;
   subcategory: string;
+  submarket: string;
+  market: string;
   exchange_is_open: number;
   is_trading_suspended: number;
   contract_types: string[];
@@ -142,7 +144,7 @@ class DerivAPI {
       }
 
       this.isConnecting = true;
-      const url = `wss://ws.binaryws.com/websockets/v3?app_id=${appId}`;
+      const url = `wss://ws.derivws.com/websockets/v3?app_id=${appId}`;
 
       try {
         this.ws = new WebSocket(url);
@@ -187,8 +189,9 @@ class DerivAPI {
           const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
           this.reconnectTimer = setTimeout(() => {
             if (this.token) {
+              const savedToken = this.token;
               this.connect(appId).then(() => {
-                this.authorize(this.token).catch(console.error);
+                this.authorize(savedToken).catch(console.error);
               }).catch(console.error);
             }
           }, delay);
@@ -351,7 +354,7 @@ class DerivAPI {
 
   async getActiveSymbols(productType: string = 'basic'): Promise<ActiveSymbol[]> {
     const response = await this.sendRequest({
-      active_symbols: 'brief',
+      active_symbols: 'full',
       product_type: productType,
     });
     return (response.active_symbols || []) as ActiveSymbol[];
