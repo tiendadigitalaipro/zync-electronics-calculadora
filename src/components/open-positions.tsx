@@ -34,7 +34,8 @@ export function OpenPositions() {
             {openTrades.map((trade, i) => {
               const priceDiff = currentPrice - trade.entryPrice;
               const priceDiffPercent = trade.entryPrice > 0 ? (priceDiff / trade.entryPrice) * 100 : 0;
-              const isCall = trade.contractType === 'CALL';
+              const isCall = trade.contractType === 'CALL' || trade.contractType === 'DIGITMATCH';
+              const isDigit = trade.contractType === 'DIGITMATCH' || trade.contractType === 'DIGITDIFF' || trade.contractType === 'DIGITEVEN' || trade.contractType === 'DIGITODD';
               const directionProfit = isCall ? priceDiff : -priceDiff;
 
               return (
@@ -50,6 +51,9 @@ export function OpenPositions() {
                         <TrendingDown className="h-3 w-3 text-red-400" />
                       )}
                       <span className="text-[11px] font-semibold">{trade.contractType}</span>
+                      {isDigit && (
+                        <Badge className="text-[7px] px-1 py-0 bg-amber-500/20 text-amber-300 border-amber-500/30">DIGIT</Badge>
+                      )}
                       <Badge variant="outline" className="text-[8px] px-1 py-0 font-mono">
                         #{trade.contractId || '?'}
                       </Badge>

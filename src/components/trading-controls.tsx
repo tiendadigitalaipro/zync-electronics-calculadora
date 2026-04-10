@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTradingStore } from '@/lib/store';
+import { getContractTypeForMarket, getTradeDirectionLabel, SYNTHETIC_MARKETS } from '@/lib/strategies';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ export function TradingControls() {
     isConnected,
     isAuthorized,
     currentSymbol,
+    currentMarket,
     currentPrice,
     tradeAmount,
     contractDuration,
@@ -41,6 +43,14 @@ export function TradingControls() {
 
   const canTrade = isConnected && isAuthorized && currentPrice > 0;
 
+  // Determine what type of contracts the current market uses
+  const market = currentMarket || SYNTHETIC_MARKETS.find((m) => m.symbol === currentSymbol);
+  const isDigitBased = market?.marketType === 'boom' || market?.marketType === 'crash';
+  const callContractType = market ? getContractTypeForMarket(market, 'CALL') : 'CALL';
+  const putContractType = market ? getContractTypeForMarket(market, 'PUT') : 'PUT';
+  const callLabel = market ? getTradeDirectionLabel(market, 'CALL') : 'CALL';
+  const putLabel = market ? getTradeDirectionLabel(market, 'PUT') : 'PUT';
+
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur">
       <CardHeader className="pb-3">
@@ -56,6 +66,32 @@ export function TradingControls() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Market Info */}
+        {market && (
+          <div className="rounded-lg bg-background/50 border border-border/30 p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">Market:</span>
+              <span className="text-[11px] font-semibold text-foreground">{market.name}</span>
+            </div>
+            <div className="flex items-center justify-between mt-0.5">
+              <span className="text-[10px] text-muted-foreground">Type:</span>
+              <Badge className={`text-[8px] px-1.5 py-0 ${
+                isDigitBased
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  : 'bg-sky-500/20 text-sky-300 border-sky-500/30'
+              }`}>
+                {isDigitBased ? 'Digit Contracts' : 'Rise/Fall Contracts'}
+              </Badge>
+            </div>
+            <div className="text-[9px] text-muted-foreground/60 mt-1">
+              {isDigitBased
+                ? `Boom/Crash use digit matching. Signal CALL → ${callContractType}, PUT → ${putContractType}`
+                : `Standard CALL (Rise) / PUT (Fall) contracts`
+              }
+            </div>
+          </div>
+        )}
+
         {/* Trade Amount */}
         <div className="space-y-1">
           <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Stake Amount (USD)</Label>
@@ -157,7 +193,9 @@ export function TradingControls() {
             ) : (
               <>
                 <TrendingUp className="h-4 w-4 mr-1.5" />
-                CALL
+                <span className="text-[10px] block leading-tight">
+                  {isDigitBased ? callContractType : 'CALL'}
+                </span>
               </>
             )}
           </Button>
@@ -171,7 +209,9 @@ export function TradingControls() {
             ) : (
               <>
                 <TrendingDown className="h-4 w-4 mr-1.5" />
-                PUT
+                <span className="text-[10px] block leading-tight">
+                  {isDigitBased ? putContractType : 'PUT'}
+                </span>
               </>
             )}
           </Button>
@@ -180,6 +220,10 @@ export function TradingControls() {
         {/* Proposal Info */}
         {currentProposal && (
           <div className="rounded-lg bg-background/50 border border-border/30 p-2.5">
+            <div className="flex justify-between text-[11px]">
+              <span className="text-muted-foreground">Contract:</span>
+              <span className="font-mono font-bold text-amber-400">{currentProposal.contractType}</span>
+            </div>
             <div className="flex justify-between text-[11px]">
               <span className="text-muted-foreground">Cost:</span>
               <span className="font-mono font-bold">${currentProposal.askPrice.toFixed(2)}</span>

@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { getDerivAPI, type Tick, type ActiveSymbol } from './deriv-api';
-import { generateCompositeSignal, type StrategySignal, SYNTHETIC_MARKETS } from './strategies';
+import { generateCompositeSignal, type StrategySignal, SYNTHETIC_MARKETS, type MarketInfo, getContractTypeForMarket, getTradeDirectionLabel } from './strategies';
 
 export interface TradeRecord {
   id?: string;
   symbol: string;
-  contractType: 'CALL' | 'PUT';
+  contractType: string;
+  direction: 'CALL' | 'PUT';
   entryTime: string;
   exitTime?: string;
   entryPrice: number;
@@ -63,6 +64,7 @@ interface TradingState {
 
   // Market
   currentSymbol: string;
+  currentMarket: MarketInfo | null;
   currentPrice: number;
   ticks: Tick[];
   tickHistory: Tick[];
@@ -76,7 +78,7 @@ interface TradingState {
   tradeAmount: number;
   contractDuration: number;
   contractDurationUnit: string;
-  currentProposal: { id: string; askPrice: number; payout: number } | null;
+  currentProposal: { id: string; askPrice: number; payout: number; contractType: string } | null;
 
   // Risk Management
   riskSettings: RiskSettings;
@@ -118,7 +120,7 @@ interface TradingState {
 
   // Available markets from API
   availableSymbols: ActiveSymbol[];
-  supportedMarkets: typeof SYNTHETIC_MARKETS;
+  supportedMarkets: MarketInfo[];
 
   // Actions
   connect: (token?: string) => Promise<void>;
@@ -163,6 +165,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Market
   currentSymbol: 'R_10',
+  currentMarket: null,
   currentPrice: 0,
   ticks: [],
   tickHistory: [],
@@ -220,7 +223,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   availableSymbols: [],
   supportedMarkets: SYNTHETIC_MARKETS,
 
-  // Actions
+  // ─── Actions ─────────────────────────────────────────────────────────
+
   connect: async (token?: string) => {
     const api = getDerivAPI();
     const stateToken = get().apiToken || token;
@@ -266,25 +270,34 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         const activeSymbols = await api.getActiveSymbols('basic');
         set({ availableSymbols: activeSymbols });
 
-        // Filter supported markets to only show those available for trading
+        // Build a map of available symbols with their contract types
         const availableSymbolMap = new Map(activeSymbols.map((s: ActiveSymbol) => [s.symbol, s]));
+
+        // Filter supported markets to only show those available for trading
         const filteredMarkets = SYNTHETIC_MARKETS.filter((m) => {
           const active = availableSymbolMap.get(m.symbol);
           if (!active) return false;
-          // Check if CALL contract is supported
-          const hasCallPut = active.contract_types?.includes('CALL') || active.contract_types?.includes('RISE');
-          return hasCallPut && !active.is_trading_suspended;
+          if (active.is_trading_suspended) return false;
+          // Check if at least one of the market's supported contract types is available
+          const hasSupportedContract = m.supportedContractTypes.some((ct) =>
+            active.contract_types?.includes(ct)
+          );
+          return hasSupportedContract;
         });
 
         set({ supportedMarkets: filteredMarkets.length > 0 ? filteredMarkets : SYNTHETIC_MARKETS });
 
         if (filteredMarkets.length > 0) {
-          get().addLog('success', `Available markets: ${filteredMarkets.map((m) => m.name).join(', ')}`);
+          const boomCount = filteredMarkets.filter(m => m.marketType === 'boom').length;
+          const crashCount = filteredMarkets.filter(m => m.marketType === 'crash').length;
+          const volCount = filteredMarkets.filter(m => m.marketType === 'volatility').length;
+          const jumpCount = filteredMarkets.filter(m => m.marketType === 'jump').length;
+          const fxCount = filteredMarkets.filter(m => m.marketType === 'continuous').length;
+          get().addLog('success', `Markets available: ${boomCount} Boom, ${crashCount} Crash, ${volCount} Volatility, ${jumpCount} Jump, ${fxCount} Forex (${filteredMarkets.length} total)`);
         } else {
-          get().addLog('warning', 'No synthetic markets with CALL/PUT found. Showing all markets - some may not be tradeable.');
+          get().addLog('warning', 'No synthetic markets verified. Showing all markets - some may not be tradeable.');
         }
       } catch (e) {
-        // If active_symbols fails, keep showing all markets
         get().addLog('warning', 'Could not verify available markets. All markets shown.');
       }
 
@@ -347,6 +360,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       loginId: '',
       accountList: null,
       currentPrice: 0,
+      currentMarket: null,
       ticks: [],
       tickHistory: [],
       currentProposal: null,
@@ -365,9 +379,18 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       api.unsubscribeFromTicks(oldSymbol);
     }
 
-    set({ currentSymbol: symbol, ticks: [], tickHistory: [], currentPrice: 0 });
+    // Find market info
     const market = SYNTHETIC_MARKETS.find((m) => m.symbol === symbol);
-    get().addLog('info', `Subscribing to ${market?.name || symbol}...`);
+
+    set({ currentSymbol: symbol, currentMarket: market || null, ticks: [], tickHistory: [], currentPrice: 0 });
+
+    if (market) {
+      const contractInfo = market.supportedContractTypes.slice(0, 4).join(', ');
+      get().addLog('info', `Subscribing to ${market.name} (${symbol})...`);
+      get().addLog('info', `Contract types: ${contractInfo}`);
+    } else {
+      get().addLog('info', `Subscribing to ${symbol}...`);
+    }
 
     try {
       const historyTicks = await api.subscribeToTicks(symbol, (data: any) => {
@@ -487,29 +510,53 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       return;
     }
 
-    get().addLog('info', `Requesting ${type} contract for ${state.currentSymbol} @ $${effectiveAmount.toFixed(2)}...`);
+    // ─── Determine the correct contract type for this market ───
+    const market = state.currentMarket || SYNTHETIC_MARKETS.find((m) => m.symbol === state.currentSymbol);
 
-    // Check if the current symbol is available for trading
+    if (!market) {
+      get().addLog('error', `Unknown market: ${state.currentSymbol}. Cannot determine contract type.`);
+      get().playSound('alert');
+      return;
+    }
+
+    // Get the correct Deriv API contract type based on market type and signal direction
+    const contractType = getContractTypeForMarket(market, type);
+    const directionLabel = getTradeDirectionLabel(market, type);
+
+    get().addLog('info', `Requesting ${contractType} on ${market.name} (${state.currentSymbol}) @ $${effectiveAmount.toFixed(2)} [Signal: ${directionLabel}]...`);
+
+    // Verify this contract type is supported by the active symbol
     const activeSymbol = state.availableSymbols.find((s: ActiveSymbol) => s.symbol === state.currentSymbol);
-    if (activeSymbol && !activeSymbol.contract_types?.includes(type) && !activeSymbol.contract_types?.includes('RISE') && !activeSymbol.contract_types?.includes('FALL')) {
-      get().addLog('error', `${state.currentSymbol} does not support ${type} contracts. Try a different market (e.g., Volatility 10 or Volatility 75).`);
+    if (activeSymbol && !activeSymbol.contract_types?.includes(contractType)) {
+      get().addLog('error', `${market.name} does not support ${contractType} contracts. Available: ${(activeSymbol.contract_types || []).slice(0, 6).join(', ')}. Try a different market or strategy.`);
       get().playSound('alert');
       return;
     }
 
     try {
-      const proposal = await api.getProposal({
-        contract_type: type,
+      // Build proposal parameters
+      const proposalParams: any = {
+        contract_type: contractType,
         symbol: state.currentSymbol,
         amount: effectiveAmount,
         duration: state.contractDuration,
         duration_unit: state.contractDurationUnit,
         basis: 'stake',
         currency: state.currency,
-      });
+      };
+
+      // For digit-based contracts (Boom/Crash), add the barrier parameter
+      if (contractType === 'DIGITMATCH' || contractType === 'DIGITDIFF') {
+        // Pick a digit from 0-9 based on last tick's last digit
+        const lastDigit = Math.floor(state.currentPrice) % 10;
+        proposalParams.barrier = lastDigit.toString();
+        get().addLog('info', `Digit barrier set to ${lastDigit} (last digit of ${state.currentPrice})`);
+      }
+
+      const proposal = await api.getProposal(proposalParams);
 
       if (proposal.proposal) {
-        set({ currentProposal: { id: proposal.proposal.id, askPrice: proposal.proposal.ask_price, payout: proposal.proposal.payout } });
+        set({ currentProposal: { id: proposal.proposal.id, askPrice: proposal.proposal.ask_price, payout: proposal.proposal.payout, contractType } });
         get().addLog('info', `Proposal received. Cost: $${proposal.proposal.ask_price.toFixed(2)}, Payout: $${proposal.proposal.payout.toFixed(2)}`);
 
         const buyResult = await api.buy(proposal.proposal.id, proposal.proposal.ask_price);
@@ -517,7 +564,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         if (buyResult.buy) {
           const newTrade: TradeRecord = {
             symbol: state.currentSymbol,
-            contractType: type,
+            contractType: contractType,
+            direction: type,
             entryTime: new Date().toISOString(),
             entryPrice: state.currentPrice,
             profit: 0,
@@ -535,9 +583,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
             sessionTrades: s.sessionTrades + 1,
           }));
 
-          get().addLog('trade', `✅ ${type} BOUGHT | #${buyResult.buy.contract_id} | ${state.currentSymbol} | Stake: $${buyResult.buy.buy_price.toFixed(2)} | Payout: $${buyResult.buy.payout.toFixed(2)}`);
+          get().addLog('trade', `✅ ${contractType} BOUGHT | #${buyResult.buy.contract_id} | ${market.name} | Stake: $${buyResult.buy.buy_price.toFixed(2)} | Payout: $${buyResult.buy.payout.toFixed(2)} | ${directionLabel}`);
           get().playSound('trade');
-          get().sendNotification(`${type} Trade Opened`, `$${buyResult.buy.buy_price.toFixed(2)} on ${state.currentSymbol}`);
+          get().sendNotification(`${contractType} Trade Opened`, `$${buyResult.buy.buy_price.toFixed(2)} on ${market.name}`);
 
           // Save trade to database
           try {
@@ -574,7 +622,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     // ─── Risk Management Checks ─────────────────────────────────
     const risk = state.riskSettings;
 
-    // Check daily loss limit
     if (state.sessionProfit < -risk.maxDailyLoss) {
       if (!state.isSessionPaused) {
         set({ isSessionPaused: true, pauseReason: `Daily loss limit reached (-$${risk.maxDailyLoss})` });
@@ -585,7 +632,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       return;
     }
 
-    // Check daily profit target
     if (state.sessionProfit >= risk.dailyProfitTarget) {
       if (!state.isSessionPaused) {
         set({ isSessionPaused: true, pauseReason: `Daily profit target reached (+$${risk.dailyProfitTarget})` });
@@ -596,7 +642,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       return;
     }
 
-    // Check max trades per session
     if (state.sessionTrades >= risk.maxTradesPerSession) {
       if (!state.isSessionPaused) {
         set({ isSessionPaused: true, pauseReason: `Max trades per session (${risk.maxTradesPerSession}) reached` });
@@ -606,7 +651,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       return;
     }
 
-    // Check consecutive losses
     if (state.consecutiveLosses >= risk.stopAfterConsecutiveLosses) {
       if (!state.isSessionPaused) {
         set({ isSessionPaused: true, pauseReason: `${risk.stopAfterConsecutiveLosses} consecutive losses` });
@@ -627,13 +671,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     // ─── Execute Trade if Signal Strong Enough ──────────────────
     if (signal.type && signal.confidence >= risk.minSignalConfidence) {
-      get().addLog('trade', `📊 Signal: ${signal.type} (${signal.confidence}% confidence) — ${signal.reason}`);
+      const market = state.currentMarket || SYNTHETIC_MARKETS.find((m) => m.symbol === state.currentSymbol);
+      const marketLabel = market ? market.name : state.currentSymbol;
+      get().addLog('trade', `📊 Signal: ${signal.type} (${signal.confidence}% confidence) on ${marketLabel} — ${signal.reason}`);
 
       // Calculate martingale amount if enabled
       if (risk.useMartingale && state.consecutiveLosses > 0) {
         const step = Math.min(state.consecutiveLosses, risk.martingaleMaxSteps);
         const martingaleAmount = state.baseTradeAmount * Math.pow(risk.martingaleMultiplier, step);
-        const maxAmount = state.balance * 0.1; // Never risk more than 10% of balance
+        const maxAmount = state.balance * 0.1;
+
         const clampedAmount = Math.min(martingaleAmount, maxAmount);
 
         if (clampedAmount > state.balance) {
@@ -790,7 +837,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         const losses = allClosed.filter((t) => t.status === 'LOST').length;
         const totalProfit = allClosed.reduce((s, t) => s + (t.profit || 0), 0);
 
-        // Calculate streak and consecutive losses
         let streak = 0;
         let streakType: 'win' | 'loss' | 'none' = 'none';
         let consecutiveLossCount = 0;
@@ -807,7 +853,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           }
         }
 
-        // Recalculate consecutive losses from the end (most recent)
         if (allClosed.length > 0) {
           consecutiveLossCount = 0;
           for (let i = 0; i < allClosed.length; i++) {
@@ -819,16 +864,13 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           }
         }
 
-        // Track session profit
         const tradeProfit = updates.profit || 0;
         const newSessionProfit = state.sessionProfit + (updates.status === 'WON' || updates.status === 'LOST' ? tradeProfit : 0);
 
-        // Update consecutive losses for martingale
         const newConsecutiveLosses = (updates.status === 'LOST')
           ? state.consecutiveLosses + 1
           : (updates.status === 'WON' ? 0 : state.consecutiveLosses);
 
-        // Reset trade amount on win, keep martingale on loss
         const newTradeAmount = updates.status === 'WON'
           ? state.baseTradeAmount
           : state.tradeAmount;

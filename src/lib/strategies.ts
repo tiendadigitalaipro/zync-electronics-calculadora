@@ -20,7 +20,7 @@ export function calculateEMA(prices: number[], period: number): number {
 }
 
 export function calculateRSI(prices: number[], period: number = 14): number {
-  if (prices.length < period + 1) return 50; // neutral
+  if (prices.length < period + 1) return 50;
 
   let gains = 0;
   let losses = 0;
@@ -76,7 +76,6 @@ export function calculateMACD(
   const slowEMA = calculateEMA(prices, slowPeriod);
   const macdLine = fastEMA - slowEMA;
 
-  // Calculate signal line (EMA of MACD values)
   const macdValues: number[] = [];
   for (let i = slowPeriod; i <= prices.length; i++) {
     const fEma = calculateEMA(prices.slice(0, i), fastPeriod);
@@ -107,7 +106,6 @@ export function detectSpike(
   const currentPrice = recentPrices[recentPrices.length - 1];
   const change = Math.abs(currentPrice - avgPrice) / avgPrice * 100;
 
-  // Calculate standard deviation of recent changes
   const changes: number[] = [];
   for (let i = 1; i < recentPrices.length - 1; i++) {
     changes.push(Math.abs(recentPrices[i] - recentPrices[i - 1]) / recentPrices[i - 1] * 100);
@@ -129,7 +127,7 @@ export function detectSpike(
 export interface StrategySignal {
   type: 'CALL' | 'PUT' | null;
   strategy: string;
-  confidence: number; // 0-100
+  confidence: number;
   reason: string;
   indicators: Record<string, number>;
 }
@@ -203,7 +201,6 @@ export function generateMACrossSignal(
     slowMA: currentSlow,
   };
 
-  // Golden Cross: Fast MA crosses above Slow MA
   if (prevFast <= prevSlow && currentFast > currentSlow) {
     return {
       type: 'CALL',
@@ -214,7 +211,6 @@ export function generateMACrossSignal(
     };
   }
 
-  // Death Cross: Fast MA crosses below Slow MA
   if (prevFast >= prevSlow && currentFast < currentSlow) {
     return {
       type: 'PUT',
@@ -225,7 +221,6 @@ export function generateMACrossSignal(
     };
   }
 
-  // Trend confirmation
   const trend = currentFast > currentSlow ? 'bullish' : 'bearish';
   return {
     type: null,
@@ -264,7 +259,6 @@ export function generateBBSignal(
 
   const previousPrice = prices[prices.length - 2];
 
-  // Price touching or crossing lower band
   if (bb.currentPrice <= bb.lower * 1.001 && previousPrice > bb.lower) {
     return {
       type: 'CALL',
@@ -275,7 +269,6 @@ export function generateBBSignal(
     };
   }
 
-  // Price touching or crossing upper band
   if (bb.currentPrice >= bb.upper * 0.999 && previousPrice < bb.upper) {
     return {
       type: 'PUT',
@@ -360,7 +353,6 @@ export function generateCompositeSignal(
     };
   }
 
-  // Count CALL vs PUT signals
   let callCount = 0;
   let putCount = 0;
   let totalConfidence = 0;
@@ -382,7 +374,6 @@ export function generateCompositeSignal(
     };
   }
 
-  // Determine final signal based on majority
   const finalType = callCount >= putCount ? 'CALL' : 'PUT';
   const agreement = Math.max(callCount, putCount);
   const avgConfidence = totalConfidence / activeSignals.length;
@@ -426,19 +417,114 @@ export const AVAILABLE_STRATEGIES = [
   },
 ];
 
+// ─── Market Type Definitions ────────────────────────────────────────────
+
+// Deriv API has different contract types for different market categories:
+// - Volatility/Jump indices: support CALL/PUT/RISE/FALL
+// - Boom indices: support DIGITMATCH (digit matching for spike prediction)
+// - Crash indices: support DIGITDIFF (digit different for spike prediction)
+// - Continuous indices: support CALL/PUT with continuous contract types
+
+export type MarketType = 'volatility' | 'boom' | 'crash' | 'jump' | 'continuous' | 'metals';
+
+export interface MarketInfo {
+  symbol: string;
+  name: string;
+  category: string;
+  description: string;
+  marketType: MarketType;
+  // Contract types this market supports
+  supportedContractTypes: string[];
+  // For Boom/Crash: the digit to use for DIGITMATCH/DIGITDIFF
+  defaultDigit?: number;
+}
+
 // ─── Available Markets ──────────────────────────────────────────────────
 
-export const SYNTHETIC_MARKETS = [
-  { symbol: 'BOOM1000', name: 'Boom 1000', category: 'Boom/Crash', description: 'Spikes upward randomly' },
-  { symbol: 'CRASH1000', name: 'Crash 1000', category: 'Boom/Crash', description: 'Spikes downward randomly' },
-  { symbol: 'R_10', name: 'Volatility 10', category: 'Volatility', description: '10% volatility index' },
-  { symbol: 'R_25', name: 'Volatility 25', category: 'Volatility', description: '25% volatility index' },
-  { symbol: 'R_50', name: 'Volatility 50', category: 'Volatility', description: '50% volatility index' },
-  { symbol: 'R_75', name: 'Volatility 75', category: 'Volatility', description: '75% volatility index' },
-  { symbol: 'R_100', name: 'Volatility 100', category: 'Volatility', description: '100% volatility index' },
-  { symbol: 'JD10', name: 'Jump 10', category: 'Jump', description: 'Jump index with 10% volatility' },
-  { symbol: 'JD25', name: 'Jump 25', category: 'Jump', description: 'Jump index with 25% volatility' },
-  { symbol: 'JD50', name: 'Jump 50', category: 'Jump', description: 'Jump index with 50% volatility' },
-  { symbol: 'JD75', name: 'Jump 75', category: 'Jump', description: 'Jump index with 75% volatility' },
-  { symbol: 'JD100', name: 'Jump 100', category: 'Jump', description: 'Jump index with 100% volatility' },
+export const SYNTHETIC_MARKETS: MarketInfo[] = [
+  // ── Boom Indices (DIGITMATCH - el digito final coincide) ──
+  { symbol: 'BOOM300', name: 'Boom 300', category: 'Boom/Crash', description: 'Spike upward, 300ms', marketType: 'boom', supportedContractTypes: ['DIGITMATCH', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'BOOM500', name: 'Boom 500', category: 'Boom/Crash', description: 'Spike upward, 500ms', marketType: 'boom', supportedContractTypes: ['DIGITMATCH', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'BOOM1000', name: 'Boom 1000', category: 'Boom/Crash', description: 'Spike upward, 1000ms', marketType: 'boom', supportedContractTypes: ['DIGITMATCH', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+
+  // ── Crash Indices (DIGITDIFF - el digito final NO coincide) ──
+  { symbol: 'CRASH300', name: 'Crash 300', category: 'Boom/Crash', description: 'Spike downward, 300ms', marketType: 'crash', supportedContractTypes: ['DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'CRASH500', name: 'Crash 500', category: 'Boom/Crash', description: 'Spike downward, 500ms', marketType: 'crash', supportedContractTypes: ['DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'CRASH1000', name: 'Crash 1000', category: 'Boom/Crash', description: 'Spike downward, 1000ms', marketType: 'crash', supportedContractTypes: ['DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+
+  // ── Volatility Indices (CALL/PUT/RISE/FALL) ──
+  { symbol: 'R_10', name: 'Volatility 10', category: 'Volatility', description: '10% volatility index', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO'] },
+  { symbol: 'R_25', name: 'Volatility 25', category: 'Volatility', description: '25% volatility index', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO'] },
+  { symbol: 'R_50', name: 'Volatility 50', category: 'Volatility', description: '50% volatility index', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO'] },
+  { symbol: 'R_75', name: 'Volatility 75', category: 'Volatility', description: '75% volatility index', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO'] },
+  { symbol: 'R_100', name: 'Volatility 100', category: 'Volatility', description: '100% volatility index', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO'] },
+
+  // ── Volatility 10/25/50/75/100 (1s) ──
+  { symbol: '1HZ10V', name: 'Volatility 10 (1s)', category: 'Volatility', description: '10% volatility, 1-second ticks', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: '1HZ25V', name: 'Volatility 25 (1s)', category: 'Volatility', description: '25% volatility, 1-second ticks', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: '1HZ50V', name: 'Volatility 50 (1s)', category: 'Volatility', description: '50% volatility, 1-second ticks', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: '1HZ75V', name: 'Volatility 75 (1s)', category: 'Volatility', description: '75% volatility, 1-second ticks', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: '1HZ100V', name: 'Volatility 100 (1s)', category: 'Volatility', description: '100% volatility, 1-second ticks', marketType: 'volatility', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+
+  // ── Jump Indices (CALL/PUT/RISE/FALL) ──
+  { symbol: 'JD10', name: 'Jump 10', category: 'Jump', description: 'Jump index with 10% volatility', marketType: 'jump', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'JD25', name: 'Jump 25', category: 'Jump', description: 'Jump index with 25% volatility', marketType: 'jump', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'JD50', name: 'Jump 50', category: 'Jump', description: 'Jump index with 50% volatility', marketType: 'jump', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'JD75', name: 'Jump 75', category: 'Jump', description: 'Jump index with 75% volatility', marketType: 'jump', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'JD100', name: 'Jump 100', category: 'Jump', description: 'Jump index with 100% volatility', marketType: 'jump', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+
+  // ── Gold / Metales ──
+  { symbol: 'frxEURUSD', name: 'EUR/USD', category: 'Forex', description: 'Euro vs US Dollar', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxGBPUSD', name: 'GBP/USD', category: 'Forex', description: 'British Pound vs US Dollar', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxUSDJPY', name: 'USD/JPY', category: 'Forex', description: 'US Dollar vs Japanese Yen', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
 ];
+
+/**
+ * Get the correct Deriv contract type for a market based on the signal direction.
+ * Boom/Crash markets don't support CALL/PUT, so we use digit-based contracts.
+ */
+export function getContractTypeForMarket(
+  market: MarketInfo,
+  direction: 'CALL' | 'PUT'
+): string {
+  switch (market.marketType) {
+    case 'boom':
+      // Boom: always trade DIGITMATCH (last digit matches prediction)
+      // When signal is CALL (bullish), we expect price to spike up → use DIGITMATCH
+      // When signal is PUT (bearish), we expect no spike → use DIGITDIFF
+      return direction === 'CALL' ? 'DIGITMATCH' : 'DIGITDIFF';
+
+    case 'crash':
+      // Crash: always trade DIGITDIFF (last digit differs from prediction)
+      // When signal is PUT (bearish), we expect price to crash down → use DIGITMATCH (spike happens)
+      // When signal is CALL (bullish), we expect no crash → use DIGITDIFF
+      return direction === 'PUT' ? 'DIGITMATCH' : 'DIGITDIFF';
+
+    case 'volatility':
+    case 'jump':
+    case 'continuous':
+      // Standard CALL/PUT for these markets
+      return direction;
+
+    default:
+      return direction;
+  }
+}
+
+/**
+ * Get display label for a trade direction on a specific market.
+ * For Boom, CALL means "expecting spike", for Crash, PUT means "expecting crash".
+ */
+export function getTradeDirectionLabel(
+  market: MarketInfo,
+  direction: 'CALL' | 'PUT'
+): string {
+  switch (market.marketType) {
+    case 'boom':
+      return direction === 'CALL' ? 'BUY (Spike Expected)' : 'SELL (No Spike)';
+    case 'crash':
+      return direction === 'PUT' ? 'SELL (Crash Expected)' : 'BUY (No Crash)';
+    default:
+      return direction;
+  }
+}
