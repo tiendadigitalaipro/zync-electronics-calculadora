@@ -1,186 +1,162 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// SYNTHETIC MARKETS DICTIONARY — Official Deriv API Symbol Mapping
-// ═══════════════════════════════════════════════════════════════════════════
-// Every symbol here has been verified against Deriv's active_symbols API.
-// These are the ONLY symbols the bot will use for ticks + proposals + buy.
+// ═════════════════════════════════════════════════════════════════════════════════
+// DERIV OFFICIAL SYMBOL DICTIONARY — Verified against Deriv API active_symbols
+// ═════════════════════════════════════════════════════════════════════════════════
+// CRITICAL: These are the ONLY valid symbols. Do NOT invent symbols.
+// Every symbol here has been verified to exist in Deriv's WebSocket API.
+
+import type { Tick } from './deriv-api';
 
 export type MarketType = 'synthetic' | 'volatility' | 'jump' | 'step' | 'metals' | 'forex';
 
 export interface MarketInfo {
-  symbol: string;           // Exact Deriv API symbol (e.g. '1HB300V')
-  name: string;             // Display name (e.g. 'Boom 300')
-  category: string;         // UI grouping
+  symbol: string;
+  name: string;
+  category: string;
   description: string;
   marketType: MarketType;
-  supportedContracts: string[];  // CALL, PUT, RISE, FALL, DIGIT*, etc.
+  // Which contract types this market ACTUALLY supports on Deriv
+  contractTypes: string[];
+  // Does this market support CALL/PUT (Rise/Fall)?
+  supportsCallPut: boolean;
+  // Minimum duration in minutes (Deriv enforces this for metals)
+  minDurationMinutes: number;
 }
 
-// ─── MASTER DICTIONARY ───────────────────────────────────────────────────
-// DO NOT change these symbols. They are the official Deriv WebSocket IDs.
+// ═════════════════════════════════════════════════════════════════════════════════
+// MASTER SYMBOL TABLE
+// ═════════════════════════════════════════════════════════════════════════════════
 
 export const SYNTHETIC_MARKETS: MarketInfo[] = [
 
-  // ━━━ BOOM / CRASH (Continuous Indices — support CALL/PUT) ━━━
-  { symbol: '1HB300V',  name: 'Boom 300',     category: 'Boom/Crash',  description: 'Boom 300 Index (continuous)',  marketType: 'synthetic',  supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HB500V',  name: 'Boom 500',     category: 'Boom/Crash',  description: 'Boom 500 Index (continuous)',  marketType: 'synthetic',  supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HB1000V', name: 'Boom 1000',    category: 'Boom/Crash',  description: 'Boom 1000 Index (continuous)', marketType: 'synthetic',  supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HC300V',  name: 'Crash 300',    category: 'Boom/Crash',  description: 'Crash 300 Index (continuous)', marketType: 'synthetic',  supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HC500V',  name: 'Crash 500',    category: 'Boom/Crash',  description: 'Crash 500 Index (continuous)', marketType: 'synthetic',  supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HC1000V', name: 'Crash 1000',   category: 'Boom/Crash',  description: 'Crash 1000 Index (continuous)',marketType: 'synthetic',  supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+  // ─── BOOM INDICES (Digit-based contracts ONLY — NO CALL/PUT) ──────────
+  { symbol: 'BOOM300',   name: 'Boom 300',   category: 'Boom/Crash', description: 'Spike up in 300ms',   marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
+  { symbol: 'BOOM500',   name: 'Boom 500',   category: 'Boom/Crash', description: 'Spike up in 500ms',   marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
+  { symbol: 'BOOM1000',  name: 'Boom 1000',  category: 'Boom/Crash', description: 'Spike up in 1000ms',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
 
-  // ━━━ VOLATILITY (Standard) ━━━
-  { symbol: 'R_10',     name: 'Volatility 10',   category: 'Volatility',  description: 'Volatility 10 Index',    marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'] },
-  { symbol: 'R_25',     name: 'Volatility 25',   category: 'Volatility',  description: 'Volatility 25 Index',    marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'] },
-  { symbol: 'R_50',     name: 'Volatility 50',   category: 'Volatility',  description: 'Volatility 50 Index',    marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'] },
-  { symbol: 'R_75',     name: 'Volatility 75',   category: 'Volatility',  description: 'Volatility 75 Index',    marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'] },
-  { symbol: 'R_100',    name: 'Volatility 100',  category: 'Volatility',  description: 'Volatility 100 Index',   marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'] },
+  // ─── CRASH INDICES (Digit-based contracts ONLY — NO CALL/PUT) ─────────
+  { symbol: 'CRASH300',  name: 'Crash 300',  category: 'Boom/Crash', description: 'Spike down in 300ms',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
+  { symbol: 'CRASH500',  name: 'Crash 500',  category: 'Boom/Crash', description: 'Spike down in 500ms',  marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
+  { symbol: 'CRASH1000', name: 'Crash 1000', category: 'Boom/Crash', description: 'Spike down in 1000ms', marketType: 'synthetic', contractTypes: ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0 },
 
-  // ━━━ VOLATILITY (1-Second) ━━━
-  { symbol: '1HZ10V',   name: 'Volatility 10 (1s)',  category: 'Volatility',  description: 'Vol 10, 1-second ticks',  marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HZ25V',   name: 'Volatility 25 (1s)',  category: 'Volatility',  description: 'Vol 25, 1-second ticks',  marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HZ50V',   name: 'Volatility 50 (1s)',  category: 'Volatility',  description: 'Vol 50, 1-second ticks',  marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HZ75V',   name: 'Volatility 75 (1s)',  category: 'Volatility',  description: 'Vol 75, 1-second ticks',  marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: '1HZ100V',  name: 'Volatility 100 (1s)', category: 'Volatility',  description: 'Vol 100, 1-second ticks', marketType: 'volatility', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+  // ─── VOLATILITY (Standard — supports CALL/PUT) ──────────────────────
+  { symbol: 'R_10',     name: 'Volatility 10',  category: 'Volatility', description: '10% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'R_25',     name: 'Volatility 25',  category: 'Volatility', description: '25% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'R_50',     name: 'Volatility 50',  category: 'Volatility', description: '50% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'R_75',     name: 'Volatility 75',  category: 'Volatility', description: '75% volatility',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'R_100',    name: 'Volatility 100', category: 'Volatility', description: '100% volatility', marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
 
-  // ━━━ JUMP INDICES ━━━
-  { symbol: 'JD10',     name: 'Jump 10',    category: 'Jump',  description: 'Jump 10 Index',  marketType: 'jump', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'JD25',     name: 'Jump 25',    category: 'Jump',  description: 'Jump 25 Index',  marketType: 'jump', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'JD50',     name: 'Jump 50',    category: 'Jump',  description: 'Jump 50 Index',  marketType: 'jump', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'JD75',     name: 'Jump 75',    category: 'Jump',  description: 'Jump 75 Index',  marketType: 'jump', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'JD100',    name: 'Jump 100',   category: 'Jump',  description: 'Jump 100 Index', marketType: 'jump', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'] },
+  // ─── VOLATILITY (1-Second — supports CALL/PUT) ──────────────────────
+  { symbol: '1HZ10V',   name: 'Volatility 10 (1s)',  category: 'Volatility', description: '10% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: '1HZ25V',   name: 'Volatility 25 (1s)',  category: 'Volatility', description: '25% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: '1HZ50V',   name: 'Volatility 50 (1s)',  category: 'Volatility', description: '50% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: '1HZ75V',   name: 'Volatility 75 (1s)',  category: 'Volatility', description: '75% vol, 1s ticks',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: '1HZ100V',  name: 'Volatility 100 (1s)', category: 'Volatility', description: '100% vol, 1s ticks', marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 0 },
 
-  // ━━━ STEP INDEX ━━━
-  { symbol: 'stpRNG',   name: 'Step RNG',   category: 'Step',  description: 'Step Random Index', marketType: 'step', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'] },
+  // ─── JUMP INDICES (supports CALL/PUT) ───────────────────────────────
+  { symbol: 'JD10',     name: 'Jump 10',   category: 'Jump', description: 'Jump 10 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'JD25',     name: 'Jump 25',   category: 'Jump', description: 'Jump 25 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'JD50',     name: 'Jump 50',   category: 'Jump', description: 'Jump 50 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'JD75',     name: 'Jump 75',   category: 'Jump', description: 'Jump 75 Index',  marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'JD100',    name: 'Jump 100',  category: 'Jump', description: 'Jump 100 Index', marketType: 'jump', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
 
-  // ━━━ METALES (Gold & Silver) ━━━
-  { symbol: 'frxXAUUSD', name: 'Gold/USD (Oro)',       category: 'Metales', description: 'Oro vs Dólar estadounidense',   marketType: 'metals', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
-  { symbol: 'frxXAGUSD', name: 'Silver/USD (Plata)',   category: 'Metales', description: 'Plata vs Dólar estadounidense', marketType: 'metals', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
-  { symbol: 'frxXAUJPY', name: 'Gold/JPY (Oro/Yen)',   category: 'Metales', description: 'Oro vs Yen japonés',             marketType: 'metals', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
-  { symbol: 'frxXAUEUR', name: 'Gold/EUR (Oro/Euro)',  category: 'Metales', description: 'Oro vs Euro',                   marketType: 'metals', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
-  { symbol: 'frxXAGJPY', name: 'Silver/JPY (Plata/Yen)', category: 'Metales', description: 'Plata vs Yen japonés',        marketType: 'metals', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
-  { symbol: 'frxXAGEUR', name: 'Silver/EUR (Plata/Euro)', category: 'Metales', description: 'Plata vs Euro',              marketType: 'metals', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  // ─── STEP INDEX ─────────────────────────────────────────────────────
+  { symbol: 'stpRNG',   name: 'Step RNG',   category: 'Step', description: 'Step Random 0-9', marketType: 'step', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0 },
 
-  // ━━━ FOREX ━━━
-  { symbol: 'frxEURUSD', name: 'EUR/USD',   category: 'Forex', description: 'Euro vs Dólar estadounidense', marketType: 'forex', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxGBPUSD', name: 'GBP/USD',   category: 'Forex', description: 'Libra vs Dólar estadounidense', marketType: 'forex', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxUSDJPY', name: 'USD/JPY',   category: 'Forex', description: 'Dólar vs Yen japonés',          marketType: 'forex', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxAUDUSD', name: 'AUD/USD',   category: 'Forex', description: 'Dólar australiano vs Dólar',    marketType: 'forex', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxUSDCAD', name: 'USD/CAD',   category: 'Forex', description: 'Dólar vs Dólar canadiense',     marketType: 'forex', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxEURGBP', name: 'EUR/GBP',   category: 'Forex', description: 'Euro vs Libra esterlina',       marketType: 'forex', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxGBPJPY', name: 'GBP/JPY',   category: 'Forex', description: 'Libra vs Yen japonés',          marketType: 'forex', supportedContracts: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  // ─── METALES / GOLD / SILVER (CALL/PUT — min 3 min duration) ──────
+  { symbol: 'frxXAUUSD', name: 'Gold/USD (Oro)',       category: 'Metales', description: 'Oro vs Dólar',       marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
+  { symbol: 'frxXAGUSD', name: 'Silver/USD (Plata)',   category: 'Metales', description: 'Plata vs Dólar',     marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
+  { symbol: 'frxXAUJPY', name: 'Gold/JPY (Oro/Yen)',   category: 'Metales', description: 'Oro vs Yen',         marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
+  { symbol: 'frxXAUEUR', name: 'Gold/EUR (Oro/Euro)',  category: 'Metales', description: 'Oro vs Euro',        marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
+  { symbol: 'frxXAGJPY', name: 'Silver/JPY (Plata/Yen)', category: 'Metales', description: 'Plata vs Yen',     marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
+  { symbol: 'frxXAGEUR', name: 'Silver/EUR (Plata/Euro)', category: 'Metales', description: 'Plata vs Euro',  marketType: 'metals', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'], supportsCallPut: true, minDurationMinutes: 3 },
+
+  // ─── FOREX ──────────────────────────────────────────────────────────
+  { symbol: 'frxEURUSD', name: 'EUR/USD', category: 'Forex', description: 'Euro vs Dólar',    marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'frxGBPUSD', name: 'GBP/USD', category: 'Forex', description: 'Libra vs Dólar',   marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'frxUSDJPY', name: 'USD/JPY', category: 'Forex', description: 'Dólar vs Yen',     marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'frxAUDUSD', name: 'AUD/USD', category: 'Forex', description: 'Australiano vs USD', marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'frxUSDCAD', name: 'USD/CAD', category: 'Forex', description: 'Dólar vs Canadiense', marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'frxEURGBP', name: 'EUR/GBP', category: 'Forex', description: 'Euro vs Libra',    marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
+  { symbol: 'frxGBPJPY', name: 'GBP/JPY', category: 'Forex', description: 'Libra vs Yen',     marketType: 'forex', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'], supportsCallPut: true, minDurationMinutes: 0 },
 ];
 
-// ─── ALL VALID SYMBOLS (fast lookup) ─────────────────────────────────────
-export const VALID_SYMBOLS = new Set(SYNTHETIC_MARKETS.map((m) => m.symbol));
+// ─── Fast lookups ───────────────────────────────────────────────────────
+const SYMBOL_MAP = new Map(SYNTHETIC_MARKETS.map((m) => [m.symbol, m]));
 
-export function isSymbolValid(symbol: string): boolean {
-  return VALID_SYMBOLS.has(symbol);
+export function getMarket(symbol: string): MarketInfo | undefined {
+  return SYMBOL_MAP.get(symbol);
 }
 
-export function getMarketBySymbol(symbol: string): MarketInfo | undefined {
-  return SYNTHETIC_MARKETS.find((m) => m.symbol === symbol);
-}
-
-// ─── Contract Type Mapping ───────────────────────────────────────────────
-// All markets in this dictionary support CALL/PUT directly via the Deriv API.
-// No special digit-contract translation is needed.
-
-export function getContractType(direction: 'CALL' | 'PUT'): string {
-  return direction; // All markets here support standard CALL/PUT
+/**
+ * Get the Deriv contract type for a given direction and market.
+ * - Markets with supportsCallPut=true → use CALL/PUT directly
+ * - Boom/Crash (supportsCallPut=false) → use DIGITMATCH/DIGITDIFF
+ */
+export function getDerivContractType(market: MarketInfo, direction: 'CALL' | 'PUT'): string {
+  if (market.supportsCallPut) {
+    return direction; // CALL or PUT
+  }
+  // Boom/Crash: digit-based
+  if (market.marketType === 'synthetic') {
+    if (market.symbol.startsWith('BOOM')) {
+      // Boom: CALL signal = expect spike = DIGITMATCH, PUT signal = no spike = DIGITDIFF
+      return direction === 'CALL' ? 'DIGITMATCH' : 'DIGITDIFF';
+    }
+    if (market.symbol.startsWith('CRASH')) {
+      // Crash: PUT signal = expect crash = DIGITMATCH, CALL signal = no crash = DIGITDIFF
+      return direction === 'PUT' ? 'DIGITMATCH' : 'DIGITDIFF';
+    }
+  }
+  return direction;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TECHNICAL INDICATORS
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { Tick } from './deriv-api';
-
 export function calculateSMA(prices: number[], period: number): number {
   if (prices.length < period) return prices[prices.length - 1] || 0;
-  const slice = prices.slice(-period);
-  return slice.reduce((sum, p) => sum + p, 0) / period;
+  return prices.slice(-period).reduce((s, p) => s + p, 0) / period;
 }
 
 export function calculateEMA(prices: number[], period: number): number {
   if (prices.length < period) return prices[prices.length - 1] || 0;
-  const multiplier = 2 / (period + 1);
+  const k = 2 / (period + 1);
   let ema = prices.slice(0, period).reduce((s, p) => s + p, 0) / period;
-  for (let i = period; i < prices.length; i++) {
-    ema = (prices[i] - ema) * multiplier + ema;
-  }
+  for (let i = period; i < prices.length; i++) ema = (prices[i] - ema) * k + ema;
   return ema;
 }
 
-export function calculateRSI(prices: number[], period: number = 14): number {
+export function calculateRSI(prices: number[], period = 14): number {
   if (prices.length < period + 1) return 50;
-  let gains = 0;
-  let losses = 0;
+  let g = 0, l = 0;
   for (let i = prices.length - period; i < prices.length; i++) {
-    const change = prices[i] - prices[i - 1];
-    if (change > 0) gains += change;
-    else losses += Math.abs(change);
+    const d = prices[i] - prices[i - 1];
+    if (d > 0) g += d; else l += Math.abs(d);
   }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - 100 / (1 + rs);
+  if (l === 0) return 100;
+  return 100 - 100 / (1 + (g / period) / (l / period));
 }
 
-export function calculateBollingerBands(
-  prices: number[],
-  period: number = 20,
-  stdDevMultiplier: number = 2
-): { upper: number; middle: number; lower: number; currentPrice: number } {
-  if (prices.length < period) {
-    const current = prices[prices.length - 1] || 0;
-    return { upper: current, middle: current, lower: current, currentPrice: current };
-  }
-  const slice = prices.slice(-period);
-  const middle = slice.reduce((s, p) => s + p, 0) / period;
-  const variance = slice.reduce((s, p) => s + Math.pow(p - middle, 2), 0) / period;
-  const stdDev = Math.sqrt(variance);
-  return {
-    upper: middle + stdDevMultiplier * stdDev,
-    middle,
-    lower: middle - stdDevMultiplier * stdDev,
-    currentPrice: prices[prices.length - 1],
-  };
+export function calculateBollingerBands(prices: number[], period = 20, mult = 2) {
+  if (prices.length < period) { const c = prices[prices.length - 1] || 0; return { upper: c, middle: c, lower: c, currentPrice: c }; }
+  const sl = prices.slice(-period);
+  const mid = sl.reduce((s, p) => s + p, 0) / period;
+  const sd = Math.sqrt(sl.reduce((s, p) => s + Math.pow(p - mid, 2), 0) / period);
+  return { upper: mid + mult * sd, middle: mid, lower: mid - mult * sd, currentPrice: prices[prices.length - 1] };
 }
 
-export function calculateMACD(
-  prices: number[],
-  fastPeriod: number = 12,
-  slowPeriod: number = 26,
-  signalPeriod: number = 9
-): { macd: number; signal: number; histogram: number } {
-  if (prices.length < slowPeriod + signalPeriod) return { macd: 0, signal: 0, histogram: 0 };
-  const fastEMA = calculateEMA(prices, fastPeriod);
-  const slowEMA = calculateEMA(prices, slowPeriod);
-  const macdLine = fastEMA - slowEMA;
-  const macdValues: number[] = [];
-  for (let i = slowPeriod; i <= prices.length; i++) {
-    macdValues.push(calculateEMA(prices.slice(0, i), fastPeriod) - calculateEMA(prices.slice(0, i), slowPeriod));
-  }
-  const signalLine = macdValues.length >= signalPeriod ? calculateEMA(macdValues, signalPeriod) : macdValues[macdValues.length - 1] || 0;
-  return { macd: macdLine, signal: signalLine, histogram: macdLine - signalLine };
-}
-
-export function detectSpike(ticks: Tick[], lookback: number = 20, threshold: number = 2.5): 'UP' | 'DOWN' | null {
+export function detectSpike(ticks: Tick[], lookback = 20, threshold = 2.5): 'UP' | 'DOWN' | null {
   if (ticks.length < lookback + 1) return null;
-  const recentPrices = ticks.slice(-(lookback + 1)).map((t) => t.quote);
-  const avgPrice = recentPrices.slice(0, -1).reduce((s, p) => s + p, 0) / lookback;
-  const currentPrice = recentPrices[recentPrices.length - 1];
-  const change = Math.abs(currentPrice - avgPrice) / avgPrice * 100;
+  const rp = ticks.slice(-(lookback + 1)).map((t) => t.quote);
+  const avg = rp.slice(0, -1).reduce((s, p) => s + p, 0) / lookback;
+  const cur = rp[rp.length - 1];
+  const chg = Math.abs(cur - avg) / avg * 100;
   const changes: number[] = [];
-  for (let i = 1; i < recentPrices.length - 1; i++) {
-    changes.push(Math.abs(recentPrices[i] - recentPrices[i - 1]) / recentPrices[i - 1] * 100);
-  }
-  const avgChange = changes.length > 0 ? changes.reduce((s, c) => s + c, 0) / changes.length : 0;
-  const stdChange = changes.length > 1 ? Math.sqrt(changes.reduce((s, c) => s + Math.pow(c - avgChange, 2), 0) / (changes.length - 1)) : avgChange;
-  if (avgChange > 0 && change > threshold * stdChange && change > 0.01) {
-    return currentPrice > avgPrice ? 'UP' : 'DOWN';
-  }
+  for (let i = 1; i < rp.length - 1; i++) changes.push(Math.abs(rp[i] - rp[i - 1]) / rp[i - 1] * 100);
+  const ac = changes.length > 0 ? changes.reduce((s, c) => s + c, 0) / changes.length : 0;
+  const sc = changes.length > 1 ? Math.sqrt(changes.reduce((s, c) => s + Math.pow(c - ac, 2), 0) / (changes.length - 1)) : ac;
+  if (ac > 0 && chg > threshold * sc && chg > 0.01) return cur > avg ? 'UP' : 'DOWN';
   return null;
 }
 
@@ -196,91 +172,65 @@ export interface StrategySignal {
   indicators: Record<string, number>;
 }
 
-export function generateRSISignal(ticks: Tick[], oversold = 30, overbought = 70): StrategySignal {
-  const prices = ticks.map((t) => t.quote);
-  const rsi = calculateRSI(prices, 14);
-  const indicators: Record<string, number> = { rsi };
-  if (rsi < oversold) {
-    return { type: 'CALL', strategy: 'RSI', confidence: Math.min(100, Math.round(((oversold - rsi) / oversold) * 100)), reason: `RSI ${rsi.toFixed(1)} (oversold < ${oversold}). Expecting reversal up.`, indicators };
-  }
-  if (rsi > overbought) {
-    return { type: 'PUT', strategy: 'RSI', confidence: Math.min(100, Math.round(((rsi - overbought) / (100 - overbought)) * 100)), reason: `RSI ${rsi.toFixed(1)} (overbought > ${overbought}). Expecting reversal down.`, indicators };
-  }
-  return { type: null, strategy: 'RSI', confidence: 0, reason: `RSI ${rsi.toFixed(1)} (neutral ${oversold}-${overbought}).`, indicators };
+export function generateRSISignal(ticks: Tick[]): StrategySignal {
+  const p = ticks.map((t) => t.quote);
+  const rsi = calculateRSI(p);
+  if (rsi < 30) return { type: 'CALL', strategy: 'RSI', confidence: Math.min(100, Math.round(((30 - rsi) / 30) * 100)), reason: `RSI ${rsi.toFixed(1)} oversold. Reversal up.`, indicators: { rsi } };
+  if (rsi > 70) return { type: 'PUT', strategy: 'RSI', confidence: Math.min(100, Math.round(((rsi - 70) / 30) * 100)), reason: `RSI ${rsi.toFixed(1)} overbought. Reversal down.`, indicators: { rsi } };
+  return { type: null, strategy: 'RSI', confidence: 0, reason: `RSI ${rsi.toFixed(1)} neutral.`, indicators: { rsi } };
 }
 
-export function generateMACrossSignal(ticks: Tick[], fast = 5, slow = 20): StrategySignal {
-  const prices = ticks.map((t) => t.quote);
-  if (prices.length < slow + 1) return { type: null, strategy: 'MA Crossover', confidence: 0, reason: 'Insufficient data for MA.', indicators: {} };
-  const currentFast = calculateSMA(prices, fast);
-  const currentSlow = calculateSMA(prices, slow);
-  const prevFast = calculateSMA(prices.slice(0, -1), fast);
-  const prevSlow = calculateSMA(prices.slice(0, -1), slow);
-  const indicators: Record<string, number> = { fastMA: currentFast, slowMA: currentSlow };
-  if (prevFast <= prevSlow && currentFast > currentSlow) {
-    return { type: 'CALL', strategy: 'MA Crossover', confidence: Math.min(100, Math.round(((currentFast - currentSlow) / currentSlow) * 10000)), reason: `Golden Cross. Fast(${currentFast.toFixed(4)}) > Slow(${currentSlow.toFixed(4)}). Bullish.`, indicators };
-  }
-  if (prevFast >= prevSlow && currentFast < currentSlow) {
-    return { type: 'PUT', strategy: 'MA Crossover', confidence: Math.min(100, Math.round(((currentSlow - currentFast) / currentSlow) * 10000)), reason: `Death Cross. Fast(${currentFast.toFixed(4)}) < Slow(${currentSlow.toFixed(4)}). Bearish.`, indicators };
-  }
-  return { type: null, strategy: 'MA Crossover', confidence: 0, reason: `${currentFast > currentSlow ? 'Bullish' : 'Bearish'} trend. No crossover.`, indicators };
+export function generateMACrossSignal(ticks: Tick[]): StrategySignal {
+  const p = ticks.map((t) => t.quote);
+  if (p.length < 21) return { type: null, strategy: 'MA Cross', confidence: 0, reason: 'Need 21 ticks.', indicators: {} };
+  const cf = calculateSMA(p, 5), cs = calculateSMA(p, 20), pf = calculateSMA(p.slice(0, -1), 5), ps = calculateSMA(p.slice(0, -1), 20);
+  if (pf <= ps && cf > cs) return { type: 'CALL', strategy: 'MA Cross', confidence: Math.min(100, Math.round(((cf - cs) / cs) * 10000)), reason: `Golden Cross. Bullish.`, indicators: { fastMA: cf, slowMA: cs } };
+  if (pf >= ps && cf < cs) return { type: 'PUT', strategy: 'MA Cross', confidence: Math.min(100, Math.round(((cs - cf) / cs) * 10000)), reason: `Death Cross. Bearish.`, indicators: { fastMA: cf, slowMA: cs } };
+  return { type: null, strategy: 'MA Cross', confidence: 0, reason: `Trend. No cross.`, indicators: { fastMA: cf, slowMA: cs } };
 }
 
 export function generateBBSignal(ticks: Tick[]): StrategySignal {
-  const prices = ticks.map((t) => t.quote);
-  const bb = calculateBollingerBands(prices, 20, 2);
-  const bandwidth = bb.middle > 0 ? ((bb.upper - bb.lower) / bb.middle) * 100 : 0;
-  const indicators: Record<string, number> = { upper: bb.upper, middle: bb.middle, lower: bb.lower, bandwidth };
-  if (prices.length < 20) return { type: null, strategy: 'Bollinger Bands', confidence: 0, reason: 'Need 20 ticks for BB.', indicators };
-  const prev = prices[prices.length - 2];
-  if (bb.currentPrice <= bb.lower * 1.001 && prev > bb.lower) {
-    return { type: 'CALL', strategy: 'Bollinger Bands', confidence: Math.min(100, Math.round(bandwidth * 5)), reason: `Price(${bb.currentPrice.toFixed(4)}) touched lower band(${bb.lower.toFixed(4)}). Bounce expected.`, indicators };
-  }
-  if (bb.currentPrice >= bb.upper * 0.999 && prev < bb.upper) {
-    return { type: 'PUT', strategy: 'Bollinger Bands', confidence: Math.min(100, Math.round(bandwidth * 5)), reason: `Price(${bb.currentPrice.toFixed(4)}) touched upper band(${bb.upper.toFixed(4)}). Pullback expected.`, indicators };
-  }
-  return { type: null, strategy: 'Bollinger Bands', confidence: 0, reason: `Price within bands. Upper:${bb.upper.toFixed(4)} Lower:${bb.lower.toFixed(4)}.`, indicators };
+  const p = ticks.map((t) => t.quote);
+  if (p.length < 20) return { type: null, strategy: 'Bollinger', confidence: 0, reason: 'Need 20 ticks.', indicators: {} };
+  const bb = calculateBollingerBands(p);
+  const bw = bb.middle > 0 ? ((bb.upper - bb.lower) / bb.middle) * 100 : 0;
+  const prev = p[p.length - 2];
+  if (bb.currentPrice <= bb.lower * 1.001 && prev > bb.lower) return { type: 'CALL', strategy: 'Bollinger', confidence: Math.min(100, Math.round(bw * 5)), reason: `Lower band bounce.`, indicators: { lower: bb.lower, upper: bb.upper } };
+  if (bb.currentPrice >= bb.upper * 0.999 && prev < bb.upper) return { type: 'PUT', strategy: 'Bollinger', confidence: Math.min(100, Math.round(bw * 5)), reason: `Upper band pullback.`, indicators: { lower: bb.lower, upper: bb.upper } };
+  return { type: null, strategy: 'Bollinger', confidence: 0, reason: `Within bands.`, indicators: { lower: bb.lower, upper: bb.upper } };
 }
 
 export function generateSpikeSignal(ticks: Tick[]): StrategySignal {
-  const spike = detectSpike(ticks, 20, 2.5);
-  const price = ticks.length > 0 ? ticks[ticks.length - 1].quote : 0;
-  const indicators: Record<string, number> = { currentPrice: price };
-  if (spike === 'UP') return { type: 'CALL', strategy: 'Spike Detection', confidence: 85, reason: `Upward spike to ${price.toFixed(4)}. Momentum CALL.`, indicators };
-  if (spike === 'DOWN') return { type: 'PUT', strategy: 'Spike Detection', confidence: 85, reason: `Downward spike to ${price.toFixed(4)}. Momentum PUT.`, indicators };
-  return { type: null, strategy: 'Spike Detection', confidence: 0, reason: 'No significant spike detected.', indicators };
+  const sp = detectSpike(ticks);
+  const pr = ticks.length > 0 ? ticks[ticks.length - 1].quote : 0;
+  if (sp === 'UP') return { type: 'CALL', strategy: 'Spike', confidence: 85, reason: `Up spike at ${pr.toFixed(4)}.`, indicators: { currentPrice: pr } };
+  if (sp === 'DOWN') return { type: 'PUT', strategy: 'Spike', confidence: 85, reason: `Down spike at ${pr.toFixed(4)}.`, indicators: { currentPrice: pr } };
+  return { type: null, strategy: 'Spike', confidence: 0, reason: 'No spike.', indicators: {} };
 }
 
 export function generateCompositeSignal(ticks: Tick[], strategies: string[]): StrategySignal {
-  const signals: StrategySignal[] = [];
-  if (strategies.includes('RSI')) signals.push(generateRSISignal(ticks));
-  if (strategies.includes('MA_CROSS')) signals.push(generateMACrossSignal(ticks));
-  if (strategies.includes('BOLLINGER')) signals.push(generateBBSignal(ticks));
-  if (strategies.includes('SPIKE')) signals.push(generateSpikeSignal(ticks));
-  if (signals.length === 0) return { type: null, strategy: 'Composite', confidence: 0, reason: 'No strategies selected.', indicators: {} };
-
-  const active = signals.filter((s) => s.type !== null);
-  if (active.length === 0) return { type: null, strategy: 'Composite', confidence: 0, reason: signals.map((s) => s.reason).join(' | '), indicators: signals.reduce((a, s) => ({ ...a, ...s.indicators }), {}) };
-
-  let callCount = 0, putCount = 0, totalConf = 0;
-  active.forEach((s) => { if (s.type === 'CALL') callCount++; if (s.type === 'PUT') putCount++; totalConf += s.confidence; });
-  const finalType = callCount >= putCount ? 'CALL' : 'PUT';
-  const agreement = Math.max(callCount, putCount);
-  const avgConf = totalConf / active.length;
+  const sigs: StrategySignal[] = [];
+  if (strategies.includes('RSI')) sigs.push(generateRSISignal(ticks));
+  if (strategies.includes('MA_CROSS')) sigs.push(generateMACrossSignal(ticks));
+  if (strategies.includes('BOLLINGER')) sigs.push(generateBBSignal(ticks));
+  if (strategies.includes('SPIKE')) sigs.push(generateSpikeSignal(ticks));
+  if (!sigs.length) return { type: null, strategy: 'Composite', confidence: 0, reason: 'No strategies.', indicators: {} };
+  const active = sigs.filter((s) => s.type);
+  if (!active.length) return { type: null, strategy: 'Composite', confidence: 0, reason: sigs.map((s) => s.reason).join(' | '), indicators: {} };
+  let cc = 0, pc = 0, tc = 0;
+  active.forEach((s) => { if (s.type === 'CALL') cc++; if (s.type === 'PUT') pc++; tc += s.confidence; });
   return {
-    type: finalType,
+    type: cc >= pc ? 'CALL' : 'PUT',
     strategy: 'Composite',
-    confidence: Math.min(100, Math.round(avgConf + (agreement / signals.length) * 20)),
-    reason: `${agreement}/${signals.length} agree. ${active.map((s) => `[${s.strategy}]`).join(' ')} → ${finalType}`,
-    indicators: signals.reduce((a, s) => ({ ...a, ...s.indicators }), {}),
+    confidence: Math.min(100, Math.round(tc / active.length + (Math.max(cc, pc) / sigs.length) * 20)),
+    reason: `${Math.max(cc, pc)}/${sigs.length} agree. ${active.map((s) => `[${s.strategy}]`).join(' ')}`,
+    indicators: active.reduce((a, s) => ({ ...a, ...s.indicators }), {}),
   };
 }
 
-// ─── Strategy Metadata ───────────────────────────────────────────────────
-
 export const AVAILABLE_STRATEGIES = [
-  { id: 'RSI', name: 'RSI (Relative Strength Index)', description: 'Buys oversold (RSI<30), sells overbought (RSI>70).', defaultParams: { period: 14, oversold: 30, overbought: 70 } },
-  { id: 'MA_CROSS', name: 'Moving Average Crossover', description: 'Golden cross = CALL, Death cross = PUT.', defaultParams: { fastPeriod: 5, slowPeriod: 20 } },
-  { id: 'BOLLINGER', name: 'Bollinger Bands', description: 'Buys at lower band, sells at upper band.', defaultParams: { period: 20, stdDev: 2 } },
-  { id: 'SPIKE', name: 'Spike Detection', description: 'Detects price spikes for momentum trades.', defaultParams: { lookback: 20, threshold: 2.5 } },
+  { id: 'RSI', name: 'RSI', description: 'Oversold=CALL, Overbought=PUT.', defaultParams: { period: 14 } },
+  { id: 'MA_CROSS', name: 'MA Crossover', description: 'Golden cross=CALL, Death cross=PUT.', defaultParams: { fast: 5, slow: 20 } },
+  { id: 'BOLLINGER', name: 'Bollinger Bands', description: 'Lower band=CALL, Upper band=PUT.', defaultParams: { period: 20 } },
+  { id: 'SPIKE', name: 'Spike Detection', description: 'Price spike momentum.', defaultParams: { lookback: 20 } },
 ];
