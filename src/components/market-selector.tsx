@@ -10,21 +10,27 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'Boom/Crash': <Zap className="h-3.5 w-3.5" />,
   'Volatility': <Activity className="h-3.5 w-3.5" />,
   'Jump': <BarChart3 className="h-3.5 w-3.5" />,
-  'Forex': <Coins className="h-3.5 w-3.5" />,
+  'Metales': <Coins className="h-3.5 w-3.5" />,
+  'Forex': <TrendingUp className="h-3.5 w-3.5" />,
+  'Step': <BarChart3 className="h-3.5 w-3.5" />,
 };
 
 const categoryColors: Record<string, string> = {
   'Boom/Crash': 'text-amber-400',
   'Volatility': 'text-sky-400',
   'Jump': 'text-purple-400',
-  'Forex': 'text-yellow-400',
+  'Metales': 'text-yellow-400',
+  'Forex': 'text-emerald-400',
+  'Step': 'text-orange-400',
 };
 
 const categoryBgColors: Record<string, string> = {
   'Boom/Crash': 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20',
   'Volatility': 'bg-sky-500/10 border-sky-500/20 hover:bg-sky-500/20',
   'Jump': 'bg-purple-500/10 border-purple-500/20 hover:bg-purple-500/20',
-  'Forex': 'bg-yellow-500/10 border-yellow-500/20 hover:bg-yellow-500/20',
+  'Metales': 'bg-yellow-500/10 border-yellow-500/20 hover:bg-yellow-500/20',
+  'Forex': 'bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20',
+  'Step': 'bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20',
 };
 
 function getMarketBadge(market: MarketInfo) {
@@ -38,7 +44,9 @@ function getMarketBadge(market: MarketInfo) {
     case 'jump':
       return { label: 'CALL/PUT', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
     case 'continuous':
-      return { label: 'CALL/PUT', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' };
+      return { label: 'CALL/PUT', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
+    case 'metals':
+      return { label: 'METAL', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' };
     default:
       return { label: '', color: '' };
   }

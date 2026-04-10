@@ -473,10 +473,25 @@ export const SYNTHETIC_MARKETS: MarketInfo[] = [
   { symbol: 'JD75', name: 'Jump 75', category: 'Jump', description: 'Jump index with 75% volatility', marketType: 'jump', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
   { symbol: 'JD100', name: 'Jump 100', category: 'Jump', description: 'Jump index with 100% volatility', marketType: 'jump', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
 
-  // ── Gold / Metales ──
-  { symbol: 'frxEURUSD', name: 'EUR/USD', category: 'Forex', description: 'Euro vs US Dollar', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxGBPUSD', name: 'GBP/USD', category: 'Forex', description: 'British Pound vs US Dollar', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
-  { symbol: 'frxUSDJPY', name: 'USD/JPY', category: 'Forex', description: 'US Dollar vs Japanese Yen', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  // ── Step Indices (simulan caminata aleatoria) ──
+  { symbol: 'stpRNG', name: 'Step RNG', category: 'Step', description: 'Random step index, 0-9 range', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO'] },
+
+  // ── Oro y Metales (Gold & Metals) ──
+  { symbol: 'frxXAUUSD', name: 'Gold/USD (Oro)', category: 'Metales', description: 'Oro vs Dólar estadounidense', marketType: 'metals', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'frxXAGUSD', name: 'Silver/USD (Plata)', category: 'Metales', description: 'Plata vs Dólar estadounidense', marketType: 'metals', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'frxXAUJPY', name: 'Gold/JPY (Oro/Yen)', category: 'Metales', description: 'Oro vs Yen japonés', marketType: 'metals', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'frxXAUEUR', name: 'Gold/EUR (Oro/Euro)', category: 'Metales', description: 'Oro vs Euro', marketType: 'metals', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'frxXAGJPY', name: 'Silver/JPY (Plata/Yen)', category: 'Metales', description: 'Plata vs Yen japonés', marketType: 'metals', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+  { symbol: 'frxXAGEUR', name: 'Silver/EUR (Plata/Euro)', category: 'Metales', description: 'Plata vs Euro', marketType: 'metals', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'] },
+
+  // ── Pares de Divisas (Forex) ──
+  { symbol: 'frxEURUSD', name: 'EUR/USD', category: 'Forex', description: 'Euro vs Dólar estadounidense', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxGBPUSD', name: 'GBP/USD', category: 'Forex', description: 'Libra esterlina vs Dólar', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxUSDJPY', name: 'USD/JPY', category: 'Forex', description: 'Dólar vs Yen japonés', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxAUDUSD', name: 'AUD/USD', category: 'Forex', description: 'Dólar australiano vs Dólar', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxUSDCAD', name: 'USD/CAD', category: 'Forex', description: 'Dólar vs Dólar canadiense', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxEURGBP', name: 'EUR/GBP', category: 'Forex', description: 'Euro vs Libra esterlina', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
+  { symbol: 'frxGBPJPY', name: 'GBP/JPY', category: 'Forex', description: 'Libra esterlina vs Yen', marketType: 'continuous', supportedContractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITEVEN', 'DIGITODD'] },
 ];
 
 /**
@@ -503,7 +518,8 @@ export function getContractTypeForMarket(
     case 'volatility':
     case 'jump':
     case 'continuous':
-      // Standard CALL/PUT for these markets
+    case 'metals':
+      // Standard CALL/PUT for these markets (Oro, Plata, Metales, Forex)
       return direction;
 
     default:
