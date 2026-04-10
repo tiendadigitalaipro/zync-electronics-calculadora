@@ -108,6 +108,18 @@ export interface ProfitTableResponse {
   };
 }
 
+export interface ActiveSymbol {
+  symbol: string;
+  display_name: string;
+  subcategory: string;
+  exchange_is_open: number;
+  is_trading_suspended: number;
+  contract_types: string[];
+  minimum_stake: string;
+  market_display_name: string;
+  submarket_display_name: string;
+}
+
 type MessageHandler = (data: any) => void;
 type PendingRequest = { resolve: (value: any) => void; reject: (reason: any) => void; timer: ReturnType<typeof setTimeout> };
 
@@ -331,9 +343,18 @@ class DerivAPI {
   }): Promise<ProposalResponse> {
     const response = await this.sendRequest({
       proposal: 1,
+      product_type: 'basic',
       ...params,
     });
     return response as ProposalResponse;
+  }
+
+  async getActiveSymbols(productType: string = 'basic'): Promise<ActiveSymbol[]> {
+    const response = await this.sendRequest({
+      active_symbols: 'brief',
+      product_type: productType,
+    });
+    return (response.active_symbols || []) as ActiveSymbol[];
   }
 
   async buy(contractId: string, price: number): Promise<BuyResponse> {

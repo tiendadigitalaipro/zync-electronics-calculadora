@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getDerivAPI, type Tick } from './deriv-api';
+import { getDerivAPI, type Tick, type ActiveSymbol } from './deriv-api';
 import { generateCompositeSignal, type StrategySignal, SYNTHETIC_MARKETS } from './strategies';
 
 export interface TradeRecord {
@@ -116,6 +116,10 @@ interface TradingState {
   soundEnabled: boolean;
   notificationEnabled: boolean;
 
+  // Available markets from API
+  availableSymbols: ActiveSymbol[];
+  supportedMarkets: typeof SYNTHETIC_MARKETS;
+
   // Actions
   connect: (token?: string) => Promise<void>;
   disconnect: () => void;
@@ -212,6 +216,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   soundEnabled: true,
   notificationEnabled: false,
 
+  // Available markets from API
+  availableSymbols: [],
+  supportedMarkets: SYNTHETIC_MARKETS,
+
   // Actions
   connect: async (token?: string) => {
     const api = getDerivAPI();
@@ -251,6 +259,33 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         }
       } catch (e) {
         // Balance subscription might fail, that's ok
+      }
+
+      // Fetch available markets for this account
+      try {
+        const activeSymbols = await api.getActiveSymbols('basic');
+        set({ availableSymbols: activeSymbols });
+
+        // Filter supported markets to only show those available for trading
+        const availableSymbolMap = new Map(activeSymbols.map((s: ActiveSymbol) => [s.symbol, s]));
+        const filteredMarkets = SYNTHETIC_MARKETS.filter((m) => {
+          const active = availableSymbolMap.get(m.symbol);
+          if (!active) return false;
+          // Check if CALL contract is supported
+          const hasCallPut = active.contract_types?.includes('CALL') || active.contract_types?.includes('RISE');
+          return hasCallPut && !active.is_trading_suspended;
+        });
+
+        set({ supportedMarkets: filteredMarkets.length > 0 ? filteredMarkets : SYNTHETIC_MARKETS });
+
+        if (filteredMarkets.length > 0) {
+          get().addLog('success', `Available markets: ${filteredMarkets.map((m) => m.name).join(', ')}`);
+        } else {
+          get().addLog('warning', 'No synthetic markets with CALL/PUT found. Showing all markets - some may not be tradeable.');
+        }
+      } catch (e) {
+        // If active_symbols fails, keep showing all markets
+        get().addLog('warning', 'Could not verify available markets. All markets shown.');
       }
 
       // Subscribe to open contracts
@@ -453,6 +488,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     }
 
     get().addLog('info', `Requesting ${type} contract for ${state.currentSymbol} @ $${effectiveAmount.toFixed(2)}...`);
+
+    // Check if the current symbol is available for trading
+    const activeSymbol = state.availableSymbols.find((s: ActiveSymbol) => s.symbol === state.currentSymbol);
+    if (activeSymbol && !activeSymbol.contract_types?.includes(type) && !activeSymbol.contract_types?.includes('RISE') && !activeSymbol.contract_types?.includes('FALL')) {
+      get().addLog('error', `${state.currentSymbol} does not support ${type} contracts. Try a different market (e.g., Volatility 10 or Volatility 75).`);
+      get().playSound('alert');
+      return;
+    }
 
     try {
       const proposal = await api.getProposal({

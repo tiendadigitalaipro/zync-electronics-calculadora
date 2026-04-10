@@ -25,7 +25,7 @@ const categoryBgColors: Record<string, string> = {
 };
 
 export function MarketSelector() {
-  const { currentSymbol, isConnected, subscribeToMarket } = useTradingStore();
+  const { currentSymbol, isConnected, subscribeToMarket, supportedMarkets, availableSymbols } = useTradingStore();
 
   const handleSelect = (symbol: string) => {
     if (isConnected) {
@@ -33,7 +33,10 @@ export function MarketSelector() {
     }
   };
 
-  const categories = Array.from(new Set(SYNTHETIC_MARKETS.map((m) => m.category)));
+  const markets = supportedMarkets.length > 0 ? supportedMarkets : SYNTHETIC_MARKETS;
+  const availableSymbolSet = new Set(availableSymbols.map((s) => s.symbol));
+
+  const categories = Array.from(new Set(markets.map((m) => m.category)));
 
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur">
@@ -51,30 +54,39 @@ export function MarketSelector() {
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{category}</span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
-              {SYNTHETIC_MARKETS.filter((m) => m.category === category).map((market) => (
-                <button
-                  key={market.symbol}
-                  onClick={() => handleSelect(market.symbol)}
-                  disabled={!isConnected}
-                  className={`
-                    relative rounded-lg border px-2.5 py-2 text-left transition-all duration-200
-                    ${categoryBgColors[category]}
-                    ${currentSymbol === market.symbol
-                      ? 'ring-1 ring-white/30 shadow-lg scale-[1.02]'
-                      : ''
-                    }
-                    ${!isConnected ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
-                  `}
-                >
-                  <div className="text-[11px] font-semibold text-foreground">{market.name}</div>
-                  <div className="text-[9px] text-muted-foreground mt-0.5">{market.symbol}</div>
-                  {currentSymbol === market.symbol && (
-                    <Badge className="absolute -top-1 -right-1 text-[8px] px-1 py-0 bg-emerald-500">
-                      LIVE
-                    </Badge>
-                  )}
-                </button>
-              ))}
+              {markets.filter((m) => m.category === category).map((market) => {
+                const isAvailable = availableSymbolSet.size === 0 || availableSymbolSet.has(market.symbol);
+                return (
+                  <button
+                    key={market.symbol}
+                    onClick={() => handleSelect(market.symbol)}
+                    disabled={!isConnected || !isAvailable}
+                    className={`
+                      relative rounded-lg border px-2.5 py-2 text-left transition-all duration-200
+                      ${categoryBgColors[category]}
+                      ${currentSymbol === market.symbol
+                        ? 'ring-1 ring-white/30 shadow-lg scale-[1.02]'
+                        : ''
+                      }
+                      ${!isConnected || !isAvailable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
+                    title={!isAvailable ? 'This market is not available on your account' : market.description}
+                  >
+                    <div className="text-[11px] font-semibold text-foreground">{market.name}</div>
+                    <div className="text-[9px] text-muted-foreground mt-0.5">{market.symbol}</div>
+                    {currentSymbol === market.symbol && (
+                      <Badge className="absolute -top-1 -right-1 text-[8px] px-1 py-0 bg-emerald-500">
+                        LIVE
+                      </Badge>
+                    )}
+                    {!isAvailable && isConnected && (
+                      <div className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center">
+                        <span className="text-[8px] text-red-400 font-bold">N/A</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}
