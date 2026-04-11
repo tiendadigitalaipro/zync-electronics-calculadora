@@ -35,17 +35,16 @@ export interface MarketInfo {
 export const SYNTHETIC_MARKETS: MarketInfo[] = [
 
   // ─── BOOM INDICES (Digit-based ONLY — NO CALL/PUT) ────────────────────
-  // ONLY continuous versions work! Non-continuous (BOOM300/500/1000) are DEPRECATED by Deriv.
-  // Trading is not offered for non-continuous symbols.
-  { symbol: '1HB300V',   name: 'Boom 300',    category: 'Boom',      description: 'Spike up in 300ms',      marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
-  { symbol: '1HB500V',   name: 'Boom 500',    category: 'Boom',      description: 'Spike up in 500ms',      marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
-  { symbol: '1HB1000V',  name: 'Boom 1000',   category: 'Boom',      description: 'Spike up in 1000ms',     marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  // Boom: price spikes UP. Use DIGITOVER/DIGITUNDER contracts only.
+  { symbol: 'BOOM300',   name: 'Boom 300',    category: 'Boom',      description: 'Spike up in 300ms',      marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: 'BOOM500',   name: 'Boom 500',    category: 'Boom',      description: 'Spike up in 500ms',      marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: 'BOOM1000',  name: 'Boom 1000',   category: 'Boom',      description: 'Spike up in 1000ms',     marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
 
   // ─── CRASH INDICES (Digit-based ONLY — NO CALL/PUT) ───────────────────
-  // ONLY continuous versions work! Non-continuous (CRASH300/500/1000) are DEPRECATED by Deriv.
-  { symbol: '1HC300V',   name: 'Crash 300',   category: 'Crash',     description: 'Spike down in 300ms',     marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
-  { symbol: '1HC500V',   name: 'Crash 500',   category: 'Crash',     description: 'Spike down in 500ms',     marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
-  { symbol: '1HC1000V',  name: 'Crash 1000',  category: 'Crash',     description: 'Spike down in 1000ms',    marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  // Crash: price spikes DOWN. Use DIGITOVER/DIGITUNDER contracts only.
+  { symbol: 'CRASH300',  name: 'Crash 300',   category: 'Crash',     description: 'Spike down in 300ms',     marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: 'CRASH500',  name: 'Crash 500',   category: 'Crash',     description: 'Spike down in 500ms',     marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
+  { symbol: 'CRASH1000', name: 'Crash 1000',  category: 'Crash',     description: 'Spike down in 1000ms',    marketType: 'synthetic', contractTypes: ['DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF', 'DIGITFROM', 'DIGITTO', 'DIGITACCUMULATE'], supportsCallPut: false, minDurationMinutes: 0, defaultDuration: 1, defaultDurationUnit: 't' },
 
   // ─── VOLATILITY INDEX (Standard — CALL/PUT supported) ─────────────────
   { symbol: 'R_10',     name: 'Volatility 10',  category: 'Volatility', description: '10% volatility index',  marketType: 'volatility', contractTypes: ['CALL', 'PUT', 'RISE', 'FALL', 'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITFROM', 'DIGITTO'], supportsCallPut: true, minDurationMinutes: 0, defaultDuration: 5, defaultDurationUnit: 't' },
@@ -97,30 +96,28 @@ export function getMarket(symbol: string): MarketInfo | undefined {
 }
 
 /**
- * Detect if a symbol is Boom/Crash (digit-only contracts).
- * ONLY continuous versions: 1HB300V, 1HB500V, 1HB1000V, 1HC300V, 1HC500V, 1HC1000V
- * Non-continuous (BOOM*, CRASH*) are DEPRECATED by Deriv.
- */
-function isBoomOrCrash(symbol: string): boolean {
-  const s = symbol.toUpperCase();
-  return (
-    s.startsWith('1HB') ||    // Continuous Boom: 1HB300V, 1HB500V, 1HB1000V
-    s.startsWith('1HC')      // Continuous Crash: 1HC300V, 1HC500V, 1HC1000V
-  );
-}
-
-/**
- * Detect if a symbol is a Boom index (spikes UP).
+ * Detect if a symbol is Boom (price spikes UP).
+ * Matches: BOOM300, BOOM500, BOOM1000, 1HB300V, 1HB500V, 1HB1000V
  */
 function isBoom(symbol: string): boolean {
-  return symbol.toUpperCase().startsWith('1HB');
+  const s = symbol.toUpperCase();
+  return s.includes('BOOM') || s.startsWith('1HB');
 }
 
 /**
- * Detect if a symbol is a Crash index (spikes DOWN).
+ * Detect if a symbol is Crash (price spikes DOWN).
+ * Matches: CRASH300, CRASH500, CRASH1000, 1HC300V, 1HC500V, 1HC1000V
  */
 function isCrash(symbol: string): boolean {
-  return symbol.toUpperCase().startsWith('1HC');
+  const s = symbol.toUpperCase();
+  return s.includes('CRASH') || s.startsWith('1HC');
+}
+
+/**
+ * Detect if a symbol is Boom OR Crash (digit-only contracts, NO CALL/PUT).
+ */
+function isBoomOrCrash(symbol: string): boolean {
+  return isBoom(symbol) || isCrash(symbol);
 }
 
 /**
@@ -151,8 +148,7 @@ export function getDerivContractType(
   direction: 'CALL' | 'PUT',
   currentPrice?: number
 ): { contractType: string; barrier?: string; duration: number; durationUnit: string } {
-  // ─── DIGIT-ONLY: Boom & Crash (continuous only: 1HB*, 1HC*) ──────
-  // Non-continuous (BOOM*, CRASH*) are DEPRECATED and removed from market list.
+  // ─── DIGIT-ONLY: Boom & Crash (BOOM*, CRASH*, 1HB*, 1HC*) ──────
   // Boom/Crash do NOT support CALL/PUT. Only digit contracts work.
   if (!market.supportsCallPut && isBoomOrCrash(market.symbol)) {
     // Get the last digit of the current price for potential use

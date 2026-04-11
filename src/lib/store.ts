@@ -137,22 +137,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         // Build set of API-confirmed symbols
         const apiSet = new Set(active.map((s: ActiveSymbol) => s.symbol));
 
-        // List of DEPRECATED symbols that Deriv no longer supports for trading.
-        // These return "Trading is not offered for this asset" when you try to buy.
-        const DEPRECATED_SYMBOLS = new Set([
-          'BOOM300', 'BOOM500', 'BOOM1000',   // Non-continuous Boom (deprecated)
-          'CRASH300', 'CRASH500', 'CRASH1000', // Non-continuous Crash (deprecated)
-        ]);
-
         // Verify our dictionary against API
-        // CRITICAL: Only filter out if API returned data AND symbol is confirmed non-existent
         const verified = SYNTHETIC_MARKETS.filter((m) => {
-          // Skip deprecated symbols regardless of API response
-          if (DEPRECATED_SYMBOLS.has(m.symbol)) return false;
-
           const apiSym = active.find((s: ActiveSymbol) => s.symbol === m.symbol);
           if (!apiSym) {
-            // Symbol not in API response — could be suspended or doesn't exist for this account
             return false;
           }
           if (apiSym.is_trading_suspended === 1) return false;
