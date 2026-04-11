@@ -129,36 +129,21 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         if (b.balance) set({ balance: b.balance.balance });
       } catch (_) {}
 
-      // STEP 4: Fetch active_symbols (full) — this confirms which symbols exist
+      // STEP 4: Fetch active_symbols for info only — we ALWAYS show ALL markets from dictionary
       try {
         const active = await api.getActiveSymbols('basic');
         set({ availableSymbols: active });
 
-        // Build set of API-confirmed symbols
+        // ALWAYS show all markets from our dictionary — do NOT filter by API.
+        // The API may not return all symbols (e.g. Boom/Crash) for some accounts,
+        // but they are still tradeable. Filtering them out removes valid markets.
+        set({ supportedMarkets: SYNTHETIC_MARKETS });
+
         const apiSet = new Set(active.map((s: ActiveSymbol) => s.symbol));
-
-        // Verify our dictionary against API
-        const verified = SYNTHETIC_MARKETS.filter((m) => {
-          const apiSym = active.find((s: ActiveSymbol) => s.symbol === m.symbol);
-          if (!apiSym) {
-            return false;
-          }
-          if (apiSym.is_trading_suspended === 1) return false;
-          return true;
-        });
-
-        // If verification found markets, use them; otherwise show all from dictionary
-        if (verified.length > 0) {
-          set({ supportedMarkets: verified });
-          const cats: Record<string, number> = {};
-          verified.forEach((m) => { cats[m.category] = (cats[m.category] || 0) + 1; });
-          get().addLog('success', `${verified.length} mercados verificados por API: ${Object.entries(cats).map(([k, v]) => `${v} ${k}`).join(', ')}`);
-        } else {
-          // API returned no matching symbols — show all from dictionary as fallback
-          set({ supportedMarkets: SYNTHETIC_MARKETS });
-          get().addLog('warning', 'API no confirmo simbolos. Mostrando todos los mercados del diccionario.');
-          get().addLog('info', `Simbolos recibidos de API: ${apiSet.size}. Total en diccionario: ${SYNTHETIC_MARKETS.length}`);
-        }
+        const confirmed = SYNTHETIC_MARKETS.filter((m) => apiSet.has(m.symbol));
+        const cats: Record<string, number> = {};
+        SYNTHETIC_MARKETS.forEach((m) => { cats[m.category] = (cats[m.category] || 0) + 1; });
+        get().addLog('success', `${SYNTHETIC_MARKETS.length} mercados disponibles: ${Object.entries(cats).map(([k, v]) => `${v} ${k}`).join(', ')} (${confirmed.length} confirmados por API)`);
       } catch (e: any) {
         // If active_symbols fails, still show all markets
         set({ supportedMarkets: SYNTHETIC_MARKETS });
