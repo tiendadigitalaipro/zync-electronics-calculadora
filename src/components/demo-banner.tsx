@@ -2,7 +2,7 @@
 
 import { useLicenseStore } from '@/lib/license-store';
 import { Badge } from '@/components/ui/badge';
-import { Clock, ArrowRight } from 'lucide-react';
+import { Clock, ArrowRight, Crown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export function DemoBanner() {
@@ -38,9 +38,9 @@ export function DemoBanner() {
           </Badge>
           <span className="text-xs sm:text-sm text-amber-200">
             {days > 1
-              ? `${days} días restantes de prueba`
+              ? `${days} dias restantes de prueba`
               : days === 1
-                ? 'Último día de prueba'
+                ? 'Ultimo dia de prueba'
                 : 'Prueba expirando hoy'}
           </span>
         </div>
@@ -50,9 +50,10 @@ export function DemoBanner() {
             store.logoutLicense();
             store.initializeLicense();
           }}
-          className="flex items-center gap-1 text-xs sm:text-sm text-amber-400 hover:text-amber-300 transition-colors font-medium"
+          className="flex items-center gap-1.5 text-xs sm:text-sm text-amber-400 hover:text-amber-300 transition-colors font-semibold"
         >
-          Obtener Licencia PRO
+          <Crown className="h-3.5 w-3.5" />
+          Comprar PRO
           <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>

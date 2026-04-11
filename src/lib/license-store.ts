@@ -93,6 +93,9 @@ interface LicenseState {
   allDemos: DemoRecord[];
   error: string | null;
   initialized: boolean;
+  licensePlan: string | null;
+  licenseExpiresAt: number | null;
+  licenseDaysRemaining: number;
 
   initializeLicense: () => Promise<void>;
   startDemo: (ownerName: string, ownerEmail: string) => Promise<boolean>;
@@ -107,6 +110,7 @@ interface LicenseState {
   adminResumeLicense: (key: string) => Promise<boolean>;
   adminDeleteLicense: (key: string) => Promise<boolean>;
   adminFixDevice: (key: string) => Promise<boolean>;
+  adminRenewLicense: (key: string) => Promise<boolean>;
   adminDeleteDemo: (deviceId: string) => Promise<boolean>;
   adminLoadLicenses: () => Promise<void>;
   extendDemo: (deviceId: string, days: number) => Promise<boolean>;
@@ -132,6 +136,9 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
   allDemos: [],
   error: null,
   initialized: false,
+  licensePlan: null,
+  licenseExpiresAt: null,
+  licenseDaysRemaining: 0,
 
   // ═══════════════════════════════════════════════════════════════════════
   // INITIALIZE — On app load: check localStorage and validate against Firebase
@@ -182,6 +189,9 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
               }
               // Update last seen
               await update(licenseRef, { updatedAt: Date.now() });
+              const daysRemain = data.expiresAt
+                ? Math.ceil((data.expiresAt - Date.now()) / (1000 * 60 * 60 * 24))
+                : 999;
               set({
                 licenseKey: savedLicenseKey,
                 licenseStatus: 'active',
@@ -189,6 +199,9 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
                 isDemoActive: false,
                 licenseOwner: data.owner || savedOwner,
                 licenseEmail: data.email || savedEmail,
+                licensePlan: data.plan || 'PRO',
+                licenseExpiresAt: data.expiresAt || null,
+                licenseDaysRemaining: Math.max(0, daysRemain),
                 isLoading: false,
                 initialized: true,
               });
@@ -400,6 +413,9 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
       localStorage.removeItem(LS_DEMO_OWNER);
       localStorage.removeItem(LS_DEMO_EMAIL);
 
+      const daysRemain = data.expiresAt
+        ? Math.ceil((data.expiresAt - Date.now()) / (1000 * 60 * 60 * 24))
+        : 999;
       set({
         licenseKey: key,
         licenseStatus: 'active',
@@ -407,6 +423,9 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
         isDemoActive: false,
         licenseOwner: data.owner,
         licenseEmail: data.email,
+        licensePlan: data.plan || 'PRO',
+        licenseExpiresAt: data.expiresAt || null,
+        licenseDaysRemaining: Math.max(0, daysRemain),
         isLoading: false,
         error: null,
       });
@@ -438,7 +457,29 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
 
       const data = snapshot.val();
       if (data.status === 'active' && data.deviceId === deviceFingerprint) {
-        set({ licenseStatus: 'active', isLicenseActive: true });
+        if (data.expiresAt && Date.now() > data.expiresAt) {
+          await update(licenseRef, { status: 'blocked', updatedAt: Date.now() });
+          set({
+            licenseStatus: 'expired',
+            isLicenseActive: false,
+            licensePlan: data.plan || 'PRO',
+            licenseExpiresAt: data.expiresAt,
+            licenseDaysRemaining: 0,
+            error: `Tu licencia (${data.plan || 'PRO'}) ha expirado. Renueva con el administrador.`,
+          });
+          localStorage.setItem(LS_LICENSE_STATUS, 'expired');
+          return;
+        }
+        const daysRemain = data.expiresAt
+          ? Math.ceil((data.expiresAt - Date.now()) / (1000 * 60 * 60 * 24))
+          : 999;
+        set({
+          licenseStatus: 'active',
+          isLicenseActive: true,
+          licensePlan: data.plan || 'PRO',
+          licenseExpiresAt: data.expiresAt,
+          licenseDaysRemaining: Math.max(0, daysRemain),
+        });
       } else if (data.status === 'paused') {
         set({ licenseStatus: 'paused', isLicenseActive: false });
       } else if (data.status === 'blocked') {
@@ -459,6 +500,10 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
     localStorage.removeItem(LS_LICENSE_STATUS);
     localStorage.removeItem(LS_LICENSE_OWNER);
     localStorage.removeItem(LS_LICENSE_EMAIL);
+    localStorage.removeItem(LS_DEMO_START);
+    localStorage.removeItem(LS_DEMO_EXPIRES);
+    localStorage.removeItem(LS_DEMO_OWNER);
+    localStorage.removeItem(LS_DEMO_EMAIL);
     set({
       licenseKey: null,
       licenseStatus: 'none',
@@ -468,6 +513,9 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
       demoDaysRemaining: 0,
       licenseOwner: null,
       licenseEmail: null,
+      licensePlan: null,
+      licenseExpiresAt: null,
+      licenseDaysRemaining: 0,
       error: null,
     });
   },
@@ -629,6 +677,33 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
       return true;
     } catch (err) {
       set({ error: 'Error al resetear dispositivo.' });
+      return false;
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ADMIN: RENEW LICENSE (+1 month, unblock if needed)
+  // ═══════════════════════════════════════════════════════════════════════
+  adminRenewLicense: async (key: string) => {
+    try {
+      const licenseRef = ref(db, `licenses/${key}`);
+      const snapshot = await get(licenseRef);
+      if (!snapshot.exists()) {
+        set({ error: 'Licencia no encontrada.' });
+        return false;
+      }
+      const data = snapshot.val();
+      const currentExpiry = data.expiresAt && data.expiresAt > Date.now() ? data.expiresAt : Date.now();
+      const newExpiry = currentExpiry + (30 * 24 * 60 * 60 * 1000); // +1 month
+      await update(licenseRef, {
+        status: 'active',
+        expiresAt: newExpiry,
+        updatedAt: Date.now(),
+      });
+      await get().adminLoadLicenses();
+      return true;
+    } catch (err) {
+      set({ error: 'Error al renovar licencia.' });
       return false;
     }
   },

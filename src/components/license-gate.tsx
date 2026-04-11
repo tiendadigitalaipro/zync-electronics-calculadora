@@ -69,7 +69,14 @@ export function LicenseGate() {
       return <TradingDashboard />;
 
     case 'expired':
-      return <LicenseActivationScreen />;
+      // Check if it was a demo expiration (no license key) or PRO expiration
+      const store = useLicenseStore.getState();
+      if (store.licenseKey) {
+        // PRO license expired - show activation with pricing
+        return <LicenseActivationScreen />;
+      }
+      // Demo expired - show demo expired screen with pricing
+      return <DemoExpiredScreen />;
 
     case 'active':
       return <TradingDashboard />;
