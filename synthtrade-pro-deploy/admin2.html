@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Admin — SynthTrade Pro</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e5e7eb; min-height: 100vh; }
+    
+    .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    
+    /* Login */
+    .login-box { max-width: 360px; margin: 80px auto; background: rgba(15,20,30,0.8); border: 1px solid rgba(245,158,11,0.2); border-radius: 16px; padding: 32px; backdrop-filter: blur(20px); }
+    .login-box h1 { text-align: center; font-size: 20px; margin-bottom: 8px; }
+    .login-box p { text-align: center; font-size: 12px; color: #9ca3af; margin-bottom: 24px; }
+    .login-box input { width: 100%; padding: 10px 14px; background: rgba(30,35,50,0.5); border: 1px solid rgba(55,65,81,0.5); border-radius: 10px; color: #e5e7eb; font-size: 14px; outline: none; margin-bottom: 16px; }
+    .login-box input:focus { border-color: rgba(245,158,11,0.5); }
+    .login-box button { width: 100%; padding: 12px; background: #d97706; color: white; font-weight: 700; font-size: 14px; border: none; border-radius: 10px; cursor: pointer; }
+    .login-box button:hover { background: #f59e0b; }
+    .error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; display: none; }
+    .error.show { display: block; }
+
+    /* Header */
+    .header { border-bottom: 1px solid rgba(55,65,81,0.5); padding: 12px 0; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 16px; }
+    .header p { font-size: 10px; color: #9ca3af; }
+    .header-right { display: flex; gap: 8px; align-items: center; }
+
+    /* Buttons */
+    .btn { padding: 6px 14px; font-size: 11px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .btn-outline { background: transparent; color: #9ca3af; border: 1px solid rgba(55,65,81,0.5); }
+    .btn-outline:hover { color: #e5e7eb; background: rgba(55,65,81,0.3); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+    .btn-success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .btn-success:hover { background: rgba(16,185,129,0.25); }
+    .btn-warning { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .btn-warning:hover { background: rgba(245,158,11,0.25); }
+    .btn-primary { background: #d97706; color: white; }
+    .btn-primary:hover { background: #f59e0b; }
+    .btn-sm { padding: 4px 10px; font-size: 10px; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .stat-card { background: rgba(15,20,30,0.6); border: 1px solid rgba(55,65,81,0.3); border-radius: 12px; padding: 14px; backdrop-filter: blur(10px); }
+    .stat-value { font-size: 24px; font-weight: 800; }
+    .stat-label { font-size: 10px; color: #9ca3af; margin-top: 2px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 16px; border: 1px solid rgba(55,65,81,0.3); border-radius: 10px; overflow: hidden; background: rgba(15,20,30,0.5); }
+    .tab { padding: 8px 16px; font-size: 12px; cursor: pointer; color: #9ca3af; border: none; background: transparent; font-weight: 600; transition: all 0.2s; }
+    .tab.active { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .tab:hover:not(.active) { color: #e5e7eb; background: rgba(55,65,81,0.2); }
+
+    /* Cards */
+    .card { background: rgba(15,20,30,0.6); border: 1px solid rgba(55,65,81,0.3); border-radius: 12px; padding: 20px; margin-bottom: 12px; backdrop-filter: blur(10px); }
+    .card h2 { font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .card .subtitle { font-size: 11px; color: #9ca3af; margin-bottom: 16px; }
+    
+    /* License item */
+    .license-item { background: rgba(30,35,50,0.3); border: 1px solid rgba(55,65,81,0.3); border-radius: 12px; padding: 14px; margin-bottom: 8px; }
+    .license-key { font-family: monospace; font-size: 12px; color: #fbbf24; font-weight: 700; }
+    .license-info { font-size: 11px; color: #9ca3af; margin-top: 6px; line-height: 1.6; }
+    .license-info span { color: #d1d5db; }
+    .license-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+    /* Badge */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; }
+    .badge-active { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-paused { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-blocked { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-expired { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+    /* Form */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; color: #9ca3af; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; padding: 9px 12px; background: rgba(30,35,50,0.5); border: 1px solid rgba(55,65,81,0.5); border-radius: 8px; color: #e5e7eb; font-size: 13px; outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: rgba(245,158,11,0.5); }
+    
+    /* Plan grid */
+    .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .plan-option { padding: 10px; border: 1px solid rgba(55,65,81,0.3); border-radius: 10px; cursor: pointer; transition: all 0.2s; background: rgba(30,35,50,0.2); }
+    .plan-option:hover { border-color: rgba(55,65,81,0.6); }
+    .plan-option.selected { border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.08); box-shadow: 0 0 0 1px rgba(245,158,11,0.2); }
+    .plan-option .plan-name { font-size: 12px; font-weight: 700; }
+    .plan-option .plan-price { font-size: 13px; color: #fbbf24; font-weight: 800; }
+    .plan-option .plan-period { font-size: 10px; color: #9ca3af; }
+
+    /* Generated key box */
+    .key-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; padding: 16px; margin-top: 14px; }
+    .key-box p { font-size: 11px; color: #34d399; font-weight: 600; margin-bottom: 8px; }
+    .key-box code { display: block; background: rgba(30,35,50,0.5); padding: 10px; border-radius: 8px; font-family: monospace; font-size: 14px; color: #fbbf24; font-weight: 800; letter-spacing: 1px; text-align: center; }
+    .key-box .copy-btn { margin-top: 8px; width: 100%; }
+
+    .hidden { display: none; }
+    .text-amber { color: #fbbf24; }
+    .text-red { color: #f87171; }
+    .text-green { color: #34d399; }
+    .text-blue { color: #60a5fa; }
+    
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .plan-grid { grid-template-columns: 1fr 1fr; }
+      .header { flex-direction: column; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ADMIN DASHBOARD -->
+  <div id="adminDashboard">
+    <div class="container">
+      <div class="header">
+        <div>
+          <h1>🛡️ Panel de Administración</h1>
+          <p>SynthTrade Pro</p>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-outline" onclick="loadData()">🔄 Refrescar</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats" id="statsContainer"></div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('licenses',this)">🔑 Licencias</button>
+        <button class="tab" onclick="switchTab('create',this)">➕ Crear</button>
+        <button class="tab" onclick="switchTab('demos',this)">👥 Demos</button>
+      </div>
+
+      <!-- Licenses Tab -->
+      <div id="tab-licenses">
+        <div id="licensesList"></div>
+      </div>
+
+      <!-- Create Tab -->
+      <div id="tab-create" class="hidden">
+        <div class="card">
+          <h2>➕ Generar Nueva Licencia</h2>
+          <p class="subtitle">Crea una nueva licencia PRO para un usuario.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+              <label>Nombre del titular</label>
+              <input type="text" id="newOwnerName" placeholder="Nombre completo" />
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="newOwnerEmail" placeholder="email@ejemplo.com" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Plan de Suscripción</label>
+            <div class="plan-grid" id="planGrid">
+              <div class="plan-option selected" onclick="selectPlan(this,'1 mes')">
+                <div class="plan-name">1 Mes</div>
+                <div class="plan-price">$25</div>
+                <div class="plan-period">USD / mes</div>
+              </div>
+              <div class="plan-option" onclick="selectPlan(this,'3 meses')" style="border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.05);">
+                <div class="plan-name">3 Meses ⭐</div>
+                <div class="plan-price">$60</div>
+                <div class="plan-period">USD / 3 meses</div>
+              </div>
+              <div class="plan-option" onclick="selectPlan(this,'6 meses')">
+                <div class="plan-name">6 Meses</div>
+                <div class="plan-price">$100</div>
+                <div class="plan-period">USD / 6 meses</div>
+              </div>
+              <div class="plan-option" onclick="selectPlan(this,'12 meses')">
+                <div class="plan-name">12 Meses</div>
+                <div class="plan-price">$180</div>
+                <div class="plan-period">USD / año</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;padding:12px;" onclick="createLicense()">🔑 Generar Licencia</button>
+          <div id="generatedKeyBox" class="key-box hidden">
+            <p>✅ Licencia generada exitosamente:</p>
+            <code id="generatedKey"></code>
+            <button class="btn btn-success copy-btn" onclick="copyKey()">📋 Copiar Clave</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Demos Tab -->
+      <div id="tab-demos" class="hidden">
+        <div id="demosList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAeCKJZqE8xb5YvniZhJ6CODCRS0t5W-SI",
+      authDomain: "synthtrade-pro.firebaseapp.com",
+      databaseURL: "https://synthtrade-pro-default-rtdb.firebaseio.com",
+      projectId: "synthtrade-pro",
+      storageBucket: "synthtrade-pro.firebasestorage.app",
+      messagingSenderId: "336497532355",
+      appId: "1:336497532355:web:316ccb205fda8729e8f176"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const DEFAULT_PASSWORD = 'a2k2024';
+    let selectedPlan = '1 mes';
+    let allLicenses = [];
+    let allDemos = [];
+
+    // Hash function (same as app)
+    function simpleHash(str) {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) {
+        h = ((h << 5) - h) + str.charCodeAt(i);
+        h |= 0;
+      }
+      return Math.abs(h).toString(36);
+    }
+
+    // Generate license key
+    function genKey() {
+      const part = () => Math.random().toString(36).substring(2, 7).toUpperCase();
+      return `${part()}-${part()}-${part()}-${part()}-${part()}`;
+    }
+
+    // Auto-load data on page open
+    loadData();
+
+    // Load data
+    async function loadData() {
+      // Licenses
+      const licSnap = await db.ref('licenses').once('value');
+      allLicenses = [];
+      licSnap.forEach(child => {
+        allLicenses.push({ key: child.key, ...child.val() });
+      });
+
+      // Demos
+      const demoSnap = await db.ref('demos').once('value');
+      allDemos = [];
+      demoSnap.forEach(child => {
+        allDemos.push({ key: child.key, ...child.val() });
+      });
+
+      renderStats();
+      renderLicenses();
+      renderDemos();
+    }
+
+    // Stats
+    function renderStats() {
+      const total = allLicenses.length;
+      const active = allLicenses.filter(l => l.status === 'active').length;
+      const paused = allLicenses.filter(l => l.status === 'paused').length;
+      const blocked = allLicenses.filter(l => l.status === 'blocked').length;
+      const totalDemos = allDemos.length;
+      const activeDemos = allDemos.filter(d => d.expiresAt > Date.now()).length;
+
+      document.getElementById('statsContainer').innerHTML = `
+        <div class="stat-card"><div class="stat-value text-amber">🔑 ${total}</div><div class="stat-label">Total Licencias</div></div>
+        <div class="stat-card"><div class="stat-value text-green">✅ ${active}</div><div class="stat-label">Activas</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#fbbf24">⏸ ${paused}</div><div class="stat-label">Pausadas</div></div>
+        <div class="stat-card"><div class="stat-value text-red">🚫 ${blocked}</div><div class="stat-label">Bloqueadas</div></div>
+        <div class="stat-card"><div class="stat-value text-blue">👥 ${totalDemos}</div><div class="stat-label">Total Demos</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#22d3ee">🔄 ${activeDemos}</div><div class="stat-label">Demos Activos</div></div>
+      `;
+    }
+
+    // Format date
+    function fmtDate(ts) {
+      return new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    // Status badge
+    function statusBadge(status) {
+      const map = {
+        active: ['Activa', 'badge-active'],
+        paused: ['Pausada', 'badge-paused'],
+        blocked: ['Bloqueada', 'badge-blocked'],
+      };
+      const [text, cls] = map[status] || [status, 'badge-blocked'];
+      return `<span class="badge ${cls}">${text}</span>`;
+    }
+
+    // Render licenses
+    function renderLicenses() {
+      const el = document.getElementById('licensesList');
+      if (allLicenses.length === 0) {
+        el.innerHTML = '<div class="card"><p style="text-align:center;color:#9ca3af;padding:24px;">No hay licencias registradas.</p></div>';
+        return;
+      }
+      el.innerHTML = allLicenses.map(l => {
+        const isExpired = l.expiresAt && Date.now() > l.expiresAt;
+        const daysLeft = l.expiresAt ? Math.ceil((l.expiresAt - Date.now()) / (86400000)) : 999;
+        return `
+          <div class="license-item">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+              <span class="license-key">${l.key}</span>
+              ${statusBadge(l.status)}
+              ${l.plan ? `<span class="badge" style="background:rgba(245,158,11,0.1);color:#fbbf24;border:1px solid rgba(245,158,11,0.2);">${l.plan}</span>` : ''}
+            </div>
+            <div class="license-info">
+              <div><span>Owner:</span> ${l.owner || '—'} &nbsp;|&nbsp; <span>Email:</span> ${l.email || '—'}</div>
+              ${l.deviceId ? `<div>🖥️ <code style="font-size:10px;">${l.deviceId.substring(0, 20)}...</code></div>` : ''}
+              <div>
+                Creada: ${fmtDate(l.createdAt)} — Actualizada: ${fmtDate(l.updatedAt)}
+                ${l.expiresAt ? ` | Expira: ${fmtDate(l.expiresAt)}` : ''}
+              </div>
+              ${isExpired ? `<div class="text-red" style="font-weight:700;font-size:10px;">⚠️ EXPIRADA — hace ${Math.ceil((Date.now() - l.expiresAt) / 86400000)} días</div>` : ''}
+              ${!isExpired && daysLeft < 999 ? `<div class="text-green" style="font-size:10px;">✅ ${daysLeft} días restantes</div>` : ''}
+            </div>
+            <div class="license-actions">
+              ${l.status === 'paused' ? `<button class="btn btn-success btn-sm" onclick="licenseAction('${l.key}','resume')">▶ Reactivar</button>` : ''}
+              ${l.status === 'active' ? `<button class="btn btn-warning btn-sm" onclick="licenseAction('${l.key}','pause')">⏸ Pausar</button>` : ''}
+              ${l.status !== 'blocked' ? `<button class="btn btn-danger btn-sm" onclick="licenseAction('${l.key}','block')">🚫 Bloquear</button>` : ''}
+              ${(l.status === 'blocked' || isExpired) ? `<button class="btn btn-success btn-sm" onclick="licenseAction('${l.key}','renew')">🔄 Renovar +1 mes</button>` : ''}
+              <button class="btn btn-outline btn-sm" onclick="licenseAction('${l.key}','fix')">🔧 Fix Device</button>
+              <button class="btn btn-danger btn-sm" onclick="licenseAction('${l.key}','delete')">🗑️ Eliminar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render demos
+    function renderDemos() {
+      const el = document.getElementById('demosList');
+      if (allDemos.length === 0) {
+        el.innerHTML = '<div class="card"><p style="text-align:center;color:#9ca3af;padding:24px;">No hay registros de demo.</p></div>';
+        return;
+      }
+      el.innerHTML = allDemos.map(d => {
+        const isActive = d.expiresAt > Date.now();
+        const remaining = Math.ceil((d.expiresAt - Date.now()) / 86400000);
+        return `
+          <div class="license-item">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+              <code style="font-size:11px;color:#60a5fa;">${d.key.substring(0, 20)}...</code>
+              ${isActive
+                ? `<span class="badge badge-active">${remaining}d restantes</span>`
+                : `<span class="badge badge-blocked">Expirada</span>`
+              }
+            </div>
+            <div class="license-info">
+              <div><span>Owner:</span> ${d.owner || '—'}</div>
+              <div>Inicio: ${fmtDate(d.startedAt)} — Expira: ${fmtDate(d.expiresAt)}</div>
+            </div>
+            <div class="license-actions">
+              <button class="btn btn-danger btn-sm" onclick="deleteDemo('${d.key}')">🗑️ Eliminar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // License actions
+    async function licenseAction(key, action) {
+      const ref = db.ref('licenses/' + key);
+      switch (action) {
+        case 'block':
+          await ref.update({ status: 'blocked', updatedAt: Date.now() });
+          break;
+        case 'pause':
+          await ref.update({ status: 'paused', updatedAt: Date.now() });
+          break;
+        case 'resume':
+          await ref.update({ status: 'active', updatedAt: Date.now() });
+          break;
+        case 'fix':
+          await ref.update({ deviceId: '', updatedAt: Date.now() });
+          break;
+        case 'renew': {
+          const snap = await ref.once('value');
+          const data = snap.val();
+          const currentExpiry = (data.expiresAt && data.expiresAt > Date.now()) ? data.expiresAt : Date.now();
+          const newExpiry = currentExpiry + (30 * 24 * 60 * 60 * 1000);
+          await ref.update({ status: 'active', expiresAt: newExpiry, updatedAt: Date.now() });
+          break;
+        }
+        case 'delete':
+          if (confirm('¿Eliminar esta licencia permanentemente?')) {
+            await ref.remove();
+          } else {
+            return;
+          }
+          break;
+      }
+      loadData();
+    }
+
+    // Delete demo
+    async function deleteDemo(key) {
+      if (confirm('¿Eliminar este registro de demo?')) {
+        await db.ref('demos/' + key).remove();
+        loadData();
+      }
+    }
+
+    // Select plan
+    function selectPlan(el, plan) {
+      document.querySelectorAll('.plan-option').forEach(p => {
+        p.classList.remove('selected');
+        p.style.borderColor = '';
+        p.style.background = '';
+      });
+      el.classList.add('selected');
+      selectedPlan = plan;
+    }
+
+    // Create license
+    async function createLicense() {
+      const name = document.getElementById('newOwnerName').value.trim();
+      const email = document.getElementById('newOwnerEmail').value.trim();
+      if (!name) { alert('Ingresa el nombre del titular'); return; }
+
+      const key = genKey();
+      const months = { '1 mes': 1, '3 meses': 3, '6 meses': 6, '12 meses': 12 };
+      const m = months[selectedPlan] || 1;
+      const expiresAt = Date.now() + (m * 30 * 24 * 60 * 60 * 1000);
+
+      await db.ref('licenses/' + key).set({
+        owner: name,
+        email: email,
+        deviceId: '',
+        status: 'active',
+        plan: selectedPlan,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        expiresAt: expiresAt,
+      });
+
+      document.getElementById('generatedKey').textContent = key;
+      document.getElementById('generatedKeyBox').classList.remove('hidden');
+      document.getElementById('newOwnerName').value = '';
+      document.getElementById('newOwnerEmail').value = '';
+
+      loadData();
+    }
+
+    // Copy key
+    function copyKey() {
+      const key = document.getElementById('generatedKey').textContent;
+      navigator.clipboard.writeText(key).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✅ Copiado!';
+        setTimeout(() => { btn.textContent = '📋 Copiar Clave'; }, 2000);
+      });
+    }
+
+    // Switch tabs
+    function switchTab(tab, el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('tab-licenses').classList.toggle('hidden', tab !== 'licenses');
+      document.getElementById('tab-create').classList.toggle('hidden', tab !== 'create');
+      document.getElementById('tab-demos').classList.toggle('hidden', tab !== 'demos');
+    }
+  </script>
+</body>
+</html>
