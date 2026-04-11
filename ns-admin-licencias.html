@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Admin Licencias — Nail Studio Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+  --bg:#0D0A0F;--bg2:#130F18;--bg3:#1A1524;
+  --card:rgba(255,255,255,0.04);--card2:rgba(255,255,255,0.06);
+  --border:rgba(201,149,106,0.2);--border2:rgba(201,149,106,0.12);
+  --rose:#C9956A;--fuchsia:#D63384;--lila:#B388FF;--gold:#F4C97A;
+  --success:#4CAF87;--danger:#E05252;--warn:#F4C97A;--rose-soft:#E8A87C;
+  --text:#F5EEF8;--text2:#C4A8D4;--text3:#7B5E8A;
+  --mono:'JetBrains Mono',monospace;--body:'Inter',sans-serif;
+  --radius:12px;--radius-sm:8px;--radius-lg:16px;
+  --glass:rgba(255,255,255,0.03);
+  --glass-border:rgba(255,255,255,0.06);
+  --shadow:0 8px 32px rgba(0,0,0,0.4);
+  --shadow-lg:0 16px 48px rgba(0,0,0,0.6);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;line-height:1.5}
+::selection{background:rgba(214,51,132,0.3);color:#fff}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+a{color:var(--fuchsia);text-decoration:none}
+input,select,textarea{font-family:var(--body)}
+
+/* ════════ LOGIN ════════ */
+#loginPanel{width:100%;max-width:440px;margin:80px auto 0;animation:fadeUp .5s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.login-logo{font-size:64px;text-align:center;margin-bottom:8px;filter:drop-shadow(0 0 30px rgba(214,51,132,0.4));animation:pulse-glow 3s ease-in-out infinite}
+@keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 30px rgba(214,51,132,0.4))}50%{filter:drop-shadow(0 0 40px rgba(214,51,132,0.7))}}
+.login-brand{text-align:center;font-size:24px;font-weight:800;background:linear-gradient(135deg,var(--rose),var(--fuchsia),var(--lila));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:2px}
+.login-sub{text-align:center;font-size:12px;color:var(--text3);margin-bottom:32px;letter-spacing:.5px}
+.login-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px;box-shadow:var(--shadow-lg);backdrop-filter:blur(10px)}
+
+/* ════════ ADMIN PANEL ════════ */
+#adminPanel{width:100%;max-width:1100px;display:none;animation:fadeUp .4s ease}
+.panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.panel-brand{display:flex;align-items:center;gap:12px}
+.panel-logo{width:42px;height:42px;border-radius:var(--radius);background:linear-gradient(135deg,var(--rose),var(--fuchsia));display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px rgba(214,51,132,0.3)}
+.panel-title{font-size:18px;font-weight:800;background:linear-gradient(135deg,var(--rose),var(--fuchsia));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.panel-sub{font-size:11px;color:var(--text3);margin-top:1px}
+
+/* ════════ STATS ════════ */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--glass-border);border-radius:var(--radius);padding:16px 12px;text-align:center;backdrop-filter:blur(8px);transition:all .2s;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:.7}
+.stat-card:nth-child(1)::before{background:linear-gradient(90deg,var(--rose),var(--fuchsia))}
+.stat-card:nth-child(2)::before{background:linear-gradient(90deg,var(--success),#6DD5A0)}
+.stat-card:nth-child(3)::before{background:linear-gradient(90deg,var(--danger),#F07070)}
+.stat-card:nth-child(4)::before{background:linear-gradient(90deg,var(--text3),var(--text2))}
+.stat-card:nth-child(5)::before{background:linear-gradient(90deg,var(--fuchsia),var(--lila))}
+.stat-card:hover{background:var(--card2);transform:translateY(-2px);box-shadow:var(--shadow)}
+.stat-icon{font-size:14px;margin-bottom:6px;opacity:.7}
+.stat-num{font-size:26px;font-weight:800;font-family:var(--mono);line-height:1}
+.stat-card:nth-child(1) .stat-num{color:var(--rose)}
+.stat-card:nth-child(2) .stat-num{color:var(--success)}
+.stat-card:nth-child(3) .stat-num{color:var(--danger)}
+.stat-card:nth-child(4) .stat-num{color:var(--text2)}
+.stat-card:nth-child(5) .stat-num{color:var(--fuchsia)}
+.stat-label{font-size:10px;color:var(--text3);margin-top:6px;text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+
+/* ════════ TABS ════════ */
+.tabs{display:flex;gap:4px;background:var(--bg2);padding:4px;border-radius:var(--radius);margin-bottom:20px;border:1px solid var(--border)}
+.tab-btn{flex:1;padding:10px 16px;border:none;background:transparent;color:var(--text2);cursor:pointer;border-radius:var(--radius-sm);font-size:13px;font-weight:600;transition:all .25s;font-family:var(--body);display:flex;align-items:center;justify-content:center;gap:6px}
+.tab-btn:hover{background:rgba(255,255,255,0.04);color:var(--text)}
+.tab-btn.active{background:linear-gradient(135deg,var(--fuchsia),var(--lila));color:#fff;box-shadow:0 4px 16px rgba(214,51,132,0.3)}
+.tab-panel{display:none;animation:fadeUp .3s ease}
+.tab-panel.active{display:block}
+
+/* ════════ TWO-PANEL GENERATE ════════ */
+.gen-panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.gen-panel{background:var(--bg2);border-radius:var(--radius-lg);padding:24px;border:1px solid var(--border);position:relative;overflow:hidden}
+.gen-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.gen-panel.demo-panel::before{background:linear-gradient(90deg,var(--fuchsia),var(--lila))}
+.gen-panel.pro-panel::before{background:linear-gradient(90deg,var(--gold),var(--rose))}
+.gen-panel-header{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border2)}
+.gen-panel-icon{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:16px}
+.demo-panel .gen-panel-icon{background:rgba(214,51,132,0.15);color:var(--fuchsia)}
+.pro-panel .gen-panel-icon{background:rgba(244,201,122,0.15);color:var(--gold)}
+.gen-panel-title{font-size:15px;font-weight:700}
+.gen-panel-desc{font-size:11px;color:var(--text3)}
+
+/* ════════ FORM ════════ */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-group{margin-bottom:12px}
+.form-label{font-size:11px;color:var(--text2);margin-bottom:5px;display:flex;align-items:center;gap:4px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.form-label .req{color:var(--fuchsia);font-size:13px}
+.form-input,.form-select,.form-textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-size:13px;outline:none;transition:all .2s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--fuchsia);background:rgba(255,255,255,0.06);box-shadow:0 0 0 3px rgba(214,51,132,0.1)}
+.form-input.mono{font-family:var(--mono);letter-spacing:1px;font-size:12px}
+.form-input::placeholder{color:var(--text3);opacity:.6}
+.form-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237B5E8A' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.form-select option{background:var(--bg2);color:var(--text)}
+.form-textarea{resize:vertical;min-height:60px}
+.form-hint{font-size:10px;color:var(--text3);margin-top:3px}
+
+/* ════════ TERMINAL FIELDS ════════ */
+.terminal-fields{margin-top:8px}
+.terminal-field{margin-bottom:10px;animation:fadeUp .25s ease}
+.terminal-field-header{font-size:10px;color:var(--lila);font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:4px;letter-spacing:.5px}
+
+/* ════════ BUTTONS ════════ */
+.btn{padding:9px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-weight:700;font-size:12px;transition:all .2s;font-family:var(--body);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{background:linear-gradient(135deg,var(--fuchsia),var(--lila));color:#fff;box-shadow:0 4px 16px rgba(214,51,132,0.25)}
+.btn-primary:hover{box-shadow:0 6px 24px rgba(214,51,132,0.4);transform:translateY(-1px)}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--rose));color:#0D0A0F;box-shadow:0 4px 16px rgba(244,201,122,0.25)}
+.btn-gold:hover{box-shadow:0 6px 24px rgba(244,201,122,0.4);transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--fuchsia);color:var(--fuchsia);background:rgba(214,51,132,0.05)}
+.btn-danger{background:rgba(224,82,82,0.12);border:1px solid rgba(224,82,82,0.3);color:var(--danger)}
+.btn-danger:hover{background:rgba(224,82,82,0.2)}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:6px}
+.btn-block{width:100%;justify-content:center}
+.btn-icon{padding:6px 8px;font-size:13px}
+
+/* ════════ RESULT BOX ════════ */
+.result-box{border-radius:var(--radius);padding:16px;margin-top:14px;display:none;animation:fadeUp .3s ease}
+.result-box.pro-result{background:rgba(244,201,122,0.08);border:1px solid rgba(244,201,122,0.25)}
+.result-box.demo-result{background:rgba(214,51,132,0.08);border:1px solid rgba(214,51,132,0.25)}
+.result-title{font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.pro-result .result-title{color:var(--gold)}
+.demo-result .result-title{color:var(--fuchsia)}
+.result-code-item{background:rgba(0,0,0,0.2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.result-code-item:last-child{margin-bottom:0}
+.result-code-text{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1.5px;word-break:break-all;flex:1}
+.pro-result .result-code-text{color:var(--gold)}
+.demo-result .result-code-text{color:var(--fuchsia)}
+.result-code-label{font-size:10px;color:var(--text3);margin-bottom:2px}
+.result-actions{display:flex;gap:6px;margin-top:12px;justify-content:center;flex-wrap:wrap}
+
+/* ════════ LIST ════════ */
+.list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.list-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.list-actions{display:flex;gap:6px}
+.lic-list{display:flex;flex-direction:column;gap:10px}
+
+/* PRO Client Card */
+.client-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:all .2s}
+.client-card:hover{border-color:rgba(201,149,106,0.35)}
+.client-card-header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;user-select:none}
+.client-card-header:hover{background:rgba(255,255,255,0.02)}
+.client-info{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.client-avatar{width:38px;height:38px;border-radius:var(--radius-sm);background:linear-gradient(135deg,rgba(244,201,122,0.15),rgba(214,51,132,0.15));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.client-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.client-meta{font-size:11px;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.client-meta span{display:inline-flex;align-items:center;gap:3px}
+.client-card-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.client-duracion{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;letter-spacing:.3px}
+.client-expand{color:var(--text3);font-size:12px;transition:transform .2s;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.client-card.expanded .client-expand{transform:rotate(180deg)}
+.client-card-body{display:none;padding:0 16px 16px;border-top:1px solid var(--border2)}
+.client-card.expanded .client-card-body{display:block;animation:fadeUp .25s ease}
+
+/* Terminal item */
+.terminal-item{background:var(--card);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:12px;margin-top:10px}
+.terminal-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.terminal-label{font-size:12px;font-weight:700;color:var(--lila);display:flex;align-items:center;gap:5px}
+.terminal-status{font-size:11px;display:inline-flex;align-items:center;gap:4px}
+.terminal-detail{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.terminal-detail-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.terminal-detail-value{font-family:var(--mono);font-size:11px;color:var(--text2);word-break:break-all;flex:1;text-align:right}
+.terminal-actions{display:flex;gap:4px;margin-top:8px}
+
+/* DEMO row */
+.demo-row{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;transition:all .2s}
+.demo-row:hover{border-color:rgba(214,51,132,0.3)}
+.demo-info{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.demo-code{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--fuchsia);letter-spacing:1px}
+.demo-meta{font-size:11px;color:var(--text3)}
+.demo-actions{display:flex;gap:4px;flex-shrink:0}
+
+/* Client details section */
+.client-details-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+.client-detail-item{font-size:11px}
+.client-detail-item .label{color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.client-detail-item .value{color:var(--text2);margin-top:2px}
+
+/* ════════ BADGES ════════ */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px;gap:3px}
+.badge-pro{background:rgba(244,201,122,0.12);color:var(--gold);border:1px solid rgba(244,201,122,0.25)}
+.badge-demo{background:rgba(214,51,132,0.12);color:var(--fuchsia);border:1px solid rgba(214,51,132,0.25)}
+.badge-ok{background:rgba(76,175,135,0.12);color:var(--success);border:1px solid rgba(76,175,135,0.25)}
+.badge-pen{background:rgba(201,149,106,0.12);color:var(--rose);border:1px solid rgba(201,149,106,0.25)}
+.badge-exp{background:rgba(224,82,82,0.12);color:var(--danger);border:1px solid rgba(224,82,82,0.25)}
+.badge-off{background:rgba(123,94,138,0.15);color:var(--text3);border:1px solid rgba(123,94,138,0.25)}
+.badge-blocked{background:rgba(224,82,82,0.12);color:var(--danger);border:1px solid rgba(224,82,82,0.25)}
+.badge-paused{background:rgba(244,201,122,0.12);color:var(--warn);border:1px solid rgba(244,201,122,0.25)}
+
+/* ════════ LICENSE ACTION BUTTONS ════════ */
+.license-actions{display:flex;gap:4px;padding:10px 16px;border-top:1px solid var(--border2);background:rgba(0,0,0,0.1)}
+.license-actions .btn-icon-action{width:30px;height:30px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s;background:none}
+.license-actions .btn-activate{color:var(--success);border:1px solid rgba(76,175,135,0.3)}
+.license-actions .btn-activate:hover{background:rgba(76,175,135,0.12)}
+.license-actions .btn-block{color:var(--danger);border:1px solid rgba(224,82,82,0.3)}
+.license-actions .btn-block:hover{background:rgba(224,82,82,0.12)}
+.license-actions .btn-pause{color:var(--warn);border:1px solid rgba(244,201,122,0.3)}
+.license-actions .btn-pause:hover{background:rgba(244,201,122,0.12)}
+.license-actions .btn-share{color:#7C9AFF;border:1px solid rgba(124,154,255,0.3)}
+.license-actions .btn-share:hover{background:rgba(124,154,255,0.12)}
+.license-actions .btn-delete{color:var(--danger);border:1px solid rgba(224,82,82,0.3)}
+.license-actions .btn-delete:hover{background:rgba(224,82,82,0.12)}
+
+/* ════════ TOAST ════════ */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 20px;font-size:13px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;max-width:360px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);backdrop-filter:blur(10px)}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.ok{border-color:rgba(76,175,135,0.4);color:var(--success)}
+#toast.err{border-color:rgba(224,82,82,0.4);color:var(--danger)}
+#toast.warn{border-color:rgba(244,201,122,0.4);color:var(--warn)}
+
+.divider{height:1px;background:var(--border);margin:16px 0}
+.text-muted{font-size:10px;color:var(--text3);margin-top:4px;line-height:1.5}
+.empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.empty-state .empty-text{font-size:14px;margin-bottom:4px}
+.empty-state .empty-sub{font-size:12px;opacity:.6}
+
+/* ════════ RESPONSIVE ════════ */
+@media(max-width:768px){
+  .stats-row{grid-template-columns:repeat(3,1fr)}
+  .gen-panels{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+  .client-details-grid{grid-template-columns:1fr 1fr}
+  .panel-header{flex-direction:column;align-items:flex-start;gap:10px}
+  .list-header{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:480px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .stats-row .stat-card:last-child{grid-column:1/-1}
+  .tab-btn{font-size:11px;padding:8px 10px}
+  .client-card-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .client-card-right{width:100%;justify-content:flex-end}
+}
+
+/* Section label */
+.section-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border2)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN ═══════════════════ -->
+<div id="loginPanel">
+  <div class="login-logo">💅</div>
+  <div class="login-brand">Nail Studio Pro</div>
+  <div class="login-sub">Panel de Administración de Licencias</div>
+  <div class="login-card">
+    <div class="form-group">
+      <label class="form-label"><i class="fa-solid fa-lock" style="font-size:10px"></i> Contraseña de Administrador</label>
+      <input type="password" id="admin-pw" class="form-input" placeholder="••••••••••" autocomplete="off">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="loginAdmin()" style="padding:12px;font-size:14px">
+      <i class="fa-solid fa-right-to-bracket"></i> Ingresar al Panel
+    </button>
+    <div id="login-err" style="font-size:12px;color:var(--danger);margin-top:10px;text-align:center;min-height:18px"></div>
+    <div class="text-muted" style="text-align:center;margin-top:14px">
+      <i class="fa-solid fa-circle-info"></i> La clave por defecto está en Configuración de la app principal.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ADMIN PANEL ═══════════════════ -->
+<div id="adminPanel">
+  <!-- Header -->
+  <div class="panel-header">
+    <div class="panel-brand">
+      <div class="panel-logo">💅</div>
+      <div>
+        <div class="panel-title">Admin — Nail Studio Pro</div>
+        <div class="panel-sub">Sistema de Licencias · v2.0</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i> Salir
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+      <div class="stat-num" id="stat-total">0</div>
+      <div class="stat-label">Total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+      <div class="stat-num" id="stat-activas">0</div>
+      <div class="stat-label">Activas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div class="stat-num" id="stat-vencidas">0</div>
+      <div class="stat-label">Vencidas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fa-solid fa-circle-pause"></i></div>
+      <div class="stat-num" id="stat-inactivas">0</div>
+      <div class="stat-label">Inactivas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fa-solid fa-flask"></i></div>
+      <div class="stat-num" id="stat-demos">0</div>
+      <div class="stat-label">Demos</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('gen',this)">
+      <i class="fa-solid fa-wand-magic-sparkles"></i> Generar
+    </button>
+    <button class="tab-btn" onclick="switchTab('lista',this)">
+      <i class="fa-solid fa-list"></i> Historial
+    </button>
+  </div>
+
+  <!-- ════════ TAB: GENERATE (Two Panels) ════════ -->
+  <div class="tab-panel active" id="tab-gen">
+    <div class="gen-panels">
+
+      <!-- ─── DEMO PANEL (Left) ─── -->
+      <div class="gen-panel demo-panel">
+        <div class="gen-panel-header">
+          <div class="gen-panel-icon"><i class="fa-solid fa-flask"></i></div>
+          <div>
+            <div class="gen-panel-title">Demo</div>
+            <div class="gen-panel-desc">Prueba gratuita · 5 días</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+          Genera un código <strong style="color:var(--fuchsia)">DEMO</strong> que permite al cliente usar la app por exactamente 5 días desde su activación.
+        </div>
+        <div class="section-label"><i class="fa-solid fa-user"></i> Información del Cliente</div>
+        <div class="form-group">
+          <label class="form-label">Nombre del Negocio <span class="req">*</span></label>
+          <input type="text" id="demo-negocio" class="form-input" placeholder="Ej: Beauty Nails Studio">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono / WhatsApp <span class="req">*</span></label>
+          <input type="tel" id="demo-telefono" class="form-input" placeholder="+58 412 1234567">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">ID Dispositivo <span style="color:var(--text3);font-weight:400;text-transform:none">(opcional)</span></label>
+            <input type="text" id="demo-device" class="form-input mono" placeholder="NS-XXXX-XXXX-XXXX (opcional)" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Días de Prueba</label>
+            <select id="demo-dias" class="form-select">
+              <option value="3">3 días</option>
+              <option value="5" selected>5 días</option>
+              <option value="7">7 días</option>
+              <option value="10">10 días</option>
+              <option value="15">15 días</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="generarDEMO()" style="margin-top:4px">
+          <i class="fa-solid fa-bolt"></i> Generar Código DEMO
+        </button>
+        <!-- Result -->
+        <div class="result-box demo-result" id="result-demo">
+          <div class="result-title"><i class="fa-solid fa-circle-check"></i> Código DEMO generado</div>
+          <div id="result-demo-client" style="font-size:11px;color:var(--text2);margin-bottom:10px;display:none">
+            <div style="margin-bottom:2px"><i class="fa-solid fa-store" style="color:var(--fuchsia)"></i> <span id="result-demo-negocio"></span></div>
+            <div><i class="fa-solid fa-phone" style="color:var(--fuchsia)"></i> <span id="result-demo-telefono"></span></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">
+            <i class="fa-solid fa-hourglass-half"></i> Expira <span id="result-demo-dias-text">5</span> días después de la activación del cliente.
+          </div>
+          <div class="result-code-item">
+            <div class="result-code-text" id="result-demo-code">NS-DEMO-XXXXXX-XXXX</div>
+            <button class="btn btn-ghost btn-sm btn-icon" onclick="copiarCodigo('result-demo-code')" title="Copiar"><i class="fa-regular fa-copy"></i></button>
+          </div>
+          <div class="result-actions">
+            <button class="btn btn-ghost btn-sm" onclick="copiarCodigo('result-demo-code')"><i class="fa-regular fa-copy"></i> Copiar</button>
+            <button class="btn btn-ghost btn-sm" onclick="enviarWhatsAppDemo()"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── PRO PANEL (Right) ─── -->
+      <div class="gen-panel pro-panel">
+        <div class="gen-panel-header">
+          <div class="gen-panel-icon"><i class="fa-solid fa-crown"></i></div>
+          <div>
+            <div class="gen-panel-title">Pro</div>
+            <div class="gen-panel-desc">Licencia completa · Multi-terminal</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+          Genera licencias <strong style="color:var(--gold)">PRO</strong> vinculadas al Device ID de cada terminal del cliente.
+        </div>
+
+        <!-- Client Info -->
+        <div class="section-label"><i class="fa-solid fa-user"></i> Información del Cliente</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nombre del Negocio <span class="req">*</span></label>
+            <input type="text" id="pro-negocio" class="form-input" placeholder="Ej: Beauty Nails Studio">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono / WhatsApp <span class="req">*</span></label>
+            <input type="tel" id="pro-telefono" class="form-input" placeholder="+58 412 1234567">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="pro-email" class="form-input" placeholder="correo@ejemplo.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ciudad / Ubicación</label>
+            <input type="text" id="pro-ciudad" class="form-input" placeholder="Caracas, Venezuela">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notas internas</label>
+          <textarea id="pro-notas" class="form-textarea" placeholder="Observaciones, fecha de pago, etc." rows="2"></textarea>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Duration & Terminals -->
+        <div class="section-label"><i class="fa-solid fa-gear"></i> Configuración de Licencia</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Duración</label>
+            <select id="pro-duracion" class="form-select">
+              <option value="1 mes">1 mes</option>
+              <option value="3 meses" selected>3 meses</option>
+              <option value="6 meses">6 meses</option>
+              <option value="12 meses">12 meses (1 año)</option>
+              <option value="24 meses">24 meses (2 años)</option>
+              <option value="Permanente">Permanente</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Terminales</label>
+            <select id="pro-terminales" class="form-select" onchange="renderTerminalFields()">
+              <option value="1">1 terminal</option>
+              <option value="2">2 terminales</option>
+              <option value="3">3 terminales</option>
+              <option value="4">4 terminales</option>
+              <option value="5">5 terminales</option>
+              <option value="6">6 terminales</option>
+              <option value="7">7 terminales</option>
+              <option value="8">8 terminales</option>
+              <option value="9">9 terminales</option>
+              <option value="10">10 terminales</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic Device ID Fields -->
+        <div class="terminal-fields" id="terminal-fields">
+          <!-- Rendered by JS -->
+        </div>
+
+        <button class="btn btn-gold btn-block" onclick="generarPRO()" style="margin-top:8px;padding:12px;font-size:13px">
+          <i class="fa-solid fa-crown"></i> Generar Licencia PRO
+        </button>
+
+        <!-- Result -->
+        <div class="result-box pro-result" id="result-pro" style="display:none">
+          <div class="result-title"><i class="fa-solid fa-circle-check"></i> Licencia PRO generada</div>
+          <div id="result-pro-codes"></div>
+          <div class="result-actions">
+            <button class="btn btn-ghost btn-sm" onclick="copiarTodosCodigosPRO()"><i class="fa-regular fa-copy"></i> Copiar todo</button>
+            <button class="btn btn-ghost btn-sm" onclick="enviarWhatsAppPRO()"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ TAB: LIST ════════ -->
+  <div class="tab-panel" id="tab-lista">
+    <div class="list-header">
+      <div class="list-title"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Licencias</div>
+      <div class="list-actions">
+        <button class="btn btn-ghost btn-sm" onclick="exportarCSVAdmin()"><i class="fa-solid fa-file-export"></i> Exportar CSV</button>
+        <button class="btn btn-danger btn-sm" onclick="limpiarTodo()"><i class="fa-solid fa-trash"></i> Limpiar</button>
+      </div>
+    </div>
+    <!-- Filter pills -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="filter-pills">
+      <button class="btn btn-sm btn-ghost filter-pill active" onclick="setFilter('all',this)" style="font-size:11px">Todos</button>
+      <button class="btn btn-sm btn-ghost filter-pill" onclick="setFilter('PRO',this)" style="font-size:11px"><i class="fa-solid fa-crown" style="color:var(--gold)"></i> PRO</button>
+      <button class="btn btn-sm btn-ghost filter-pill" onclick="setFilter('DEMO',this)" style="font-size:11px"><i class="fa-solid fa-flask" style="color:var(--fuchsia)"></i> DEMO</button>
+    </div>
+    <div class="lic-list" id="lista-container"></div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════
+   CONSTANTS
+   ════════════════════════════════════════════ */
+var _SIGN_SALT = 'NAILSTUDIO2026';
+var _ADMIN_PW_DEFAULT = 'NSP2026ADMIN';
+var _DB_KEY = 'ns_licencias_admin';
+var _SYNC_KEY = 'ns_licencias_generadas';
+var _loggedIn = false;
+var _lastProResult = null;
+var _lastDemoCode = null;
+var _lastDemoEntry = null;
+var _currentFilter = 'all';
+
+/* ════════════════════════════════════════════
+   HASH UTILITIES
+   ════════════════════════════════════════════ */
+function _hash(s) {
+  var h = 0;
+  for (var i = 0; i < s.length; i++) {
+    h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+  }
+  return Math.abs(h).toString(36).toUpperCase();
+}
+
+function _devHash(deviceId) {
+  return _hash(deviceId.trim().toUpperCase() + _SIGN_SALT).slice(0, 6);
+}
+
+function _genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/* ════════════════════════════════════════════
+   STORAGE
+   ════════════════════════════════════════════ */
+function getDB() {
+  try {
+    var v = localStorage.getItem(_DB_KEY);
+    return v ? JSON.parse(v) : { lics: [], adminPw: _ADMIN_PW_DEFAULT };
+  } catch (e) {
+    return { lics: [], adminPw: _ADMIN_PW_DEFAULT };
+  }
+}
+
+function saveDB(d) {
+  try { localStorage.setItem(_DB_KEY, JSON.stringify(d)); } catch (e) {}
+}
+
+function getNsLics() {
+  try {
+    var v = localStorage.getItem(_SYNC_KEY);
+    return v ? JSON.parse(v) : [];
+  } catch (e) { return []; }
+}
+
+function saveNsLics(arr) {
+  try { localStorage.setItem(_SYNC_KEY, JSON.stringify(arr)); } catch (e) {}
+}
+
+function syncToApp(db) {
+  saveNsLics(db.lics || []);
+}
+
+/* ════════════════════════════════════════════
+   TOAST
+   ════════════════════════════════════════════ */
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  t.innerHTML = '<i class="fa-solid ' +
+    (type === 'ok' ? 'fa-circle-check' : type === 'err' ? 'fa-circle-xmark' : 'fa-triangle-exclamation') +
+    '"></i> ' + msg;
+  t.className = 'show ' + (type || 'ok');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.className = ''; }, 3500);
+}
+
+/* ════════════════════════════════════════════
+   LOGIN / LOGOUT
+   ════════════════════════════════════════════ */
+function loginAdmin() {
+  var pw = (document.getElementById('admin-pw') || {}).value || '';
+  var db = getDB();
+  var adminPw = db.adminPw || _ADMIN_PW_DEFAULT;
+  if (pw === adminPw || pw === _ADMIN_PW_DEFAULT || pw === 'NSP2026ADMIN') {
+    _loggedIn = true;
+    document.getElementById('loginPanel').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+    renderStats();
+    renderLista();
+    renderTerminalFields();
+  } else {
+    var el = document.getElementById('login-err');
+    el.textContent = '❌ Contraseña incorrecta.';
+    setTimeout(function () { el.textContent = ''; }, 3000);
+  }
+}
+
+function logout() {
+  _loggedIn = false;
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('loginPanel').style.display = 'block';
+  document.getElementById('admin-pw').value = '';
+}
+
+document.getElementById('admin-pw').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') loginAdmin();
+});
+
+/* ════════════════════════════════════════════
+   TABS
+   ════════════════════════════════════════════ */
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+  if (id === 'lista') renderLista();
+}
+
+/* ════════════════════════════════════════════
+   TERMINAL FIELDS (Dynamic)
+   ════════════════════════════════════════════ */
+function renderTerminalFields() {
+  var count = parseInt(document.getElementById('pro-terminales').value) || 1;
+  var container = document.getElementById('terminal-fields');
+  var html = '';
+  for (var i = 1; i <= count; i++) {
+    html += '<div class="terminal-field">' +
+      '<div class="terminal-field-header"><i class="fa-solid fa-desktop"></i> Terminal ' + i + '</div>' +
+      '<input type="text" class="form-input mono" id="pro-device-' + i + '" placeholder="NS-XXXX-XXXX-XXXX" oninput="this.value=this.value.toUpperCase()">' +
+      '<div class="form-hint">Device ID de la terminal ' + i + ' (dejar vacío para omitir)</div>' +
+      '</div>';
+  }
+  container.innerHTML = html;
+}
+
+/* ════════════════════════════════════════════
+   GENERATE PRO
+   ════════════════════════════════════════════ */
+function generarPRO() {
+  var negocio = (document.getElementById('pro-negocio').value || '').trim();
+  var telefono = (document.getElementById('pro-telefono').value || '').trim();
+  var email = (document.getElementById('pro-email').value || '').trim();
+  var ciudad = (document.getElementById('pro-ciudad').value || '').trim();
+  var notas = (document.getElementById('pro-notas').value || '').trim();
+  var duracion = document.getElementById('pro-duracion').value;
+  var numTerminales = parseInt(document.getElementById('pro-terminales').value) || 1;
+
+  // Validate required
+  if (!negocio) { toast('El nombre del negocio es obligatorio', 'warn'); document.getElementById('pro-negocio').focus(); return; }
+  if (!telefono) { toast('El teléfono / WhatsApp es obligatorio', 'warn'); document.getElementById('pro-telefono').focus(); return; }
+
+  // Collect device IDs
+  var dispositivos = [];
+  for (var i = 1; i <= numTerminales; i++) {
+    var devId = (document.getElementById('pro-device-' + i).value || '').trim().toUpperCase();
+    if (!devId) continue;
+    if (!devId.match(/^NS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
+      toast('Terminal ' + i + ': formato inválido (NS-XXXX-XXXX-XXXX)', 'warn');
+      document.getElementById('pro-device-' + i).focus();
+      return;
+    }
+    var dh = _devHash(devId);
+    var rnd = Math.random().toString(36).slice(2, 6).toUpperCase();
+    var base = 'NS-PRO-' + dh + '-' + rnd;
+    var check = _hash(base + _SIGN_SALT).slice(0, 4);
+    var code = base + '-' + check;
+    dispositivos.push({ deviceId: devId, code: code, terminal: i, activada: false });
+  }
+
+  if (dispositivos.length === 0) {
+    toast('Ingresa al menos un Device ID', 'warn');
+    return;
+  }
+
+  var entry = {
+    id: _genId(),
+    tipo: 'PRO',
+    negocio: negocio,
+    telefono: telefono,
+    email: email,
+    ciudad: ciudad,
+    notas: notas,
+    duracion: duracion,
+    numTerminales: numTerminales,
+    dispositivos: dispositivos,
+    ts: Date.now()
+  };
+
+  var db = getDB();
+  db.lics.push(entry);
+  saveDB(db);
+  syncToApp(db);
+
+  // Show result
+  _lastProResult = entry;
+  var codesHtml = '';
+  dispositivos.forEach(function (d, idx) {
+    codesHtml += '<div class="result-code-item">' +
+      '<div><div class="result-code-label">Terminal ' + d.terminal + ' — ' + d.deviceId + '</div>' +
+      '<div class="result-code-text" id="pro-code-' + idx + '">' + d.code + '</div></div>' +
+      '<button class="btn btn-ghost btn-sm btn-icon" onclick="copiarTexto(\'' + d.code + '\')" title="Copiar"><i class="fa-regular fa-copy"></i></button>' +
+      '</div>';
+  });
+  document.getElementById('result-pro-codes').innerHTML = codesHtml;
+  document.getElementById('result-pro').style.display = 'block';
+
+  // Clear form
+  document.getElementById('pro-negocio').value = '';
+  document.getElementById('pro-telefono').value = '';
+  document.getElementById('pro-email').value = '';
+  document.getElementById('pro-ciudad').value = '';
+  document.getElementById('pro-notas').value = '';
+  document.getElementById('pro-duracion').value = '3 meses';
+  document.getElementById('pro-terminales').value = '1';
+  renderTerminalFields();
+
+  renderStats();
+  toast('✅ Licencia PRO generada (' + dispositivos.length + ' terminal' + (dispositivos.length > 1 ? 'es' : '') + ')', 'ok');
+}
+
+/* ════════════════════════════════════════════
+   GENERATE DEMO
+   ════════════════════════════════════════════ */
+function generarDEMO() {
+  var negocio = (document.getElementById('demo-negocio').value || '').trim();
+  var telefono = (document.getElementById('demo-telefono').value || '').trim();
+  var device = (document.getElementById('demo-device').value || '').trim().toUpperCase();
+  var dias = parseInt(document.getElementById('demo-dias').value) || 5;
+
+  // Validate required
+  if (!negocio) { toast('El nombre del negocio es obligatorio', 'warn'); document.getElementById('demo-negocio').focus(); return; }
+  if (!telefono) { toast('El teléfono / WhatsApp es obligatorio', 'warn'); document.getElementById('demo-telefono').focus(); return; }
+
+  // Validate device ID format if provided
+  if (device && !device.match(/^NS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
+    toast('Formato de Device ID inválido (NS-XXXX-XXXX-XXXX)', 'warn');
+    document.getElementById('demo-device').focus();
+    return;
+  }
+
+  var rnd = Math.random().toString(36).slice(2, 8).toUpperCase();
+  var base = 'NS-DEMO-' + rnd;
+  var check = _hash(base + _SIGN_SALT).slice(0, 4);
+  var code = base + '-' + check;
+
+  var entry = {
+    id: _genId(),
+    tipo: 'DEMO',
+    code: code,
+    negocio: negocio,
+    telefono: telefono,
+    device: device,
+    dias: dias,
+    ts: Date.now(),
+    activada: false,
+    vencida: false
+  };
+
+  var db = getDB();
+  db.lics.push(entry);
+  saveDB(db);
+  syncToApp(db);
+
+  _lastDemoCode = code;
+  _lastDemoEntry = entry;
+  document.getElementById('result-demo-code').textContent = code;
+  document.getElementById('result-demo-negocio').textContent = negocio;
+  document.getElementById('result-demo-telefono').textContent = telefono;
+  document.getElementById('result-demo-dias-text').textContent = dias;
+  document.getElementById('result-demo-client').style.display = 'block';
+  document.getElementById('result-demo').style.display = 'block';
+
+  // Clear form
+  document.getElementById('demo-negocio').value = '';
+  document.getElementById('demo-telefono').value = '';
+  document.getElementById('demo-device').value = '';
+  document.getElementById('demo-dias').value = '5';
+
+  renderStats();
+  toast('🎯 Código DEMO generado (' + dias + ' días)', 'ok');
+}
+
+/* ════════════════════════════════════════════
+   STATS (5 cards)
+   ════════════════════════════════════════════ */
+function renderStats() {
+  var db = getDB();
+  var lics = db.lics || [];
+  var pros = lics.filter(function (l) { return l.tipo === 'PRO'; });
+  var demos = lics.filter(function (l) { return l.tipo === 'DEMO'; });
+
+  var activas = 0, vencidas = 0, inactivas = 0;
+
+  // PRO: active if any device activated
+  pros.forEach(function (p) {
+    var anyActive = (p.dispositivos || []).some(function (d) { return d.activada; });
+    if (anyActive) activas++;
+    else inactivas++;
+  });
+
+  // DEMO: check dates
+  demos.forEach(function (d) {
+    if (d.vencida) { vencidas++; }
+    else if (d.activada) {
+      // Check if 5 days passed since activation
+      if (d.tsActivacion && (Date.now() - d.tsActivacion > 5 * 24 * 60 * 60 * 1000)) {
+        vencidas++;
+        d.vencida = true;
+      } else {
+        activas++;
+      }
+    } else {
+      inactivas++;
+    }
+  });
+
+  // Save any updated vencida flags
+  saveDB(db);
+
+  document.getElementById('stat-total').textContent = lics.length;
+  document.getElementById('stat-activas').textContent = activas;
+  document.getElementById('stat-vencidas').textContent = vencidas;
+  document.getElementById('stat-inactivas').textContent = inactivas;
+  document.getElementById('stat-demos').textContent = demos.length;
+}
+
+/* ════════════════════════════════════════════
+   LIST RENDERING
+   ════════════════════════════════════════════ */
+function setFilter(filter, btn) {
+  _currentFilter = filter;
+  document.querySelectorAll('.filter-pill').forEach(function (p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  renderLista();
+}
+
+function renderLista() {
+  var db = getDB();
+  var lics = (db.lics || []).slice().reverse();
+  var c = document.getElementById('lista-container');
+
+  if (_currentFilter !== 'all') {
+    lics = lics.filter(function (l) { return l.tipo === _currentFilter; });
+  }
+
+  if (!lics.length) {
+    c.innerHTML = '<div class="empty-state">' +
+      '<div class="empty-icon">💅</div>' +
+      '<div class="empty-text">Sin licencias registradas</div>' +
+      '<div class="empty-sub">Genera tu primera licencia en la pestaña "Generar"</div>' +
+      '</div>';
+    return;
+  }
+
+  var html = '';
+  var proEntries = lics.filter(function (l) { return l.tipo === 'PRO'; });
+  var demoEntries = lics.filter(function (l) { return l.tipo === 'DEMO'; });
+
+  // PRO entries as expandable cards
+  proEntries.forEach(function (entry) {
+    var initial = (entry.negocio || '?')[0].toUpperCase();
+    var anyActive = (entry.dispositivos || []).some(function (d) { return d.activada; });
+    var fecha = new Date(entry.ts).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+    var numDisps = (entry.dispositivos || []).length;
+    var duracionBadge = '<span class="badge badge-pro"><i class="fa-solid fa-clock"></i> ' + entry.duracion + '</span>';
+
+    // Status badges for bloqueada/pausada
+    var statusBadges = '';
+    if (entry.bloqueada) {
+      statusBadges += '<span class="badge badge-blocked"><i class="fa-solid fa-ban"></i> BLOQUEADA</span>';
+    }
+    if (entry.pausada) {
+      statusBadges += '<span class="badge badge-paused"><i class="fa-solid fa-pause"></i> PAUSADA</span>';
+    }
+
+    // Terminal items
+    var terminalsHtml = '';
+    (entry.dispositivos || []).forEach(function (d) {
+      var statusHtml;
+      if (d.activada) {
+        statusHtml = '<span class="terminal-status badge badge-ok"><i class="fa-solid fa-circle-check"></i> Activa</span>';
+      } else {
+        statusHtml = '<span class="terminal-status badge badge-pen"><i class="fa-solid fa-hourglass-half"></i> Pendiente</span>';
+      }
+      terminalsHtml += '<div class="terminal-item">' +
+        '<div class="terminal-item-header">' +
+          '<div class="terminal-label"><i class="fa-solid fa-desktop"></i> Terminal ' + (d.terminal || '?') + '</div>' +
+          statusHtml +
+        '</div>' +
+        '<div class="terminal-detail" style="margin-bottom:6px">' +
+          '<div class="terminal-detail-label">Device ID</div>' +
+          '<div class="terminal-detail-value">' + (d.deviceId || '—') + '</div>' +
+        '</div>' +
+        '<div class="terminal-detail">' +
+          '<div class="terminal-detail-label">Código</div>' +
+          '<div class="terminal-detail-value" style="color:var(--gold)">' + (d.code || '—') + '</div>' +
+        '</div>' +
+        '<div class="terminal-actions">' +
+          '<button class="btn btn-ghost btn-sm" onclick="copiarTexto(\'' + d.code + '\')"><i class="fa-regular fa-copy"></i> Copiar</button>' +
+        '</div>' +
+        '</div>';
+    });
+
+    // Client details
+    var detailsHtml = '<div class="client-details-grid">' +
+      '<div class="client-detail-item"><div class="label">Negocio</div><div class="value">' + esc(entry.negocio) + '</div></div>' +
+      '<div class="client-detail-item"><div class="label">Teléfono</div><div class="value">' + esc(entry.telefono) + '</div></div>' +
+      (entry.email ? '<div class="client-detail-item"><div class="label">Email</div><div class="value">' + esc(entry.email) + '</div></div>' : '') +
+      (entry.ciudad ? '<div class="client-detail-item"><div class="label">Ciudad</div><div class="value">' + esc(entry.ciudad) + '</div></div>' : '') +
+      '<div class="client-detail-item"><div class="label">Duración</div><div class="value">' + esc(entry.duracion) + '</div></div>' +
+      '<div class="client-detail-item"><div class="label">Fecha</div><div class="value">' + fecha + '</div></div>' +
+      '</div>';
+    if (entry.notas) {
+      detailsHtml += '<div style="margin-top:8px;font-size:11px;color:var(--text3)"><i class="fa-solid fa-sticky-note"></i> ' + esc(entry.notas) + '</div>';
+    }
+
+    // Action buttons footer
+    var actionsFooter = '<div class="license-actions">' +
+      '<button class="btn-icon-action btn-activate" onclick="toggleBlockClient(\'' + entry.id + '\');event.stopPropagation()" title="Activar/Desbloquear">🟢</button>' +
+      '<button class="btn-icon-action btn-block" onclick="toggleBlockClient(\'' + entry.id + '\');event.stopPropagation()" title="Bloquear">🔴</button>' +
+      '<button class="btn-icon-action btn-pause" onclick="togglePauseClient(\'' + entry.id + '\');event.stopPropagation()" title="Pausar">⏸️</button>' +
+      '<button class="btn-icon-action btn-share" onclick="shareWhatsAppCliente(\'' + entry.id + '\');event.stopPropagation()" title="Compartir via WhatsApp">📤</button>' +
+      '<button class="btn-icon-action btn-delete" onclick="event.stopPropagation();eliminarLic(\'' + entry.id + '\')" title="Eliminar">🗑️</button>' +
+      '</div>';
+
+    html += '<div class="client-card" id="card-' + entry.id + '">' +
+      '<div class="client-card-header" onclick="toggleCard(\'' + entry.id + '\')">' +
+        '<div class="client-info">' +
+          '<div class="client-avatar">' + initial + '</div>' +
+          '<div style="min-width:0">' +
+            '<div class="client-name">' + esc(entry.negocio) + '</div>' +
+            '<div class="client-meta">' +
+              '<span><i class="fa-solid fa-phone"></i> ' + esc(entry.telefono) + '</span>' +
+              '<span><i class="fa-solid fa-desktop"></i> ' + numDisps + ' terminal' + (numDisps > 1 ? 'es' : '') + '</span>' +
+              '<span>' + fecha + '</span>' +
+              statusBadges +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="client-card-right">' +
+          duracionBadge +
+          '<div class="client-expand"><i class="fa-solid fa-chevron-down"></i></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="client-card-body">' +
+        detailsHtml +
+        '<div class="section-label" style="margin-top:14px"><i class="fa-solid fa-key"></i> Licencias Generadas (' + numDisps + ')</div>' +
+        terminalsHtml +
+      '</div>' +
+      actionsFooter +
+      '</div>';
+  });
+
+  // DEMO entries as simple rows
+  if (demoEntries.length > 0 && proEntries.length > 0) {
+    html += '<div class="section-label" style="margin-top:10px"><i class="fa-solid fa-flask"></i> Licencias DEMO (' + demoEntries.length + ')</div>';
+  }
+
+  demoEntries.forEach(function (entry, idx) {
+    var fecha = new Date(entry.ts).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+    var dias = entry.dias || 5;
+    var statusBadge;
+    if (entry.vencida) {
+      statusBadge = '<span class="badge badge-exp"><i class="fa-solid fa-circle-xmark"></i> Vencida</span>';
+    } else if (entry.bloqueada) {
+      statusBadge = '<span class="badge badge-blocked"><i class="fa-solid fa-ban"></i> BLOQUEADA</span>';
+    } else if (entry.pausada) {
+      statusBadge = '<span class="badge badge-paused"><i class="fa-solid fa-pause"></i> PAUSADA</span>';
+    } else if (entry.activada) {
+      statusBadge = '<span class="badge badge-ok"><i class="fa-solid fa-circle-check"></i> Activa</span>';
+    } else {
+      statusBadge = '<span class="badge badge-pen"><i class="fa-solid fa-hourglass-half"></i> Pendiente</span>';
+    }
+
+    var clientInfo = '';
+    if (entry.negocio) {
+      clientInfo += '<div class="demo-meta"><i class="fa-solid fa-store"></i> ' + esc(entry.negocio) + '</div>';
+    }
+    if (entry.telefono) {
+      clientInfo += '<div class="demo-meta"><i class="fa-solid fa-phone"></i> ' + esc(entry.telefono) + '</div>';
+    }
+
+    html += '<div class="demo-row">' +
+      '<div class="demo-info">' +
+        '<div><span class="badge badge-demo"><i class="fa-solid fa-flask"></i> DEMO</span></div>' +
+        '<div>' +
+          '<div class="demo-code">' + esc(entry.code) + '</div>' +
+          '<div class="demo-meta">' + (entry.nota ? esc(entry.nota) + ' · ' : '') + fecha + ' · ' + dias + ' días</div>' +
+          clientInfo +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        statusBadge +
+      '</div>' +
+      '<div class="demo-actions">' +
+        '<button class="btn-icon-action btn-share" onclick="shareWhatsAppDemo(\'' + entry.id + '\')" title="Compartir via WhatsApp">📤</button>' +
+        '<button class="btn-icon-action btn-delete" onclick="eliminarLic(\'' + entry.id + '\')" title="Eliminar">🗑️</button>' +
+      '</div>' +
+      '</div>';
+  });
+
+  c.innerHTML = html;
+}
+
+function toggleCard(id) {
+  var card = document.getElementById('card-' + id);
+  if (card) card.classList.toggle('expanded');
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ════════════════════════════════════════════
+   ACTIONS
+   ════════════════════════════════════════════ */
+function copiarCodigo(elId) {
+  var code = document.getElementById(elId).textContent;
+  copiarTexto(code);
+}
+
+function copiarTexto(txt) {
+  navigator.clipboard.writeText(txt).then(function () {
+    toast('📋 Copiado al portapapeles', 'ok');
+  }).catch(function () {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('📋 Copiado', 'ok');
+  });
+}
+
+function copiarTodosCodigosPRO() {
+  if (!_lastProResult) return;
+  var codes = (_lastProResult.dispositivos || []).map(function (d) {
+    return 'Terminal ' + d.terminal + ': ' + d.code;
+  }).join('\n');
+  copiarTexto(codes);
+}
+
+function enviarWhatsAppDemo() {
+  if (!_lastDemoCode || !_lastDemoEntry) return;
+  var e = _lastDemoEntry;
+  var dias = e.dias || 5;
+  var msg = '💅 *Nail Studio Pro*\n\n' +
+    '¡Hola ' + e.negocio + '! Aquí está tu código de prueba:\n\n' +
+    '*' + _lastDemoCode + '*\n\n' +
+    '⏰ Válido por ' + dias + ' días desde su activación.\n\n' +
+    '🔑 Cómo activar:\n' +
+    '1. Abre Nail Studio Pro\n' +
+    '2. Pega el código en "Activar Licencia"\n' +
+    '3. ¡Listo!\n\n' +
+    '¿Necesitas ayuda? Escríbenos al ' + e.telefono + '. 💜';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function enviarWhatsAppPRO() {
+  if (!_lastProResult) return;
+  var e = _lastProResult;
+  var codes = (e.dispositivos || []).map(function (d) {
+    return '📱 Terminal ' + d.terminal + ': *' + d.code + '*\n   Device ID: ' + d.deviceId;
+  }).join('\n\n');
+  var msg = '💅 *Nail Studio Pro — Licencia PRO*\n\n' +
+    '🏢 Negocio: ' + e.negocio + '\n' +
+    '📅 Duración: ' + e.duracion + '\n' +
+    '🖥️ Terminales: ' + e.numTerminales + '\n\n' +
+    '🔑 Códigos de activación:\n\n' + codes + '\n\n' +
+    '🔑 Cómo activar cada terminal:\n' +
+    '1. Abre Nail Studio Pro en el dispositivo\n' +
+    '2. Ve a "Activar Licencia"\n' +
+    '3. Pega el código correspondiente\n' +
+    '4. Presiona "Activar"\n\n' +
+    '¿Necesitas ayuda? Escríbenos. 💜';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function eliminarLic(id) {
+  if (!confirm('¿Eliminar esta licencia?')) return;
+  var db = getDB();
+  db.lics = (db.lics || []).filter(function (l) { return l.id !== id; });
+  saveDB(db);
+  syncToApp(db);
+  renderLista();
+  renderStats();
+  toast('Eliminada', 'warn');
+}
+
+function limpiarTodo() {
+  if (!confirm('¿Eliminar TODO el historial? No se puede deshacer.')) return;
+  var db = getDB();
+  db.lics = [];
+  saveDB(db);
+  syncToApp(db);
+  renderLista();
+  renderStats();
+  toast('Historial limpiado', 'warn');
+}
+
+function exportarCSVAdmin() {
+  var db = getDB();
+  var lics = db.lics || [];
+  if (!lics.length) { toast('No hay licencias para exportar', 'warn'); return; }
+
+  var rows = [['Tipo', 'Código', 'Negocio', 'Teléfono', 'Email', 'Ciudad', 'Duración', 'Terminal', 'Device ID', 'Estado', 'Nota', 'Fecha']];
+
+  lics.forEach(function (l) {
+    if (l.tipo === 'PRO') {
+      (l.dispositivos || []).forEach(function (d) {
+        var estado = d.activada ? 'Activa' : 'Pendiente';
+        rows.push(['PRO', d.code, l.negocio || '', l.telefono || '', l.email || '', l.ciudad || '', l.duracion || '', d.terminal || '', d.deviceId || '', estado, l.notas || '', new Date(l.ts).toLocaleDateString('es-VE')]);
+      });
+    } else {
+      var estado2 = l.vencida ? 'Vencida' : l.activada ? 'Activa' : 'Pendiente';
+      rows.push(['DEMO', l.code, '', '', '', '', '', '', '', estado2, l.nota || '', new Date(l.ts).toLocaleDateString('es-VE')]);
+    }
+  });
+
+  var csv = rows.map(function (r) {
+    return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\n');
+
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'licencias-nail-studio-pro-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('📤 CSV exportado', 'ok');
+}
+
+/* ════════════════════════════════════════════
+   CLIENT ACTIONS (Block / Pause / Share)
+   ════════════════════════════════════════════ */
+function toggleBlockClient(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+  entry.bloqueada = !entry.bloqueada;
+  if (entry.bloqueada) {
+    entry.pausada = false; // Can't be both paused and blocked
+  }
+  saveDB(db);
+  syncToApp(db);
+  renderLista();
+  toast(entry.bloqueada ? '🔴 Cliente bloqueado' : '🟢 Cliente desbloqueado', entry.bloqueada ? 'err' : 'ok');
+}
+
+function togglePauseClient(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+  entry.pausada = !entry.pausada;
+  if (entry.pausada) {
+    entry.bloqueada = false; // Can't be both paused and blocked
+  }
+  saveDB(db);
+  syncToApp(db);
+  renderLista();
+  toast(entry.pausada ? '⏸️ Cliente pausado' : '▶️ Cliente reanudado', entry.pausada ? 'warn' : 'ok');
+}
+
+function shareWhatsAppCliente(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+
+  var statusText = '';
+  if (entry.bloqueada) statusText = '⚠️ *ESTADO: BLOQUEADA*';
+  else if (entry.pausada) statusText = '⏸️ *ESTADO: PAUSADA*';
+
+  var codes = (entry.dispositivos || []).map(function (d) {
+    return '📱 Terminal ' + d.terminal + ': *' + d.code + '*\n   Device ID: ' + d.deviceId;
+  }).join('\n\n');
+
+  var msg = '💅 *Nail Studio Pro — Licencia PRO*\n\n' +
+    '🏢 Negocio: ' + entry.negocio + '\n' +
+    '📞 Teléfono: ' + (entry.telefono || 'N/A') + '\n' +
+    '📅 Duración: ' + entry.duracion + '\n' +
+    '🖥️ Terminales: ' + entry.numTerminales + '\n' +
+    (statusText ? '\n' + statusText + '\n' : '') +
+    '\n🔑 Códigos de activación:\n\n' + codes + '\n\n' +
+    '🔑 Cómo activar cada terminal:\n' +
+    '1. Abre Nail Studio Pro en el dispositivo\n' +
+    '2. Ve a "Activar Licencia"\n' +
+    '3. Pega el código correspondiente\n' +
+    '4. Presiona "Activar"\n\n' +
+    '¿Necesitas ayuda? Escríbenos. 💜';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function shareWhatsAppDemo(id) {
+  var db = getDB();
+  var entry = null;
+  for (var i = 0; i < db.lics.length; i++) {
+    if (db.lics[i].id === id) { entry = db.lics[i]; break; }
+  }
+  if (!entry) return;
+
+  var dias = entry.dias || 5;
+  var negocioText = entry.negocio ? '¡Hola ' + entry.negocio + '!' : '¡Hola!';
+  var telefonoText = entry.telefono ? '\n\n📞 Contáctanos al ' + entry.telefono : '';
+
+  var msg = '💅 *Nail Studio Pro*\n\n' +
+    negocioText + ' Aquí está tu código de prueba:\n\n' +
+    '*' + entry.code + '*\n\n' +
+    '⏰ Válido por ' + dias + ' días desde su activación.\n\n' +
+    '🔑 Cómo activar:\n' +
+    '1. Abre Nail Studio Pro\n' +
+    '2. Pega el código en "Activar Licencia"\n' +
+    '3. ¡Listo!' +
+    telefonoText +
+    '\n\n¿Necesitas ayuda? Escríbenos. 💜';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+/* ════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════ */
+(function init() {
+  // Migrate old entries (add id if missing)
+  var db = getDB();
+  var changed = false;
+  (db.lics || []).forEach(function (l, i) {
+    if (!l.id) { l.id = _genId() + '-mig-' + i; changed = true; }
+    // Migrate old simple PRO entries to new format
+    if (l.tipo === 'PRO' && !l.dispositivos) {
+      l.dispositivos = [{
+        deviceId: l.device || '',
+        code: l.code || '',
+        terminal: 1,
+        activada: !!l.usado
+      }];
+      l.negocio = l.nota || 'Cliente migrado';
+      l.telefono = '';
+      l.duracion = 'No especificada';
+      l.numTerminales = 1;
+      changed = true;
+    }
+  });
+  if (changed) { saveDB(db); syncToApp(db); }
+
+  // Render terminal fields on load
+  renderTerminalFields();
+})();
+</script>
+</body>
+</html>
