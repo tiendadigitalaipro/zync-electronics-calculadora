@@ -103,3 +103,28 @@ Stage Summary:
 - All 4 mandatory fixes applied + additional symbol/duration/contract type corrections
 - TypeScript compiles clean, ESLint passes
 - ZIP ready for user download
+---
+Task ID: 2
+Agent: Main Agent
+Task: Brand A2K DIGITAL STUDIO + Firebase/GitHub deployment prep
+
+Work Log:
+- Copied user's logo (WhatsApp Image) to public/logo-a2k.jpeg
+- Updated layout.tsx: title, description, authors, icon, lang="es"
+- Updated page.tsx header: replaced Bot icon with A2K logo image, subtitle "by A2K Digital Studio"
+- Updated page.tsx footer: "Powered by A2K Digital Studio"
+- Changed next.config.ts: output from "standalone" to "export" for Firebase Hosting static deploy
+- Added trailingSlash and unoptimized images for static export compatibility
+- Created firebase.json with hosting config (public: out, SPA rewrites, cache headers)
+- Created .firebaserc with placeholder project ID
+- Created comprehensive .gitignore covering node_modules, .env, .db, .firebase, IDE files, upload/, download/, skills/
+- Created .env.example (informative only — no actual secrets needed)
+- Created professional README.md with full documentation (markets, strategies, install, Firebase deploy, GitHub deploy, keyboard shortcuts, project structure, license)
+- Created improved INICIAR-BOT.bat with A2K branding
+- Final ZIP: SynthTradePro-A2K-COMPLETE.zip (416K, 98 files)
+
+Stage Summary:
+- Project fully branded as A2K DIGITAL STUDIO
+- Ready for Firebase Hosting deployment (static export)
+- Ready for GitHub (complete .gitignore + README)
+- ZIP includes everything needed for distribution

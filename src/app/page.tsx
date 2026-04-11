@@ -13,7 +13,7 @@ import { OpenPositions } from '@/components/open-positions';
 import { RiskManagementPanel } from '@/components/risk-management';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bot, Wifi, WifiOff, Zap } from 'lucide-react';
+import { Wifi, WifiOff, Zap } from 'lucide-react';
 import { useEffect, useCallback } from 'react';
 
 export default function Home() {
@@ -89,14 +89,12 @@ export default function Home() {
         <div className="max-w-[1800px] mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-900/30">
-                <Bot className="h-4.5 w-4.5 text-white" />
-              </div>
+              <img src="/logo-a2k.jpeg" alt="A2K Logo" className="w-8 h-8 rounded-lg object-cover shadow-lg" />
               <div className="hidden sm:block">
                 <h1 className="text-sm font-bold text-foreground tracking-tight leading-none">
                   SynthTrade<span className="text-amber-400">Pro</span>
                 </h1>
-                <p className="text-[8px] text-muted-foreground tracking-wider uppercase">Synthetic Indices Bot</p>
+                <p className="text-[8px] text-muted-foreground tracking-wider uppercase">by A2K Digital Studio</p>
               </div>
             </div>
           </div>
@@ -250,7 +248,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-border/30 mt-4 py-3">
         <div className="max-w-[1800px] mx-auto px-3 sm:px-4 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>SynthTrade Pro v1.0 — Automated Trading Bot for Deriv Synthetic Indices</span>
+          <span>SynthTrade Pro v1.0 — Powered by <span className="text-amber-400 font-semibold">A2K Digital Studio</span></span>
           <span className="hidden sm:inline">
             ⚠️ Trading involves risk. Always test with demo accounts first.
           </span>
