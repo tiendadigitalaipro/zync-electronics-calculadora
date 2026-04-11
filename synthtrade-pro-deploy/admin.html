@@ -250,12 +250,15 @@
       const pw = document.getElementById('adminPassword').value;
       if (!pw) return;
 
+      const hashPw = simpleHash(pw);
+
       try {
         const snap = await db.ref('admin/password').once('value');
         let stored = DEFAULT_PASSWORD;
         if (snap.exists()) stored = snap.val();
 
-        if (simpleHash(pw) === stored) {
+        // Accept both plain text and hashed comparison
+        if (hashPw === stored || hashPw === simpleHash(stored) || pw === stored) {
           document.getElementById('loginScreen').classList.add('hidden');
           document.getElementById('adminDashboard').classList.remove('hidden');
           loadData();
