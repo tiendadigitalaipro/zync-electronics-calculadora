@@ -171,3 +171,24 @@ Stage Summary:
 - Deploy folder ready at: /home/z/my-project/synthtrade-pro-deploy/
 - ZIP for download: /home/z/my-project/synthtrade-pro-deploy.zip
 - User needs to redeploy to Firebase Hosting
+---
+Task ID: 1
+Agent: Main Agent
+Task: Build PRO activation flow with pricing plans and monthly subscription system
+
+Work Log:
+- Read all license system files (license-activation.tsx, license-store.ts, license-gate.tsx, admin-panel.tsx, pro-banner.tsx, demo-banner.tsx)
+- Updated license-store.ts: added licensePlan, licenseExpiresAt, licenseDaysRemaining fields; populate on activation and initialization; added adminRenewLicense function for +1 month renewal
+- Rewrote license-activation.tsx: added two-button registration (DEMO + PRO), pricing plans display (1/3/6/12 months), inline license key input, DemoExpiredScreen with pricing, LicenseActivationScreen with pricing
+- Updated pro-banner.tsx: shows plan type badge, expiration date, days remaining countdown
+- Updated license-gate.tsx: routes demo-expired users to DemoExpiredScreen, PRO-expired users to LicenseActivationScreen
+- Updated demo-banner.tsx: changed "Obtener Licencia PRO" to "Comprar PRO" with crown icon
+- Updated admin-panel.tsx: shows plan, expiration date, days remaining/expired status per license; added "Renovar +1 mes" button for expired/blocked licenses
+- Built successfully, created deploy ZIP
+
+Stage Summary:
+- ZIP file: /home/z/my-project/download/SynthTradePro-PRO-LICENSE-FIX.zip
+- Complete PRO activation flow with pricing plans ($25/1mo, $60/3mo, $100/6mo, $180/12mo)
+- Users can skip demo and go directly to PRO activation
+- Admin can renew expired licenses with +1 month button
+- Pro banner shows plan type and expiration date

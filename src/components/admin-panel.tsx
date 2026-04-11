@@ -132,7 +132,7 @@ function AdminDashboard() {
     allLicenses, allDemos, isAdmin, error,
     adminLoadLicenses, adminCreateLicense, adminBlockLicense,
     adminPauseLicense, adminResumeLicense, adminDeleteLicense,
-    adminFixDevice, adminDeleteDemo, extendDemo, setShowAdminPanel,
+    adminFixDevice, adminDeleteDemo, extendDemo, adminRenewLicense, setShowAdminPanel,
     logoutLicense
   } = useLicenseStore();
 
@@ -178,6 +178,7 @@ function AdminDashboard() {
       case 'pause': success = await adminPauseLicense(key); break;
       case 'resume': success = await adminResumeLicense(key); break;
       case 'fix': success = await adminFixDevice(key); break;
+      case 'renew': success = await adminRenewLicense(key); break;
       case 'delete': success = await adminDeleteLicense(key); break;
     }
     setLoadingAction(null);
@@ -329,6 +330,27 @@ function AdminDashboard() {
                             <div className="text-xs text-muted-foreground space-y-0.5">
                               <p><span className="text-foreground/70">Owner:</span> {license.owner}</p>
                               <p><span className="text-foreground/70">Email:</span> {license.email}</p>
+                              {license.plan && (
+                                <p>
+                                  <span className="text-foreground/70">Plan:</span>{' '}
+                                  <span className="text-amber-400 font-semibold">{license.plan}</span>
+                                  {license.expiresAt && (
+                                    <span className="ml-1.5 text-[10px]">
+                                      (expira: {formatDate(license.expiresAt)})
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                              {license.expiresAt && Date.now() > license.expiresAt && (
+                                <p className="text-red-400 text-[10px] font-semibold">
+                                  EXPIRADA — hace {Math.ceil((Date.now() - license.expiresAt) / (1000 * 60 * 60 * 24))} dias
+                                </p>
+                              )}
+                              {license.expiresAt && Date.now() <= license.expiresAt && (
+                                <p className="text-emerald-400/70 text-[10px]">
+                                  {Math.ceil((license.expiresAt - Date.now()) / (1000 * 60 * 60 * 24))} dias restantes
+                                </p>
+                              )}
                               {license.deviceId && (
                                 <p className="flex items-center gap-1">
                                   <Monitor className="h-3 w-3" />
@@ -378,6 +400,18 @@ function AdminDashboard() {
                             >
                               {loadingAction === 'block' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Ban className="h-3 w-3 mr-1" />}
                               Bloquear
+                            </Button>
+                          )}
+                          {(license.status === 'blocked' || (license.expiresAt && Date.now() > license.expiresAt)) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleAction('renew', license.licenseKey)}
+                              disabled={!!loadingAction}
+                              className="h-7 text-[10px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 px-2"
+                            >
+                              {loadingAction === 'renew' ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3 w-3 mr-1" />}
+                              Renovar +1 mes
                             </Button>
                           )}
                           <Button
