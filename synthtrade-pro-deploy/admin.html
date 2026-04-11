@@ -110,22 +110,8 @@
 </head>
 <body>
 
-  <!-- LOGIN SCREEN -->
-  <div id="loginScreen">
-    <div class="login-box">
-      <div style="text-align:center; margin-bottom: 16px;">
-        <div style="width:48px;height:48px;border-radius:12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);display:inline-flex;align-items:center;justify-content:center;font-size:24px;">🛡️</div>
-      </div>
-      <h1>Acceso Administrador</h1>
-      <p>SynthTrade Pro — Panel de control</p>
-      <div id="loginError" class="error">Contraseña incorrecta</div>
-      <input type="password" id="adminPassword" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()" />
-      <button onclick="doLogin()">Ingresar</button>
-    </div>
-  </div>
-
   <!-- ADMIN DASHBOARD -->
-  <div id="adminDashboard" class="hidden">
+  <div id="adminDashboard">
     <div class="container">
       <div class="header">
         <div>
@@ -134,7 +120,6 @@
         </div>
         <div class="header-right">
           <button class="btn btn-outline" onclick="loadData()">🔄 Refrescar</button>
-          <button class="btn btn-danger" onclick="doLogout()">🚪 Salir</button>
         </div>
       </div>
 
@@ -245,27 +230,8 @@
       return `${part()}-${part()}-${part()}-${part()}-${part()}`;
     }
 
-    // Login
-    function doLogin() {
-      const pw = document.getElementById('adminPassword').value;
-      if (!pw) return;
-
-      // Direct password check
-      if (pw === DEFAULT_PASSWORD) {
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('adminDashboard').classList.remove('hidden');
-        loadData();
-      } else {
-        document.getElementById('loginError').classList.add('show');
-        setTimeout(() => document.getElementById('loginError').classList.remove('show'), 3000);
-      }
-    }
-
-    function doLogout() {
-      document.getElementById('adminDashboard').classList.add('hidden');
-      document.getElementById('loginScreen').classList.remove('hidden');
-      document.getElementById('adminPassword').value = '';
-    }
+    // Auto-load data on page open
+    loadData();
 
     // Load data
     async function loadData() {
