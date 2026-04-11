@@ -10,13 +10,13 @@ import { getDatabase } from 'firebase/database';
 // ═══════════════════════════════════════════════════════════════════════════
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDemoKeyReplaceMe",
-  authDomain: "synthtrade-pro.web.app",
+  apiKey: "AIzaSyAeCKJZqE8xb5YvniZhJ6CODCRS0t5W-SI",
+  authDomain: "synthtrade-pro.firebaseapp.com",
   databaseURL: "https://synthtrade-pro-default-rtdb.firebaseio.com",
   projectId: "synthtrade-pro",
   storageBucket: "synthtrade-pro.firebasestorage.app",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000"
+  messagingSenderId: "336497532355",
+  appId: "1:336497532355:web:316ccb205fda8729e8f176"
 };
 
 const app = initializeApp(firebaseConfig);
