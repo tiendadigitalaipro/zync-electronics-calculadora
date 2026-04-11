@@ -246,32 +246,18 @@
     }
 
     // Login
-    async function doLogin() {
+    function doLogin() {
       const pw = document.getElementById('adminPassword').value;
       if (!pw) return;
 
-      const hashPw = simpleHash(pw);
-
-      try {
-        const snap = await db.ref('admin/password').once('value');
-        let stored = DEFAULT_PASSWORD;
-        if (snap.exists()) stored = snap.val();
-
-        // Accept both plain text and hashed comparison
-        if (hashPw === stored || hashPw === simpleHash(stored) || pw === stored) {
-          document.getElementById('loginScreen').classList.add('hidden');
-          document.getElementById('adminDashboard').classList.remove('hidden');
-          loadData();
-        } else {
-          document.getElementById('loginError').classList.add('show');
-          setTimeout(() => document.getElementById('loginError').classList.remove('show'), 3000);
-        }
-      } catch (e) {
-        if (pw === DEFAULT_PASSWORD) {
-          document.getElementById('loginScreen').classList.add('hidden');
-          document.getElementById('adminDashboard').classList.remove('hidden');
-          loadData();
-        }
+      // Direct password check
+      if (pw === DEFAULT_PASSWORD) {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('adminDashboard').classList.remove('hidden');
+        loadData();
+      } else {
+        document.getElementById('loginError').classList.add('show');
+        setTimeout(() => document.getElementById('loginError').classList.remove('show'), 3000);
       }
     }
 
