@@ -137,13 +137,22 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         // Build set of API-confirmed symbols
         const apiSet = new Set(active.map((s: ActiveSymbol) => s.symbol));
 
+        // List of DEPRECATED symbols that Deriv no longer supports for trading.
+        // These return "Trading is not offered for this asset" when you try to buy.
+        const DEPRECATED_SYMBOLS = new Set([
+          'BOOM300', 'BOOM500', 'BOOM1000',   // Non-continuous Boom (deprecated)
+          'CRASH300', 'CRASH500', 'CRASH1000', // Non-continuous Crash (deprecated)
+        ]);
+
         // Verify our dictionary against API
         // CRITICAL: Only filter out if API returned data AND symbol is confirmed non-existent
         const verified = SYNTHETIC_MARKETS.filter((m) => {
+          // Skip deprecated symbols regardless of API response
+          if (DEPRECATED_SYMBOLS.has(m.symbol)) return false;
+
           const apiSym = active.find((s: ActiveSymbol) => s.symbol === m.symbol);
           if (!apiSym) {
             // Symbol not in API response — could be suspended or doesn't exist for this account
-            // Don't show it if API returned a full list
             return false;
           }
           if (apiSym.is_trading_suspended === 1) return false;
@@ -443,12 +452,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     } catch (error: any) {
       const msg = error.message || 'Error desconocido';
 
-      if (msg.includes('Invalid contract type') || msg.includes('not available for this symbol')) {
+      if (msg.includes('not offered for this asset') || msg.includes('Trading is not offered')) {
+        get().addLog('error', `${market.name} (${symbol}): Este mercado NO acepta trading. Usa las versiones continuas: 1HB* (Boom) o 1HC* (Crash).`);
+      } else if (msg.includes('Invalid contract type') || msg.includes('not available for this symbol')) {
         get().addLog('error', `${market.name}: tipo "${contractInfo.contractType}" no valido. Este mercado soporta: ${market.contractTypes.slice(0, 5).join(', ')}`);
       } else if (msg.includes('Minimum duration')) {
         get().addLog('error', `${market.name}: duracion minima no cumplida. Minimo: ${market.minDurationMinutes || 1} min.`);
       } else if (msg.includes('Price moved')) {
         get().addLog('warning', `${market.name}: precio movido. El mercado esta muy volatil. Reintentando...`);
+      } else if (msg.includes('barrier') || msg.includes('Barrier')) {
+        get().addLog('error', `${market.name}: Error de barrera. ${msg}. Boom/Crash necesitan barrera DIGITOVER/DIGITUNDER.`);
       } else {
         get().addLog('error', `Trade fallido en ${market.name} (${symbol}): ${msg}`);
       }

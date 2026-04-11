@@ -44,7 +44,7 @@ export function TradingControls() {
               </Badge>
             </div>
             {!market.supportsCallPut && (
-              <p className="text-[9px] text-amber-400/70">Boom/Crash: CALL → DIGITMATCH, PUT → DIGITDIFF (digit only)</p>
+              <p className="text-[9px] text-amber-400/70">{market.category}: Solo contratos DIGIT (DIGITOVER/DIGITUNDER). CALL/PUT no disponibles.</p>
             )}
             {market.minDurationMinutes >= 60 && (
               <p className="text-[9px] text-yellow-400/70">Metales: duracion minima 1 hora ({market.minDurationMinutes} min)</p>
