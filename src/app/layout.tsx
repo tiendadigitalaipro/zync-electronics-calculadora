@@ -19,7 +19,16 @@ export const metadata: Metadata = {
   keywords: ["trading bot", "deriv", "synthetic indices", "automated trading", "boom", "crash", "volatility", "A2K DIGITAL STUDIO", "gold trading", "forex"],
   authors: [{ name: "A2K DIGITAL STUDIO" }],
   icons: {
-    icon: "/logo-a2k.jpeg",
+    icon: [
+      { url: "/favicon-a2k.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo-a2k-pro.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/logo-a2k-pro.png",
+  },
+  openGraph: {
+    title: "SynthTrade Pro | A2K DIGITAL STUDIO",
+    description: "Professional automated trading bot for Deriv synthetic indices.",
+    images: ["/logo-a2k-pro.png"],
   },
 };
 

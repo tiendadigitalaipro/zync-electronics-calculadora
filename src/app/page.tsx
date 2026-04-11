@@ -89,7 +89,7 @@ export default function Home() {
         <div className="max-w-[1800px] mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 shrink-0">
-              <img src="/logo-a2k.jpeg" alt="A2K Logo" className="w-8 h-8 rounded-lg object-cover shadow-lg" />
+              <img src="/logo-a2k-pro.png" alt="A2K Digital Studio" className="w-9 h-9 rounded-lg object-cover shadow-lg shadow-amber-900/20" />
               <div className="hidden sm:block">
                 <h1 className="text-sm font-bold text-foreground tracking-tight leading-none">
                   SynthTrade<span className="text-amber-400">Pro</span>
