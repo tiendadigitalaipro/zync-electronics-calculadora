@@ -147,3 +147,27 @@ Stage Summary:
 - Professional logo generated and applied throughout the project
 - Static build successful (out/ folder ready)
 - Firebase deployment ready - user just needs: firebase login + firebase deploy
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Boom/Crash trading error — "Trading is not offered for this asset"
+
+Work Log:
+- Read uploaded screenshots via OCR — identified error: "Trade fallido en Boom 1000 N (BOOM1000): Trading is not offered for this asset"
+- Root cause: Non-continuous Boom/Crash symbols (BOOM300, BOOM500, BOOM1000, CRASH300, CRASH500, CRASH1000) are DEPRECATED by Deriv and no longer accept trading
+- Fixed strategies.ts: Removed all 6 deprecated non-continuous symbols, kept only continuous versions (1HB300V, 1HB500V, 1HB1000V, 1HC300V, 1HC500V, 1HC1000V)
+- Updated category names from "Boom/Crash" to separate "Boom" and "Crash" categories
+- Added isBoom() and isCrash() helper functions for cleaner logic
+- Fixed store.ts: Added DEPRECATED_SYMBOLS filter to explicitly block deprecated symbols even if API returns them
+- Added specific error handler for "Trading is not offered for this asset" with helpful guidance
+- Updated trading-controls.tsx: Corrected the Boom/Crash label to show category-specific info
+- Built project successfully (59 files, 1.3 MB ZIP)
+- Created synthtrade-pro-deploy.zip for Firebase deployment
+
+Stage Summary:
+- Non-continuous Boom/Crash symbols removed (they cause "Trading is not offered" error)
+- 6 continuous Boom/Crash symbols remain fully functional (1HB300V, 1HB500V, 1HB1000V, 1HC300V, 1HC500V, 1HC1000V)
+- Deploy folder ready at: /home/z/my-project/synthtrade-pro-deploy/
+- ZIP for download: /home/z/my-project/synthtrade-pro-deploy.zip
+- User needs to redeploy to Firebase Hosting
