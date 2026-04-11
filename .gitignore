@@ -1,7 +1,10 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ═══════════════════════════════════════════════════════════════
+# SynthTrade Pro — .gitignore
+# A2K DIGITAL STUDIO
+# ═══════════════════════════════════════════════════════════════
 
-# dependencies
-node_modules
+# Dependencies
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,45 +13,73 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# Testing
 /coverage
 
-# next.js
+# Next.js
 /.next/
 /out/
-
-# production
 /build
 
-# misc
+# Production
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
 .DS_Store
 *.pem
+Thumbs.db
 
-# debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
-# env files (can opt-in for committing if needed)
+# Environment files (NEVER commit API tokens)
 .env*
+!.env.example
 
-# vercel
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Vercel
 .vercel
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-local-*
+# Database (user-specific)
+*.db
+*.db-journal
+prisma/migrations/
+
+# Skills (development only)
+/skills/
 .claude
 .z-ai-config
-*.log
+
+# Upload & temp files
+upload/
+download/
+
+# Local development
+local-*
 dev.log
 dev.out.log
 test
 prompt
-
 server.log
-# Skills directory
-/skills/
+
+# OS files
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini

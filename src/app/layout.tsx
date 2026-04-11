@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SynthTrade Pro - Deriv Trading Bot",
-  description: "Professional automated trading bot for Deriv synthetic indices. Trade Boom, Crash, Volatility, and Jump indices with advanced strategies.",
-  keywords: ["trading bot", "deriv", "synthetic indices", "automated trading", "boom", "crash", "volatility"],
-  authors: [{ name: "SynthTrade Pro" }],
+  title: "SynthTrade Pro | A2K DIGITAL STUDIO",
+  description: "Professional automated trading bot for Deriv synthetic indices by A2K DIGITAL STUDIO. Trade Boom, Crash, Volatility, Jump, Gold, and Forex with advanced AI strategies.",
+  keywords: ["trading bot", "deriv", "synthetic indices", "automated trading", "boom", "crash", "volatility", "A2K DIGITAL STUDIO", "gold trading", "forex"],
+  authors: [{ name: "A2K DIGITAL STUDIO" }],
   icons: {
-    icon: "/trading-bot-logo.png",
+    icon: "/logo-a2k.jpeg",
   },
 };
 
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="es" className="dark" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a0e17] text-foreground min-h-screen`}
       >
