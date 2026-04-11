@@ -343,12 +343,24 @@ class DerivAPI {
     duration_unit: string;
     basis?: string;
     currency?: string;
+    barrier?: string;
   }): Promise<ProposalResponse> {
-    const response = await this.sendRequest({
+    const reqBody: Record<string, unknown> = {
       proposal: 1,
       product_type: 'basic',
-      ...params,
-    });
+      contract_type: params.contract_type,
+      symbol: params.symbol,
+      amount: params.amount,
+      duration: params.duration,
+      duration_unit: params.duration_unit,
+      basis: params.basis || 'stake',
+      currency: params.currency,
+    };
+    // CRITICAL: Pass barrier for digit contracts (Boom/Crash)
+    if (params.barrier) {
+      reqBody.barrier = params.barrier;
+    }
+    const response = await this.sendRequest(reqBody);
     return response as ProposalResponse;
   }
 

@@ -377,10 +377,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         currency: s.currency,
       };
 
-      // Add barrier for digit contracts
+      // Add barrier for digit contracts (Boom/Crash)
       if (contractInfo.barrier) {
         proposalParams.barrier = contractInfo.barrier;
       }
+
+      get().addLog('info', `[DEBUG] Proposal: ${JSON.stringify(proposalParams)}`);
 
       const proposal = await api.getProposal(proposalParams);
 
