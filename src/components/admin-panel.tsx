@@ -138,6 +138,7 @@ function AdminDashboard() {
 
   const [newOwnerName, setNewOwnerName] = useState('');
   const [newOwnerEmail, setNewOwnerEmail] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState('1 mes');
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -153,7 +154,7 @@ function AdminDashboard() {
   const handleCreateLicense = async () => {
     if (!newOwnerName.trim()) return;
     setLoadingAction('create');
-    const key = await adminCreateLicense(newOwnerName.trim(), newOwnerEmail.trim());
+    const key = await adminCreateLicense(newOwnerName.trim(), newOwnerEmail.trim(), selectedPlan);
     if (key) {
       setCreatedKey(key);
       setNewOwnerName('');
@@ -161,6 +162,13 @@ function AdminDashboard() {
     }
     setLoadingAction(null);
   };
+
+  const planOptions = [
+    { value: '1 mes', label: '1 Mes', price: '$25' },
+    { value: '3 meses', label: '3 Meses', price: '$60' },
+    { value: '6 meses', label: '6 Meses', price: '$100' },
+    { value: '12 meses', label: '12 Meses', price: '$180' },
+  ];
 
   const handleAction = async (action: string, key: string) => {
     setLoadingAction(action);
@@ -454,6 +462,25 @@ function AdminDashboard() {
                       onChange={(e) => setNewOwnerEmail(e.target.value)}
                       className="bg-secondary/50 border-border/50"
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Plan de Suscripcion</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {planOptions.map((plan) => (
+                        <button
+                          key={plan.value}
+                          onClick={() => setSelectedPlan(plan.value)}
+                          className={`rounded-lg border p-2.5 text-left transition-all ${
+                            selectedPlan === plan.value
+                              ? 'border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/30'
+                              : 'border-border/30 bg-secondary/30 hover:border-border/60'
+                          }`}
+                        >
+                          <div className="text-xs font-semibold text-foreground">{plan.label}</div>
+                          <div className="text-[10px] text-amber-400 font-bold">{plan.price}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

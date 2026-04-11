@@ -16,8 +16,10 @@ export interface LicenseRecord {
   email: string;
   deviceId: string;
   status: LicenseRecordStatus;
+  plan: string; // '1 month', '3 months', '6 months', '12 months'
   createdAt: number;
   updatedAt: number;
+  expiresAt: number; // When the license expires
 }
 
 export interface DemoRecord {
@@ -161,6 +163,23 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
             const data = snapshot.val();
             // Check if license status is still active
             if (data.status === 'active' && data.deviceId === fingerprint) {
+              // Check if license has expired
+              if (data.expiresAt && Date.now() > data.expiresAt) {
+                // License expired - update status
+                await update(licenseRef, { status: 'blocked', updatedAt: Date.now() });
+                set({
+                  licenseKey: savedLicenseKey,
+                  licenseStatus: 'expired',
+                  isLicenseActive: false,
+                  isDemoActive: false,
+                  licenseOwner: data.owner || savedOwner,
+                  licenseEmail: data.email || savedEmail,
+                  error: `Tu licencia (${data.plan || 'PRO'}) ha expirado. Renueva con el administrador.`,
+                  isLoading: false,
+                  initialized: true,
+                });
+                return;
+              }
               // Update last seen
               await update(licenseRef, { updatedAt: Date.now() });
               set({
@@ -501,17 +520,27 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
   // ═══════════════════════════════════════════════════════════════════════
   // ADMIN: CREATE LICENSE
   // ═══════════════════════════════════════════════════════════════════════
-  adminCreateLicense: async (ownerName: string, ownerEmail: string) => {
+  adminCreateLicense: async (ownerName: string, ownerEmail: string, plan: string = '1 mes') => {
     try {
       const key = generateLicenseKey();
+      const planMonths: Record<string, number> = {
+        '1 mes': 1,
+        '3 meses': 3,
+        '6 meses': 6,
+        '12 meses': 12,
+      };
+      const months = planMonths[plan] || 1;
+      const expiresAt = Date.now() + (months * 30 * 24 * 60 * 60 * 1000); // ~30 days per month
       const licenseRef = ref(db, `licenses/${key}`);
       await set(licenseRef, {
         owner: ownerName,
         email: ownerEmail,
         deviceId: '',
         status: 'active',
+        plan: plan,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        expiresAt: expiresAt,
       });
       await get().adminLoadLicenses();
       return key;

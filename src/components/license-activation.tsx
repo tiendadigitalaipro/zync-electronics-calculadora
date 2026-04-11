@@ -189,6 +189,30 @@ export function RegistrationScreen() {
             <p className="text-center text-[10px] text-muted-foreground/60 pt-1">
               Al activar, aceptas que tu dispositivo queda registrado de forma permanente.
             </p>
+
+            {/* Divider - Already have license */}
+            <div className="relative pt-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/30" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-card px-3 text-muted-foreground">o</span>
+              </div>
+            </div>
+
+            {/* Already have license button */}
+            <Button
+              variant="outline"
+              onClick={() => {
+                const store = useLicenseStore.getState();
+                store.logoutLicense();
+                store.set({ licenseStatus: 'expired' });
+              }}
+              className="w-full h-10 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 font-semibold text-xs rounded-xl transition-all"
+            >
+              <KeyRound className="h-3.5 w-3.5 mr-2" />
+              Ya tengo una licencia PRO — Ingresar clave
+            </Button>
           </CardContent>
         </Card>
       </div>
