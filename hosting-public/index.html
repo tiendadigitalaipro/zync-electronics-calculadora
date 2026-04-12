@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mary Bot | Panel Maestro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,#fff1f2,#fce7f3,#fdf2f8);min-height:100vh;color:#881337}
+.mary-grad{background:linear-gradient(135deg,#e11d48,#db2777,#c026d3)}
+.mary-grad-dark{background:linear-gradient(135deg,#9f1239,#be185d,#a21caf)}
+.btn-primary{background:linear-gradient(135deg,#9f1239,#be185d);color:#fff;border:none;padding:12px 24px;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;box-shadow:0 4px 15px rgba(225,29,72,.25)}
+.btn-primary:hover{transform:scale(1.02);box-shadow:0 6px 20px rgba(225,29,72,.35)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.input-field{width:100%;padding:12px 16px;border-radius:14px;border:1.5px solid #fecdd3;background:rgba(255,255,255,.8);outline:none;font-size:14px;color:#881337;transition:all .2s}
+.input-field:focus{border-color:#fb7185;box-shadow:0 0 0 3px rgba(251,113,133,.15)}
+.input-field::placeholder{color:#fda4af}
+.card{background:#fff;border-radius:18px;border:1px solid #ffe4e6;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+.badge-active{background:#d1fae5;color:#065f46;border-color:#a7f3d0}
+.badge-expired{background:#ffe4e6;color:#9f1239;border-color:#fecdd3}
+.badge-suspended{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.spinner{width:20px;height:20px;border:3px solid #fecdd3;border-top-color:#e11d48;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .5s ease-out}
+.fade-in-delay{animation:fadeIn .7s ease-out}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.3);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-box{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.15);width:100%;max-width:500px;max-height:90vh;overflow-y:auto;animation:fadeIn .3s ease-out}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:12px 16px;font-size:13px;font-weight:600;color:#be185d;background:#fff1f2}
+td{padding:12px 16px;font-size:14px;color:#9f1239;border-top:1px solid #fff1f2}
+tr:hover td{background:#fff1f2}
+.icon-btn{width:32px;height:32px;border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .2s;background:transparent;color:#f9a8d4}
+.icon-btn:hover{background:#fff1f2;color:#e11d48}
+.mobile-card{padding:16px;border-bottom:1px solid #fff1f2}
+.stat-card{padding:16px;border-radius:16px;background:#fff;border:1px solid #ffe4e6}
+.stat-card h3{font-size:12px;color:#f472b6;font-weight:500;margin-bottom:4px}
+.stat-card .value{font-size:28px;font-weight:700;color:#881337}
+.stat-card .icon{width:20px;height:20px;color:#f472b6}
+select{padding:10px 14px;border-radius:14px;border:1.5px solid #fecdd3;background:#fff;font-size:14px;color:#881337;outline:none;cursor:pointer}
+select:focus{border-color:#fb7185}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px">
+  <div style="width:100%;max-width:400px" class="fade-in">
+    <div class="card" style="padding:32px;background:rgba(255,255,255,.85);backdrop-filter:blur(20px);border-radius:24px;box-shadow:0 8px 32px rgba(225,29,72,.1)">
+      <!-- Logo -->
+      <div style="text-align:center;margin-bottom:32px">
+        <div style="width:80px;height:80px;margin:0 auto 16px;border-radius:50%;background:linear-gradient(135deg,#9f1239,#a21caf);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(225,29,72,.3)">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L22 12L30 14L22 16L20 24L18 16L10 14L18 12L20 4Z" fill="white"/><path d="M12 18L13.5 23L18 24.5L13.5 26L12 31L10.5 26L6 24.5L10.5 23L12 18Z" fill="white" opacity=".7"/><path d="M28 18L29.5 23L34 24.5L29.5 26L28 31L26.5 26L22 24.5L26.5 23L28 18Z" fill="white" opacity=".7"/></svg>
+        </div>
+        <h1 style="font-size:28px;font-weight:700;color:#881337">Mary Bot</h1>
+        <p style="color:#f472b6;margin-top:6px;font-size:13px;font-weight:500;letter-spacing:1px">Panel Maestro de Licencias</p>
+      </div>
+      <!-- Firebase Status -->
+      <div id="firebaseStatus" style="margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:#9ca3af">
+        <span class="spinner"></span> Conectando con Firebase...
+      </div>
+      <div id="firebaseError" style="display:none;margin-bottom:16px;padding:10px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;color:#e11d48;font-size:13px;text-align:center"></div>
+      <!-- Login Form -->
+      <form id="loginForm" style="margin-top:20px" class="fade-in-delay">
+        <label style="display:block;font-size:13px;font-weight:600;color:#9f1239;margin-bottom:8px">Contraseña Maestra</label>
+        <input type="password" id="passwordInput" class="input-field" placeholder="Ingresa la contraseña" disabled>
+        <p id="passwordError" style="display:none;color:#e11d48;font-size:13px;text-align:center;margin-top:8px;animation:pulse 1s infinite"></p>
+        <button type="submit" id="loginBtn" class="btn-primary" style="width:100%;margin-top:16px;padding:14px" disabled>Ingresar al Panel</button>
+      </form>
+      <p style="text-align:center;font-size:11px;color:#fda4af;margin-top:24px">&copy; 2025 Mary Bot — Panel de Administracion</p>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none">
+  <!-- Header -->
+  <header style="background:rgba(255,255,255,.75);backdrop-filter:blur(12px);border-bottom:1px solid #ffe4e6;position:sticky;top:0;z-index:50">
+    <div style="max-width:1200px;margin:0 auto;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:60px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#9f1239,#a21caf);display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 40 40" fill="none"><path d="M20 4L22 12L30 14L22 16L20 24L18 16L10 14L18 12L20 4Z" fill="white"/><path d="M12 18L13.5 23L18 24.5L13.5 26L12 31L10.5 26L6 24.5L10.5 23L12 18Z" fill="white" opacity=".7"/><path d="M28 18L29.5 23L34 24.5L29.5 26L28 31L26.5 26L22 24.5L26.5 23L28 18Z" fill="white" opacity=".7"/></svg>
+        </div>
+        <div>
+          <h1 style="font-size:16px;font-weight:700;color:#881337;line-height:1.2">Mary Bot</h1>
+          <p style="font-size:11px;color:#f472b6">Panel Maestro</p>
+        </div>
+      </div>
+      <button onclick="logout()" style="font-size:13px;color:#f472b6;background:none;border:none;cursor:pointer;padding:6px 12px;border-radius:8px" onmouseover="this.style.background='#fff1f2'" onmouseout="this.style.background='none'">Cerrar sesion</button>
+    </div>
+  </header>
+
+  <main style="max-width:1200px;margin:0 auto;padding:20px 16px">
+    <!-- Stats -->
+    <div id="statsGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px"></div>
+
+    <!-- Toolbar -->
+    <div class="card" style="padding:14px;margin-bottom:20px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <div style="flex:1;min-width:180px;position:relative">
+          <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:#fda4af" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" id="searchInput" class="input-field" placeholder="Buscar por nombre, telefono..." style="padding-left:36px" oninput="renderLicenses()">
+        </div>
+        <select id="filterSelect" onchange="renderLicenses()">
+          <option value="all">Todos los estados</option>
+          <option value="active">Activas</option>
+          <option value="expired">Expiradas</option>
+          <option value="suspended">Suspendidas</option>
+        </select>
+        <button class="btn-primary" onclick="openAddModal()" style="font-size:13px;padding:10px 16px;display:flex;align-items:center;gap:6px;white-space:nowrap">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          Nueva Licencia
+        </button>
+        <button onclick="openImportModal()" style="padding:10px 16px;border-radius:14px;background:#f59e0b;color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          Importar JSON
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="overflow:hidden">
+      <div id="loadingLicenses" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:10px">
+        <span class="spinner" style="width:30px;height:30px"></span>
+        <p style="font-size:13px;color:#f472b6">Cargando licencias...</p>
+      </div>
+      <div id="noLicenses" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:10px;text-align:center">
+        <p style="color:#f472b6;font-weight:500">No se encontraron licencias</p>
+        <p style="color:#fda4af;font-size:13px">Agrega tu primera licencia con el boton de arriba</p>
+      </div>
+      <div id="desktopTable" style="display:none;overflow-x:auto"></div>
+      <div id="mobileCards" style="display:none"></div>
+      <div id="tableFooter" style="display:none;padding:10px 16px;background:#fff1f2;border-top:1px solid #ffe4e6;font-size:12px;color:#fda4af"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div id="formModal" class="modal-bg" style="display:none">
+  <div class="modal-box" style="padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2 id="modalTitle" style="font-size:18px;font-weight:700;color:#881337">Nueva Licencia</h2>
+      <button onclick="closeModal()" class="icon-btn" style="font-size:20px;color:#f9a8d4">&times;</button>
+    </div>
+    <form id="licenseForm" onsubmit="handleSubmit(event)">
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:13px;font-weight:600;color:#9f1239;margin-bottom:6px">Nombre del Salon *</label>
+        <input type="text" id="fSalonName" class="input-field" placeholder="Ej: Glam Nails Studio" required>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:13px;font-weight:600;color:#9f1239;margin-bottom:6px">Nombre de la Propietaria *</label>
+        <input type="text" id="fOwnerName" class="input-field" placeholder="Ej: Maria Garcia" required>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:13px;font-weight:600;color:#9f1239;margin-bottom:6px">Telefono *</label>
+        <input type="tel" id="fOwnerPhone" class="input-field" placeholder="Ej: +52 55 1234 5678" required>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:#9f1239;margin-bottom:6px">Plan</label>
+          <select id="fPlan" class="input-field" onchange="updateExpPreview()" style="cursor:pointer">
+            <option value="mensual">Mensual — $20/mes</option>
+            <option value="trimestral">Trimestral — $50/trim</option>
+            <option value="semestral">Semestral — $90/sem</option>
+            <option value="anual">Anual — $150/ano</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:#9f1239;margin-bottom:6px">Fecha de Inicio</label>
+          <input type="date" id="fStartDate" class="input-field" onchange="updateExpPreview()">
+        </div>
+      </div>
+      <div id="expPreview" style="background:#fff1f2;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:13px;color:#be185d;margin-bottom:18px">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>Vencimiento calculado: <strong id="expDateText"></strong></span>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="button" onclick="closeModal()" style="flex:1;padding:10px;border-radius:14px;border:1.5px solid #fecdd3;background:none;color:#9f1239;font-size:14px;font-weight:500;cursor:pointer">Cancelar</button>
+        <button type="submit" id="submitBtn" class="btn-primary" style="flex:1">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div id="importModal" class="modal-bg" style="display:none">
+  <div class="modal-box" style="padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2 style="font-size:18px;font-weight:700;color:#881337">Importar Licencias (JSON)</h2>
+      <button onclick="closeImportModal()" class="icon-btn" style="font-size:20px;color:#f9a8d4">&times;</button>
+    </div>
+    <p style="font-size:13px;color:#9f1239;margin-bottom:12px">Pega un JSON o carga un archivo con las licencias.</p>
+    <textarea id="importText" class="input-field" rows="8" placeholder='[{"salonName":"Glam Nails","ownerName":"Maria","ownerPhone":"+52 55 1234 5678","plan":"mensual"}]' style="font-family:monospace;font-size:12px;resize:vertical"></textarea>
+    <div style="margin-top:12px">
+      <label class="btn-primary" style="display:inline-block;font-size:13px;padding:8px 16px;cursor:pointer">
+        Cargar archivo JSON
+        <input type="file" accept=".json" style="display:none" onchange="loadFile(event)">
+      </label>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button onclick="closeImportModal()" style="flex:1;padding:10px;border-radius:14px;border:1.5px solid #fecdd3;background:none;color:#9f1239;font-size:14px;font-weight:500;cursor:pointer">Cancelar</button>
+      <button onclick="handleImport()" class="btn-primary" style="flex:1;background:#f59e0b;background:linear-gradient(135deg,#d97706,#f59e0b)">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE SDK (modular, loaded dynamically via script tag after click) -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js';
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, writeBatch, getDocs } from 'https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA4pc_laIMG3JJYAFARV0LHDGYtXEMIe9c",
+  authDomain: "nail-bot-mary.firebaseapp.com",
+  projectId: "nail-bot-mary",
+  storageBucket: "nail-bot-mary.firebasestorage.app",
+  messagingSenderId: "954586354082",
+  appId: "1:954586354082:web:3e3e8f8b3a3d4e5f6a7b8c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Expose to global scope
+window._db = db;
+window._firebaseReady = true;
+
+// Enable login
+document.getElementById('firebaseStatus').style.display = 'none';
+document.getElementById('passwordInput').disabled = false;
+document.getElementById('loginBtn').disabled = false;
+document.getElementById('passwordInput').focus();
+</script>
+
+<script>
+// ─── Globals ────────────────────────────────────────────────────────
+const MASTER_PWD = 'MBP2026MASTER';
+const PLANS = {
+  mensual: { label: 'Mensual', price: 20, unit: 'mes', days: 30 },
+  trimestral: { label: 'Trimestral', price: 50, unit: 'trim', days: 90 },
+  semestral: { label: 'Semestral', price: 90, unit: 'sem', days: 180 },
+  anual: { label: 'Anual', price: 150, unit: 'ano', days: 365 }
+};
+const STATUS_LABELS = { active: 'Activa', expired: 'Expirada', suspended: 'Suspendida' };
+let licenses = [];
+let editingId = null;
+let unsub = null;
+
+// ─── Helpers ────────────────────────────────────────────────────────
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function calcExp(startDate, planVal) {
+  const p = PLANS[planVal]; if (!p) return startDate;
+  const d = new Date(startDate); d.setDate(d.getDate() + p.days);
+  return d.toISOString().split('T')[0];
+}
+
+function fmtPrice(plan) { const p = PLANS[plan]; return p ? '$' + p.price + '/' + p.unit : '-'; }
+
+function fmtDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function isExpired(exp) {
+  const t = new Date(); t.setHours(0,0,0,0);
+  return new Date(exp + 'T00:00:00') < t;
+}
+
+function todayISO() { return new Date().toISOString().split('T')[0]; }
+
+function badgeHTML(status) {
+  const cls = { active: 'badge-active', expired: 'badge-expired', suspended: 'badge-suspended' };
+  return '<span class="badge ' + (cls[status]||'') + '">' + esc(STATUS_LABELS[status]||status) + '</span>';
+}
+
+// ─── Wait for Firebase ──────────────────────────────────────────────
+function waitForFirebase(cb) {
+  if (window._firebaseReady) return cb();
+  const iv = setInterval(() => { if (window._firebaseReady) { clearInterval(iv); cb(); } }, 100);
+}
+
+// ─── Login ──────────────────────────────────────────────────────────
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const pwd = document.getElementById('passwordInput').value;
+  if (pwd === MASTER_PWD) {
+    document.getElementById('passwordError').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    startListening();
+  } else {
+    const err = document.getElementById('passwordError');
+    err.textContent = 'Contrasena incorrecta';
+    err.style.display = 'block';
+  }
+});
+
+function logout() {
+  if (unsub) { unsub(); unsub = null; }
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('passwordInput').value = '';
+}
+
+// ─── Real-time listener ─────────────────────────────────────────────
+function startListening() {
+  waitForFirebase(() => {
+    const db = window._db;
+    const { collection, query: q, orderBy, onSnapshot, doc, updateDoc } = window.firebase_firestore_imports || {};
+    // Use dynamic imports approach
+    import('https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js').then(({ collection: col, query: q2, orderBy: ob, onSnapshot: os }) => {
+      const qu = q2(col(db, 'licenses'), ob('createdAt', 'desc'));
+      unsub = os(qu, (snap) => {
+        licenses = [];
+        snap.forEach(d => {
+          const data = d.data();
+          let status = data.status || 'active';
+          if (status === 'active' && isExpired(data.expirationDate)) {
+            // Auto-expire
+            import('https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js').then(({ doc, updateDoc }) => {
+              updateDoc(doc(db, 'licenses', d.id), { status: 'expired' });
+            });
+            status = 'expired';
+          }
+          licenses.push({
+            id: d.id,
+            salonName: data.salonName || '',
+            ownerName: data.ownerName || '',
+            ownerPhone: data.ownerPhone || '',
+            plan: data.plan || 'mensual',
+            startDate: data.startDate || '',
+            expirationDate: data.expirationDate || '',
+            status: status,
+            createdAt: data.createdAt || new Date().toISOString()
+          });
+        });
+        renderAll();
+      }, (err) => {
+        console.error('Firestore error:', err);
+        document.getElementById('firebaseStatus').style.display = 'none';
+        const fe = document.getElementById('firebaseError');
+        fe.textContent = 'Error al escuchar cambios: ' + err.message;
+        fe.style.display = 'block';
+      });
+      renderAll();
+    });
+  });
+}
+
+// ─── Render ─────────────────────────────────────────────────────────
+function renderAll() { renderStats(); renderLicenses(); }
+
+function renderStats() {
+  const total = licenses.length;
+  const active = licenses.filter(l => l.status === 'active').length;
+  const expired = licenses.filter(l => l.status === 'expired').length;
+  const revenue = licenses.filter(l => l.status === 'active').reduce((s, l) => s + (PLANS[l.plan]?.price || 0), 0);
+  document.getElementById('statsGrid').innerHTML =
+    '<div class="stat-card"><h3>Total Licencias</h3><div class="value">' + total + '</div></div>' +
+    '<div class="stat-card"><h3>Activas</h3><div class="value">' + active + '</div></div>' +
+    '<div class="stat-card"><h3>Expiradas</h3><div class="value">' + expired + '</div></div>' +
+    '<div class="stat-card"><h3>Ingresos/Mes</h3><div class="value">$' + revenue + '</div></div>';
+}
+
+function renderLicenses() {
+  const search = (document.getElementById('searchInput').value || '').toLowerCase();
+  const filter = document.getElementById('filterSelect').value;
+  const filtered = licenses.filter(l => {
+    const match = !search || l.salonName.toLowerCase().includes(search) || l.ownerName.toLowerCase().includes(search) || l.ownerPhone.includes(search);
+    const statusMatch = filter === 'all' || l.status === filter;
+    return match && statusMatch;
+  });
+
+  const loading = document.getElementById('loadingLicenses');
+  const noL = document.getElementById('noLicenses');
+  const desk = document.getElementById('desktopTable');
+  const mob = document.getElementById('mobileCards');
+  const foot = document.getElementById('tableFooter');
+
+  loading.style.display = 'none';
+
+  if (filtered.length === 0) {
+    noL.style.display = 'flex';
+    desk.style.display = 'none';
+    mob.style.display = 'none';
+    foot.style.display = 'none';
+    return;
+  }
+
+  noL.style.display = 'none';
+
+  // Desktop table
+  let html = '<table><thead><tr><th>Salon</th><th>Propietaria</th><th>Telefono</th><th>Plan</th><th style="text-align:center">Estado</th><th>Vencimiento</th><th style="text-align:center">Acciones</th></tr></thead><tbody>';
+  filtered.forEach(l => {
+    const phoneClean = l.ownerPhone.replace(/\D/g, '');
+    html += '<tr>' +
+      '<td><strong>' + esc(l.salonName) + '</strong></td>' +
+      '<td>' + esc(l.ownerName) + '</td>' +
+      '<td><a href="https://wa.me/' + phoneClean + '" target="_blank" style="color:#9f1239;text-decoration:none">' + esc(l.ownerPhone) + '</a></td>' +
+      '<td><span style="display:inline-flex;padding:3px 8px;border-radius:12px;font-size:12px;font-weight:500;background:#ffe4e6;color:#be185d">' + fmtPrice(l.plan) + '</span></td>' +
+      '<td style="text-align:center">' + badgeHTML(l.status) + '</td>' +
+      '<td>' + fmtDate(l.expirationDate) + '</td>' +
+      '<td style="text-align:center">' +
+        '<button class="icon-btn" onclick="openEditModal(\'' + l.id + '\')" title="Editar">&#9998;</button>' +
+        '<button class="icon-btn" onclick="toggleStatus(\'' + l.id + '\')" title="' + (l.status==='active'?'Suspender':'Activar') + '">' + (l.status==='active'?'&#10060;':'&#9989;') + '</button>' +
+        '<button class="icon-btn" onclick="deleteLicense(\'' + l.id + '\')" title="Eliminar">&#128465;</button>' +
+      '</td></tr>';
+  });
+  html += '</tbody></table>';
+  desk.innerHTML = html;
+  desk.style.display = 'block';
+
+  // Mobile cards
+  let mhtml = '';
+  filtered.forEach(l => {
+    mhtml += '<div class="mobile-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
+        '<div><strong style="color:#881337">' + esc(l.salonName) + '</strong><br><span style="font-size:13px;color:#9f1239">' + esc(l.ownerName) + '</span></div>' +
+        badgeHTML(l.status) +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;color:#be185d;margin-bottom:10px">' +
+        '<span>' + esc(l.ownerPhone) + '</span><span>' + fmtPrice(l.plan) + '</span><span>Vence: ' + fmtDate(l.expirationDate) + '</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button onclick="openEditModal(\'' + l.id + '\')" style="flex:1;padding:8px;border-radius:10px;border:none;background:#fff1f2;color:#9f1239;font-size:13px;font-weight:500;cursor:pointer">Editar</button>' +
+        '<button onclick="toggleStatus(\'' + l.id + '\')" style="flex:1;padding:8px;border-radius:10px;border:none;background:' + (l.status==='active'?'#fef3c7':'#d1fae5') + ';color:' + (l.status==='active'?'#92400e':'#065f46') + ';font-size:13px;font-weight:500;cursor:pointer">' + (l.status==='active'?'Suspender':'Activar') + '</button>' +
+        '<button onclick="deleteLicense(\'' + l.id + '\')" style="padding:8px 10px;border-radius:10px;border:none;background:#fff1f2;color:#f472b6;font-size:13px;cursor:pointer">&#128465;</button>' +
+      '</div></div>';
+  });
+  mob.innerHTML = mhtml;
+  mob.style.display = 'block';
+
+  foot.innerHTML = 'Mostrando ' + filtered.length + ' de ' + licenses.length + ' licencias';
+  foot.style.display = 'block';
+}
+
+// ─── Modal ──────────────────────────────────────────────────────────
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Nueva Licencia';
+  document.getElementById('fSalonName').value = '';
+  document.getElementById('fOwnerName').value = '';
+  document.getElementById('fOwnerPhone').value = '';
+  document.getElementById('fPlan').value = 'mensual';
+  document.getElementById('fStartDate').value = todayISO();
+  updateExpPreview();
+  document.getElementById('formModal').style.display = 'flex';
+}
+
+function openEditModal(id) {
+  const lic = licenses.find(l => l.id === id);
+  if (!lic) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Editar Licencia';
+  document.getElementById('fSalonName').value = lic.salonName;
+  document.getElementById('fOwnerName').value = lic.ownerName;
+  document.getElementById('fOwnerPhone').value = lic.ownerPhone;
+  document.getElementById('fPlan').value = lic.plan;
+  document.getElementById('fStartDate').value = lic.startDate;
+  updateExpPreview();
+  document.getElementById('formModal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('formModal').style.display = 'none'; }
+
+function updateExpPreview() {
+  const plan = document.getElementById('fPlan').value;
+  const start = document.getElementById('fStartDate').value || todayISO();
+  document.getElementById('expDateText').textContent = fmtDate(calcExp(start, plan));
+}
+
+async function handleSubmit(e) {
+  e.preventDefault();
+  const salonName = document.getElementById('fSalonName').value.trim();
+  const ownerName = document.getElementById('fOwnerName').value.trim();
+  const ownerPhone = document.getElementById('fOwnerPhone').value.trim();
+  const plan = document.getElementById('fPlan').value;
+  const startDate = document.getElementById('fStartDate').value;
+  if (!salonName || !ownerName || !ownerPhone) return;
+
+  const exp = calcExp(startDate, plan);
+  const status = isExpired(exp) ? 'expired' : 'active';
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  waitForFirebase(async () => {
+    try {
+      const { doc, addDoc, updateDoc, collection } = await import('https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js');
+      const db = window._db;
+      if (editingId) {
+        await updateDoc(doc(db, 'licenses', editingId), { salonName, ownerName, ownerPhone, plan, startDate, expirationDate: exp, status });
+      } else {
+        await addDoc(collection(db, 'licenses'), { salonName, ownerName, ownerPhone, plan, startDate, expirationDate: exp, status, createdAt: new Date().toISOString() });
+      }
+      closeModal();
+    } catch (err) { alert('Error al guardar: ' + err.message); }
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
+  });
+}
+
+// ─── Delete ─────────────────────────────────────────────────────────
+async function deleteLicense(id) {
+  if (!confirm('Estas segura de eliminar esta licencia?')) return;
+  waitForFirebase(async () => {
+    try {
+      const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js');
+      await deleteDoc(doc(window._db, 'licenses', id));
+    } catch (err) { alert('Error al eliminar: ' + err.message); }
+  });
+}
+
+// ─── Toggle Status ──────────────────────────────────────────────────
+async function toggleStatus(id) {
+  const lic = licenses.find(l => l.id === id);
+  if (!lic) return;
+  const newStatus = lic.status === 'active' ? 'suspended' : 'active';
+  waitForFirebase(async () => {
+    try {
+      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js');
+      await updateDoc(doc(window._db, 'licenses', id), { status: newStatus });
+    } catch (err) { alert('Error: ' + err.message); }
+  });
+}
+
+// ─── Import ─────────────────────────────────────────────────────────
+function openImportModal() {
+  document.getElementById('importText').value = '';
+  document.getElementById('importModal').style.display = 'flex';
+}
+function closeImportModal() { document.getElementById('importModal').style.display = 'none'; }
+
+function loadFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => { document.getElementById('importText').value = ev.target.result; };
+  r.readAsText(file);
+}
+
+async function handleImport() {
+  const text = document.getElementById('importText').value.trim();
+  if (!text) return;
+  try {
+    const data = JSON.parse(text);
+    const items = Array.isArray(data) ? data : [data];
+    const planMap = {
+      mensual:'mensual',monthly:'mensual',mes:'mensual',
+      trimestral:'trimestral',quarterly:'trimestral',trim:'trimestral',
+      semestral:'semestral',semiannual:'semestral',sem:'semestral',
+      anual:'anual',annual:'anual',year:'anual'
+    };
+    waitForFirebase(async () => {
+      try {
+        const { collection, doc, writeBatch } = await import('https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js');
+        const db = window._db;
+        const batch = writeBatch(db);
+        let count = 0;
+        for (const item of items) {
+          const salonName = item.salonName || item.nombre || item.salon || '';
+          const ownerName = item.ownerName || item.propietario || item.owner || '';
+          const ownerPhone = item.ownerPhone || item.telefono || item.phone || '';
+          const planRaw = (item.plan || item.planType || 'mensual').toLowerCase();
+          const plan = planMap[planRaw] || 'mensual';
+          const startDate = item.startDate || item.fechaInicio || todayISO();
+          const exp = calcExp(startDate, plan);
+          const status = isExpired(exp) ? 'expired' : 'active';
+          const ref = doc(collection(db, 'licenses'));
+          batch.set(ref, { salonName, ownerName, ownerPhone, plan, startDate, expirationDate: exp, status, createdAt: new Date().toISOString() });
+          count++;
+        }
+        await batch.commit();
+        closeImportModal();
+        alert(count + ' licencia(s) importada(s) exitosamente');
+      } catch (err) { alert('Error al importar: ' + err.message); }
+    });
+  } catch (err) {
+    alert('JSON invalido. Verifica el formato.');
+  }
+}
+</script>
+</body>
+</html>
