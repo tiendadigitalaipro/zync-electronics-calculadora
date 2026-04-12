@@ -1,60 +1,21 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Firebase Configuration — SynthTrade Pro License System
-// Uses Firebase Realtime Database for license storage and validation
-//
-// ⚠️ IMPORTANT: Update these placeholder values with your REAL Firebase
-// config before deploying to production.
+// Firebase Configuration — Mary Bot Master Panel
+// Uses Firebase Firestore for salon license management
 // ═══════════════════════════════════════════════════════════════════════════
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAeCKJZqE8xb5YvniZhJ6CODCRS0t5W-SI",
-  authDomain: "synthtrade-pro.firebaseapp.com",
-  databaseURL: "https://synthtrade-pro-default-rtdb.firebaseio.com",
-  projectId: "synthtrade-pro",
-  storageBucket: "synthtrade-pro.firebasestorage.app",
-  messagingSenderId: "336497532355",
-  appId: "1:336497532355:web:316ccb205fda8729e8f176"
+  apiKey: "AIzaSyA4pc_laIMG3JJYAFARV0LHDGYtXEMIe9c",
+  authDomain: "nail-bot-mary.firebaseapp.com",
+  projectId: "nail-bot-mary",
+  storageBucket: "nail-bot-mary.firebasestorage.app",
+  messagingSenderId: "954586354082",
+  appId: "1:954586354082:web:3e3e8f8b3a3d4e5f6a7b8c"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const db = getFirestore(app);
 
 export { app, db };
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIREBASE REALTIME DATABASE SECURITY RULES
-// Apply these rules in the Firebase Console → Realtime Database → Rules tab
-// ═══════════════════════════════════════════════════════════════════════════
-//
-// {
-//   "rules": {
-//     "licenses": {
-//       ".read": true,
-//       ".write": false,
-//       "$licenseKey": {
-//         ".read": true,
-//         ".write": true
-//       }
-//     },
-//     "demos": {
-//       ".read": true,
-//       ".write": false,
-//       "$deviceId": {
-//         ".read": true,
-//         ".write": true
-//       }
-//     },
-//     "admin": {
-//       ".read": true,
-//       ".write": true
-//     },
-//     "settings": {
-//       ".read": true,
-//       ".write": true
-//     }
-//   }
-// }
-// ═══════════════════════════════════════════════════════════════════════════

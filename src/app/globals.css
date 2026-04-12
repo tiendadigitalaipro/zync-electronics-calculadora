@@ -44,72 +44,38 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: #0a0e17;
-  --foreground: #e5e7eb;
-  --card: #111827;
-  --card-foreground: #e5e7eb;
-  --popover: #1a1f2e;
-  --popover-foreground: #e5e7eb;
-  --primary: #f59e0b;
-  --primary-foreground: #0a0e17;
-  --secondary: #1e2432;
-  --secondary-foreground: #e5e7eb;
-  --muted: #1e2432;
-  --muted-foreground: #6b7280;
-  --accent: #1e2432;
-  --accent-foreground: #e5e7eb;
+  --radius: 0.75rem;
+  --background: #fdf2f8;
+  --foreground: #4a1d2e;
+  --card: #ffffff;
+  --card-foreground: #4a1d2e;
+  --popover: #ffffff;
+  --popover-foreground: #4a1d2e;
+  --primary: #e11d48;
+  --primary-foreground: #ffffff;
+  --secondary: #fce7f3;
+  --secondary-foreground: #9d174d;
+  --muted: #fdf2f8;
+  --muted-foreground: #9ca3af;
+  --accent: #fbbf24;
+  --accent-foreground: #78350f;
   --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: #f59e0b;
-  --chart-1: #10b981;
-  --chart-2: #ef4444;
-  --chart-3: #f59e0b;
-  --chart-4: #3b82f6;
-  --chart-5: #8b5cf6;
-  --sidebar: #111827;
-  --sidebar-foreground: #e5e7eb;
-  --sidebar-primary: #f59e0b;
-  --sidebar-primary-foreground: #0a0e17;
-  --sidebar-accent: #1e2432;
-  --sidebar-accent-foreground: #e5e7eb;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #f59e0b;
-}
-
-.dark {
-  --background: #0a0e17;
-  --foreground: #e5e7eb;
-  --card: #111827;
-  --card-foreground: #e5e7eb;
-  --popover: #1a1f2e;
-  --popover-foreground: #e5e7eb;
-  --primary: #f59e0b;
-  --primary-foreground: #0a0e17;
-  --secondary: #1e2432;
-  --secondary-foreground: #e5e7eb;
-  --muted: #1e2432;
-  --muted-foreground: #6b7280;
-  --accent: #1e2432;
-  --accent-foreground: #e5e7eb;
-  --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: #f59e0b;
-  --chart-1: #10b981;
-  --chart-2: #ef4444;
-  --chart-3: #f59e0b;
-  --chart-4: #3b82f6;
-  --chart-5: #8b5cf6;
-  --sidebar: #111827;
-  --sidebar-foreground: #e5e7eb;
-  --sidebar-primary: #f59e0b;
-  --sidebar-primary-foreground: #0a0e17;
-  --sidebar-accent: #1e2432;
-  --sidebar-accent-foreground: #e5e7eb;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #f59e0b;
+  --border: #f9a8d4;
+  --input: #f9a8d4;
+  --ring: #e11d48;
+  --chart-1: #e11d48;
+  --chart-2: #f59e0b;
+  --chart-3: #8b5cf6;
+  --chart-4: #10b981;
+  --chart-5: #3b82f6;
+  --sidebar: #fff1f2;
+  --sidebar-foreground: #4a1d2e;
+  --sidebar-primary: #e11d48;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fce7f3;
+  --sidebar-accent-foreground: #9d174d;
+  --sidebar-border: #f9a8d4;
+  --sidebar-ring: #e11d48;
 }
 
 @layer base {
@@ -123,7 +89,7 @@
 
 /* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -131,39 +97,59 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  background: rgba(225, 29, 72, 0.2);
+  border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(225, 29, 72, 0.4);
 }
 
-/* Price animation */
-@keyframes priceFlashGreen {
-  0% { background-color: rgba(16, 185, 129, 0.3); }
-  100% { background-color: transparent; }
+/* Mary Bot Login Gradient */
+.mary-gradient {
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 25%, #fbcfe8 50%, #f9a8d4 75%, #f472b6 100%);
 }
 
-@keyframes priceFlashRed {
-  0% { background-color: rgba(239, 68, 68, 0.3); }
-  100% { background-color: transparent; }
+.mary-gradient-dark {
+  background: linear-gradient(135deg, #9d174d 0%, #be185d 50%, #e11d48 100%);
 }
 
-.price-flash-up {
-  animation: priceFlashGreen 0.5s ease-out;
+/* Sparkle animation */
+@keyframes sparkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
-.price-flash-down {
-  animation: priceFlashRed 0.5s ease-out;
+.sparkle {
+  animation: sparkle 2s ease-in-out infinite;
 }
 
-/* Pulse animation for active auto-trading */
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
+/* Nail polish shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
-.auto-trading-active {
-  animation: pulse-glow 2s ease-in-out infinite;
+.shimmer-text {
+  background: linear-gradient(90deg, #e11d48 0%, #f472b6 25%, #fbbf24 50%, #f472b6 75%, #e11d48 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.fade-in-delay {
+  animation: fadeIn 0.5s ease-out 0.2s forwards;
+  opacity: 0;
 }
