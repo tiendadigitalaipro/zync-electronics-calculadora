@@ -149,6 +149,22 @@
   }
 }
 
+/* Receipt box styles */
+.receipt-box {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.receipt-box .section-title {
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 4px;
+  margin: 12px 0 6px;
+}
+
 /* Number input arrows removal */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
