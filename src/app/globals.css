@@ -45,37 +45,37 @@
 
 :root {
   --radius: 0.75rem;
-  --background: #fdf2f8;
-  --foreground: #4a1d2e;
+  --background: #f0f4f8;
+  --foreground: #1a2332;
   --card: #ffffff;
-  --card-foreground: #4a1d2e;
+  --card-foreground: #1a2332;
   --popover: #ffffff;
-  --popover-foreground: #4a1d2e;
-  --primary: #e11d48;
+  --popover-foreground: #1a2332;
+  --primary: #0d9488;
   --primary-foreground: #ffffff;
-  --secondary: #fce7f3;
-  --secondary-foreground: #9d174d;
-  --muted: #fdf2f8;
-  --muted-foreground: #9ca3af;
-  --accent: #fbbf24;
+  --secondary: #e0f2fe;
+  --secondary-foreground: #0c4a6e;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f59e0b;
   --accent-foreground: #78350f;
   --destructive: #ef4444;
-  --border: #f9a8d4;
-  --input: #f9a8d4;
-  --ring: #e11d48;
-  --chart-1: #e11d48;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #0d9488;
+  --chart-1: #0d9488;
   --chart-2: #f59e0b;
-  --chart-3: #8b5cf6;
-  --chart-4: #10b981;
+  --chart-3: #6366f1;
+  --chart-4: #ec4899;
   --chart-5: #3b82f6;
-  --sidebar: #fff1f2;
-  --sidebar-foreground: #4a1d2e;
-  --sidebar-primary: #e11d48;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #14b8a6;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #fce7f3;
-  --sidebar-accent-foreground: #9d174d;
-  --sidebar-border: #f9a8d4;
-  --sidebar-ring: #e11d48;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #14b8a6;
 }
 
 @layer base {
@@ -90,6 +90,7 @@
 /* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -97,46 +98,22 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(225, 29, 72, 0.2);
+  background: rgba(13, 148, 136, 0.2);
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(225, 29, 72, 0.4);
+  background: rgba(13, 148, 136, 0.4);
 }
 
-/* Mary Bot Login Gradient */
-.mary-gradient {
-  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 25%, #fbcfe8 50%, #f9a8d4 75%, #f472b6 100%);
+/* Navy gradient for header */
+.navy-gradient {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
 }
 
-.mary-gradient-dark {
-  background: linear-gradient(135deg, #9d174d 0%, #be185d 50%, #e11d48 100%);
-}
-
-/* Sparkle animation */
-@keyframes sparkle {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
-
-.sparkle {
-  animation: sparkle 2s ease-in-out infinite;
-}
-
-/* Nail polish shimmer */
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-.shimmer-text {
-  background: linear-gradient(90deg, #e11d48 0%, #f472b6 25%, #fbbf24 50%, #f472b6 75%, #e11d48 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer 3s linear infinite;
+/* Teal glow accent */
+.teal-glow {
+  box-shadow: 0 0 20px rgba(13, 148, 136, 0.15);
 }
 
 /* Fade in animation */
@@ -146,10 +123,38 @@
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+  animation: fadeIn 0.4s ease-out forwards;
 }
 
-.fade-in-delay {
-  animation: fadeIn 0.5s ease-out 0.2s forwards;
+.fade-in-delay-1 {
+  animation: fadeIn 0.4s ease-out 0.1s forwards;
   opacity: 0;
+}
+
+.fade-in-delay-2 {
+  animation: fadeIn 0.4s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-break {
+    page-break-inside: avoid;
+  }
+  body {
+    background: white !important;
+  }
+}
+
+/* Number input arrows removal */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }
