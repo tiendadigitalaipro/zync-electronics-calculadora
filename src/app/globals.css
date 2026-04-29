@@ -442,3 +442,28 @@ input[type="number"] {
   border-radius: 10px;
   padding: 12px 14px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHAMPAGNE PRICE BOX — Premium dual price display
+   ═══════════════════════════════════════════════════════════════════ */
+.champagne-price-box {
+  background: linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(184, 148, 46, 0.08) 50%, rgba(240, 212, 138, 0.06) 100%);
+  border: 1px solid rgba(212, 168, 83, 0.25);
+  border-radius: 14px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+  animation: goldPulse 3s ease-in-out infinite;
+}
+
+.champagne-price-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(212, 168, 83, 0.04), transparent);
+  animation: shimmer 4s linear infinite;
+  background-size: 200% auto;
+}
