@@ -894,14 +894,20 @@ export default function Home() {
                     <div className="section-title mb-2">━━━━ PRECIO DE VENTA ━━━━</div>
                     <BR label="16. Punto de equilibrio" value={fmtBs(currentCalc.puntoEquilibrio) + ' Bs'} type="base" />
                     <BR label={`17. (+) Margen sobre producto (${productForm.margen}%) = ${fmtUSD(currentCalc.margenUSDsobreProducto)}`} value={fmtBs(currentCalc.margenUSDsobreProducto * currentCalc.tasaEfectivaP2P) + ' Bs'} type="cost" />
-                    <div className="breakdown-total mt-1" style={{ background: 'linear-gradient(135deg, rgba(212, 168, 83, 0.18), rgba(184, 148, 46, 0.12))', borderColor: 'rgba(212, 168, 83, 0.3)' }}>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-[#d4a853] font-[family-name:var(--font-montserrat)]">18. ═══ PRECIO DE VENTA REC. Bs</span>
-                        <span className="text-lg font-bold gold-glow">{fmtBs(currentCalc.precioVentaBs)} Bs</span>
+                    <div className="champagne-price-box mt-2">
+                      <div className="flex flex-col items-end text-right">
+                        <span className="text-[10px] uppercase tracking-[2px] text-[#b8942e]/80 font-[family-name:var(--font-montserrat)] mb-1">18. ═══ PRECIO DE VENTA REC.</span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl sm:text-4xl font-extrabold font-[family-name:var(--font-montserrat)]" style={{ color: '#d4a853', textShadow: '0 0 20px rgba(212,168,83,0.4), 0 0 40px rgba(212,168,83,0.15)' }}>{fmtUSD(currentCalc.precioVentaUSD)}</span>
+                        </div>
+                        <span className="text-sm text-[#94a3b8] mt-0.5" style={{ color: 'rgba(212,168,83,0.6)' }}>{fmtBs(currentCalc.precioVentaBs)} Bs</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <div className="w-1 h-1 rounded-full" style={{ background: '#d4a853' }} />
+                        <span className="text-[10px] tracking-wide" style={{ color: 'rgba(212,168,83,0.5)' }}>Tasa de conversion aplicada: {fmtBs(config.tasaVentaBCV)} Bs/$</span>
                       </div>
                     </div>
-                    <BR label="19. En USD (BCV)" value={fmtUSD(currentCalc.precioVentaUSD)} type="sub" />
-                    <BR label="20. Ganancia por unidad" value={fmtUSD(currentCalc.gananciaUnitUSD)} type={currentCalc.gananciaUnitBs >= 0 ? 'profit' : 'loss'} />
+                    <BR label="19. Ganancia por unidad" value={fmtUSD(currentCalc.gananciaUnitUSD)} type={currentCalc.gananciaUnitBs >= 0 ? 'profit' : 'loss'} />
                     <div className={`flex items-center gap-2 p-2.5 rounded-xl border mt-2 ${
                       currentCalc.cubreBrecha
                         ? 'bg-[#4ade80]/8 border-[#4ade80]/20 text-[#4ade80]'
@@ -913,7 +919,7 @@ export default function Home() {
                         <XCircle className="w-4 h-4 text-[#f87171] shrink-0" />
                       )}
                       <span className="text-xs font-medium">
-                        21. ¿Cubre brecha cambiaria?{' '}
+                        20. ¿Cubre brecha cambiaria?{' '}
                         <strong>{currentCalc.cubreBrecha ? 'SÍ' : 'NO'}</strong>
                       </span>
                     </div>
@@ -988,7 +994,10 @@ export default function Home() {
                         </td>
                         <td className="px-3 py-3 text-right text-[#94a3b8]">{fmtUSD(calc.costoFOBporUnidad)}</td>
                         <td className="px-3 py-3 text-right font-semibold text-[#f1f5f9]">{fmtBs(calc.costoRealPorUnidadBs)} Bs</td>
-                        <td className="px-3 py-3 text-right font-semibold gold-glow">{fmtBs(calc.precioVentaBs)} Bs</td>
+                        <td className="px-3 py-3 text-right">
+                          <div className="font-bold text-sm" style={{ color: '#d4a853', textShadow: '0 0 10px rgba(212,168,83,0.3)' }}>{fmtUSD(calc.precioVentaUSD)}</div>
+                          <div className="text-[10px] text-[#94a3b8]">{fmtBs(calc.precioVentaBs)} Bs</div>
+                        </td>
                         <td className="px-3 py-3 text-right">
                           <span className={calc.gananciaUnitBs >= 0 ? 'neon-green' : 'neon-red'}>
                             {fmtBs(calc.gananciaUnitBs)} Bs
@@ -1140,9 +1149,8 @@ export default function Home() {
                       </div>
                       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
                         <div><span className="text-[#64748b]">Costo Real: </span><span className="font-medium text-[#94a3b8]">{fmtBs(calc.costoRealPorUnidadBs)} Bs</span></div>
-                        <div><span className="text-[#64748b]">Venta: </span><span className="font-medium gold-glow">{fmtBs(calc.precioVentaBs)} Bs</span></div>
-                        <div><span className="text-[#64748b]">Ganancia: </span><span className={`font-medium ${calc.gananciaUnitBs >= 0 ? 'neon-green' : 'neon-red'}`}>{fmtBs(calc.gananciaUnitBs)} Bs</span></div>
-                        <div><span className="text-[#64748b]">USD: </span><span className="font-medium text-[#f1f5f9]">{fmtUSD(calc.precioVentaUSD)}</span></div>
+                        <div><span className="text-[#64748b]">Venta: </span><span className="font-bold" style={{ color: '#d4a853', textShadow: '0 0 8px rgba(212,168,83,0.3)' }}>{fmtUSD(calc.precioVentaUSD)}</span><span className="text-[#94a3b8] ml-1">/ {fmtBs(calc.precioVentaBs)} Bs</span></div>
+                        <div><span className="text-[#64748b]">Ganancia: </span><span className={`font-medium ${calc.gananciaUnitBs >= 0 ? 'neon-green' : 'neon-red'}`}>{fmtUSD(calc.gananciaUnitUSD)}</span><span className="text-[#94a3b8] ml-1">/ {fmtBs(calc.gananciaUnitBs)} Bs</span></div>
                       </div>
                     </div>
                   ))}
@@ -1536,8 +1544,9 @@ function ReceiptModal({
             <div className="section-title">Precio de Venta</div>
             <div className="row"><span className="label">Punto de equilibrio</span><span className="value">{fmtBs(calc.puntoEquilibrio)} Bs</span></div>
             <div className="row"><span className="label">Margen sobre producto ({product.margen}%)</span><span className="value">{fmtUSD(calc.margenUSDsobreProducto)}</span></div>
-            <div className="row sale-price"><span className="label">PRECIO DE VENTA REC.</span><span className="value">{fmtBs(calc.precioVentaBs)} Bs</span></div>
-            <div className="row"><span className="label">En USD (BCV)</span><span className="value">{fmtUSD(calc.precioVentaUSD)}</span></div>
+            <div className="row sale-price"><span className="label">PRECIO DE VENTA REC.</span><span className="value" style={{ color: '#d4a853', fontSize: '1.1rem', fontWeight: 800 }}>{fmtUSD(calc.precioVentaUSD)}</span></div>
+            <div className="row"><span className="label">Equivalente en Bs</span><span className="value">{fmtBs(calc.precioVentaBs)} Bs</span></div>
+            <div className="row" style={{ borderBottom: '1px solid rgba(212,168,83,0.15)' }}><span className="label">Tasa aplicada</span><span className="value">{fmtBs(config.tasaVentaBCV)} Bs/$</span></div>
             <div className="row"><span className="label">Ganancia por unidad</span><span className="value">{fmtUSD(calc.gananciaUnitUSD)}</span></div>
 
             <div className={`indicator ${calc.cubreBrecha ? 'yes' : 'no'}`}>
