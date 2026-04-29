@@ -78,6 +78,41 @@
   --sidebar-ring: #14b8a6;
 }
 
+/* Dark Mode */
+.dark {
+  --background: #0f1219;
+  --foreground: #e2e8f0;
+  --card: #1a1f2e;
+  --card-foreground: #e2e8f0;
+  --popover: #1a1f2e;
+  --popover-foreground: #e2e8f0;
+  --primary: #14b8a6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #cbd5e1;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #f59e0b;
+  --accent-foreground: #fbbf24;
+  --destructive: #f87171;
+  --border: #2d3548;
+  --input: #2d3548;
+  --ring: #14b8a6;
+  --chart-1: #14b8a6;
+  --chart-2: #fbbf24;
+  --chart-3: #818cf8;
+  --chart-4: #f472b6;
+  --chart-5: #60a5fa;
+  --sidebar: #0a0e16;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1f2e;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #2d3548;
+  --sidebar-ring: #14b8a6;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -104,6 +139,15 @@
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(13, 148, 136, 0.4);
+}
+
+/* Dark mode scrollbar */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(20, 184, 166, 0.3);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 184, 166, 0.5);
 }
 
 /* Navy gradient for header */
@@ -163,6 +207,10 @@
   border-bottom: 1px solid #e2e8f0;
   padding-bottom: 4px;
   margin: 12px 0 6px;
+}
+
+.dark .receipt-box .section-title {
+  border-bottom-color: #2d3548;
 }
 
 /* Number input arrows removal */
