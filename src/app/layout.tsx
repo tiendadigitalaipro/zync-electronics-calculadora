@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mary Bot | Panel Maestro",
-  description: "Panel de administración de licencias para salones de uñas - Mary Bot",
+  title: "ImportCalc VE | Calculadora de Costos de Importación",
+  description: "Calculadora profesional de costos de importación para importadores venezolanos. Calcula el costo real, márgenes y brecha cambiaria.",
   icons: {
     icon: "/favicon.ico",
   },

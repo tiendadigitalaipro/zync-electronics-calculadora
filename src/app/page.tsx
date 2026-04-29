@@ -1,673 +1,853 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  writeBatch,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase-config';
+  Calculator,
+  Package,
+  ShoppingCart,
+  TrendingUp,
+  Settings,
+  Plus,
+  Trash2,
+  Copy,
+  Printer,
+  ArrowRight,
+  ArrowUpRight,
+  ArrowDownRight,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  DollarSign,
+  Banknote,
+  Globe,
+  Truck,
+  Percent,
+  BarChart3,
+  FileText,
+} from 'lucide-react';
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-interface License {
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════════════
+interface Config {
+  tasaBanco: number;
+  tasaUSDT: number;
+  tasaVentaBCV: number;
+  comisionZinli: number;
+  comisionUSDTZinli: number;
+  courierIntl: number;
+  courierNacional: number;
+  impuesto: number;
+}
+
+interface Product {
   id: string;
-  salonName: string;
-  ownerName: string;
-  ownerPhone: string;
-  plan: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  startDate: string; // ISO date string
-  expirationDate: string; // ISO date string
-  status: 'active' | 'expired' | 'suspended';
-  createdAt: string;
+  nombre: string;
+  costoUSD: number;
+  pesoKg: number;
+  cantidad: number;
+  metodoPago: 'banco' | 'usdt';
+  margen: number;
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────
-const MASTER_PASSWORD = 'MBP2026MASTER';
+interface Sale {
+  id: string;
+  fecha: string;
+  productoId: string;
+  productoNombre: string;
+  costoUnitBs: number;
+  precioVentaBs: number;
+  cantidad: number;
+}
 
-const PLANS = [
-  { value: 'mensual', label: 'Mensual', price: 20, unit: 'mes', days: 30 },
-  { value: 'trimestral', label: 'Trimestral', price: 50, unit: 'trim', days: 90 },
-  { value: 'semestral', label: 'Semestral', price: 90, unit: 'sem', days: 180 },
-  { value: 'anual', label: 'Anual', price: 150, unit: 'año', days: 365 },
-] as const;
+interface CalcResult {
+  costoProductoUSD: number;
+  courierIntlUSD: number;
+  impuestosUSD: number;
+  costoTotalUSD: number;
+  tasaAplicada: number;
+  costoTotalBs: number;
+  comisionZinliBs: number;
+  courierNacionalBs: number;
+  costoRealTotalBs: number;
+  precioVentaBs: number;
+  precioVentaUSD: number;
+  gananciaUnitBs: number;
+  gananciaUnitUSD: number;
+  cubreBrecha: boolean;
+  costoPorUnidadBs: number;
+}
 
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Activa',
-  expired: 'Expirada',
-  suspended: 'Suspendida',
+type CurrencyDisplay = 'Bs' | 'USD';
+type TabType = 'calculator' | 'products' | 'sales' | 'dashboard';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEFAULT CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+const DEFAULT_CONFIG: Config = {
+  tasaBanco: 570.75,
+  tasaUSDT: 630,
+  tasaVentaBCV: 485,
+  comisionZinli: 3.5,
+  comisionUSDTZinli: 3,
+  courierIntl: 0,
+  courierNacional: 0,
+  impuesto: 0,
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  expired: 'bg-rose-100 text-rose-700 border-rose-200',
-  suspended: 'bg-amber-100 text-amber-700 border-amber-200',
-};
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-function calcExpiration(startDate: string, planValue: string): string {
-  const plan = PLANS.find((p) => p.value === planValue);
-  if (!plan) return startDate;
-  const d = new Date(startDate);
-  d.setDate(d.getDate() + plan.days);
-  return d.toISOString().split('T')[0];
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function fmtBs(val: number): string {
+  if (!isFinite(val) || isNaN(val)) return '0,00';
+  return val.toLocaleString('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
-function formatPrice(planValue: string): string {
-  const plan = PLANS.find((p) => p.value === planValue);
-  if (!plan) return '-';
-  return `$${plan.price}/${plan.unit}`;
+function fmtUSD(val: number): string {
+  if (!isFinite(val) || isNaN(val)) return '$0.00';
+  return '$' + val.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
-function formatDate(isoStr: string): string {
-  if (!isoStr) return '-';
-  const d = new Date(isoStr + 'T00:00:00');
-  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+function fmtPct(val: number): string {
+  if (!isFinite(val) || isNaN(val)) return '0,00%';
+  return val.toLocaleString('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }) + '%';
 }
 
-function isExpired(expirationDate: string): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return new Date(expirationDate + 'T00:00:00') < today;
+function genId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 }
 
-function todayISO(): string {
+function todayStr(): string {
   return new Date().toISOString().split('T')[0];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CALCULATION ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+function calculateProduct(product: Product, config: Config): CalcResult {
+  const cantidad = product.cantidad || 1;
+  const costoProductoUSD = product.costoUSD;
+  const courierIntlUSD = config.courierIntl * product.pesoKg;
+  const impuestosUSD = costoProductoUSD * (config.impuesto / 100);
+  const costoTotalUSD = costoProductoUSD + courierIntlUSD + impuestosUSD;
+
+  const tasaAplicada = product.metodoPago === 'banco' ? config.tasaBanco : config.tasaUSDT;
+  const costoTotalBs = costoTotalUSD * tasaAplicada;
+
+  let comisionZinliBs = 0;
+  if (product.metodoPago === 'usdt') {
+    const costoUSDT = costoTotalUSD * config.tasaUSDT;
+    comisionZinliBs = costoUSDT * (config.comisionUSDTZinli / 100);
+    comisionZinliBs += costoUSDT * (config.comisionZinli / 100);
+  }
+
+  const courierNacionalBs = config.courierNacional * tasaAplicada;
+  const costoRealTotalBs = costoTotalBs + comisionZinliBs + courierNacionalBs;
+  const costoPorUnidadBs = costoRealTotalBs / cantidad;
+
+  const margen = product.margen / 100;
+  const precioVentaBs = costoPorUnidadBs / (1 - margen);
+  const precioVentaUSD = precioVentaBs / config.tasaVentaBCV;
+  const gananciaUnitBs = precioVentaBs - costoPorUnidadBs;
+  const gananciaUnitUSD = gananciaUnitBs / config.tasaVentaBCV;
+
+  const costoVentaBCV = costoPorUnidadBs / config.tasaVentaBCV;
+  const cubreBrecha = gananciaUnitUSD > 0 && precioVentaUSD > costoVentaBCV;
+
+  return {
+    costoProductoUSD,
+    courierIntlUSD,
+    impuestosUSD,
+    costoTotalUSD,
+    tasaAplicada,
+    costoTotalBs,
+    comisionZinliBs,
+    courierNacionalBs,
+    costoRealTotalBs,
+    precioVentaBs,
+    precioVentaUSD,
+    gananciaUnitBs,
+    gananciaUnitUSD,
+    cubreBrecha,
+    costoPorUnidadBs,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Home() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [firebaseReady, setFirebaseReady] = useState(false);
-  const [firebaseError, setFirebaseError] = useState('');
-
-  // Dashboard state
-  const [licenses, setLicenses] = useState<License[]>([]);
-  const [loadingLicenses, setLoadingLicenses] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-
-  // Modal state
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingLicense, setEditingLicense] = useState<License | null>(null);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-
-  // Form fields
-  const [formSalonName, setFormSalonName] = useState('');
-  const [formOwnerName, setFormOwnerName] = useState('');
-  const [formOwnerPhone, setFormOwnerPhone] = useState('');
-  const [formPlan, setFormPlan] = useState<License['plan']>('mensual');
-  const [formStartDate, setFormStartDate] = useState(todayISO());
-
-  // Import state
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importJson, setImportJson] = useState('');
-  const [importing, setImporting] = useState(false);
-
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // ─── Firebase Connection ────────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-
-    async function initFirebase() {
-      try {
-        // Dynamic import of Firebase to not block render
-        await import('firebase/firestore');
-        if (!cancelled) {
-          setFirebaseReady(true);
-          setFirebaseError('');
-        }
-      } catch (err) {
-        console.error('Firebase init error:', err);
-        if (!cancelled) {
-          setFirebaseError('Error al conectar con Firebase');
-        }
-      }
-    }
-
-    initFirebase();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // ─── Real-time listener ─────────────────────────────────────────────────
-  const startListening = useCallback(() => {
-    if (unsubscribeRef.current) return;
-
-    const q = query(collection(db, 'licenses'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const docs: License[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          docs.push({
-            id: docSnap.id,
-            salonName: data.salonName || '',
-            ownerName: data.ownerName || '',
-            ownerPhone: data.ownerPhone || '',
-            plan: data.plan || 'mensual',
-            startDate: data.startDate || '',
-            expirationDate: data.expirationDate || '',
-            status: data.status || 'active',
-            createdAt: data.createdAt || new Date().toISOString(),
-          });
-        });
-
-        // Auto-detect expired
-        const updated = docs.map((lic) => {
-          if (lic.status === 'active' && isExpired(lic.expirationDate)) {
-            updateDoc(doc(db, 'licenses', lic.id), { status: 'expired' });
-            return { ...lic, status: 'expired' as const };
-          }
-          return lic;
-        });
-
-        setLicenses(updated);
-        setLoadingLicenses(false);
-      },
-      (err) => {
-        console.error('Firestore listener error:', err);
-        setFirebaseError('Error al escuchar cambios en tiempo real');
-        setLoadingLicenses(false);
-      }
-    );
-
-    unsubscribeRef.current = unsub;
-  }, []);
-
-  useEffect(() => {
-    if (authenticated && firebaseReady) {
-      startListening();
-    }
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-    };
-  }, [authenticated, firebaseReady, startListening]);
-
-  // ─── Auth Handler ───────────────────────────────────────────────────────
-  function handleLogin(e: FormEvent) {
-    e.preventDefault();
-    if (password === MASTER_PASSWORD) {
-      setAuthenticated(true);
-      setPasswordError('');
-    } else {
-      setPasswordError('Contraseña incorrecta');
-    }
-  }
-
-  // ─── Stats Calculation ──────────────────────────────────────────────────
-  const totalLicenses = licenses.length;
-  const activeLicenses = licenses.filter((l) => l.status === 'active').length;
-  const expiredLicenses = licenses.filter((l) => l.status === 'expired').length;
-
-  // Revenue this month: sum of plan prices for active licenses
-  const revenueThisMonth = licenses
-    .filter((l) => l.status === 'active')
-    .reduce((sum, l) => {
-      const plan = PLANS.find((p) => p.value === l.plan);
-      return sum + (plan?.price || 0);
-    }, 0);
-
-  // ─── Filtered Licenses ──────────────────────────────────────────────────
-  const filteredLicenses = licenses.filter((l) => {
-    const matchSearch =
-      !searchTerm ||
-      l.salonName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.ownerPhone.includes(searchTerm);
-    const matchStatus = filterStatus === 'all' || l.status === filterStatus;
-    return matchSearch && matchStatus;
+  const [config, setConfig] = useState<Config>(() => {
+    if (typeof window === 'undefined') return DEFAULT_CONFIG;
+    try {
+      const saved = localStorage.getItem('importcalc_config');
+      return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
+    } catch { return DEFAULT_CONFIG; }
+  });
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('importcalc_products');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [sales, setSales] = useState<Sale[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('importcalc_sales');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [activeTab, setActiveTab] = useState<TabType>('calculator');
+  const [currency, setCurrency] = useState<CurrencyDisplay>('Bs');
+  const [configOpen, setConfigOpen] = useState(true);
+  const [showSalesModal, setShowSalesModal] = useState(false);
+  const [saleForm, setSaleForm] = useState<Omit<Sale, 'id'>>({
+    fecha: todayStr(),
+    productoId: '',
+    productoNombre: '',
+    costoUnitBs: 0,
+    precioVentaBs: 0,
+    cantidad: 1,
   });
 
-  // ─── Form Helpers ───────────────────────────────────────────────────────
-  function resetForm() {
-    setFormSalonName('');
-    setFormOwnerName('');
-    setFormOwnerPhone('');
-    setFormPlan('mensual');
-    setFormStartDate(todayISO());
-    setEditingLicense(null);
-    setShowAddModal(false);
+  // ─── Product form state ───────────────────────────────────────────────
+  const [productForm, setProductForm] = useState<Product>({
+    id: '',
+    nombre: '',
+    costoUSD: 0,
+    pesoKg: 0.5,
+    cantidad: 1,
+    metodoPago: 'banco',
+    margen: 40,
+  });
+
+  // ─── Save to localStorage ────────────────────────────────────────────
+  useEffect(() => {
+    try { localStorage.setItem('importcalc_config', JSON.stringify(config)); } catch { /* */ }
+  }, [config]);
+
+  useEffect(() => {
+    try { localStorage.setItem('importcalc_products', JSON.stringify(products)); } catch { /* */ }
+  }, [products]);
+
+  useEffect(() => {
+    try { localStorage.setItem('importcalc_sales', JSON.stringify(sales)); } catch { /* */ }
+  }, [sales]);
+
+  // ─── Current calculation ─────────────────────────────────────────────
+  const currentCalc = useMemo(
+    () => calculateProduct(productForm, config),
+    [productForm, config]
+  );
+
+  // ─── Product results map ─────────────────────────────────────────────
+  const productResults = useMemo(
+    () => products.map((p) => ({ product: p, calc: calculateProduct(p, config) })),
+    [products, config]
+  );
+
+  // ─── Dashboard stats ─────────────────────────────────────────────────
+  const dashboardStats = useMemo(() => {
+    const totalInvertidoUSD = products.reduce((s, p) => s + calculateProduct(p, config).costoTotalUSD * p.cantidad, 0);
+    const totalIngresosBs = sales.reduce((s, sale) => s + sale.precioVentaBs * sale.cantidad, 0);
+    const totalIngresosUSD = totalIngresosBs / config.tasaVentaBCV;
+    const totalCostoBs = sales.reduce((s, sale) => s + sale.costoUnitBs * sale.cantidad, 0);
+    const totalCostoUSD = totalCostoBs / config.tasaVentaBCV;
+    const gananciaNetaUSD = totalIngresosUSD - totalCostoUSD;
+    const margenReal = totalIngresosBs > 0 ? ((totalIngresosBs - totalCostoBs) / totalIngresosBs) * 100 : 0;
+    const brecha = config.tasaBanco > 0
+      ? ((config.tasaBanco - config.tasaVentaBCV) / config.tasaVentaBCV) * 100
+      : 0;
+    return { totalInvertidoUSD, totalIngresosBs, totalIngresosUSD, gananciaNetaUSD, margenReal, brecha, totalCostoBs };
+  }, [products, sales, config]);
+
+  // ─── Config handlers ─────────────────────────────────────────────────
+  const updateConfig = useCallback((key: keyof Config, value: number) => {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  // ─── Product handlers ────────────────────────────────────────────────
+  function resetProductForm() {
+    setProductForm({
+      id: '',
+      nombre: '',
+      costoUSD: 0,
+      pesoKg: 0.5,
+      cantidad: 1,
+      metodoPago: 'banco',
+      margen: 40,
+    });
   }
 
-  function openEditModal(license: License) {
-    setEditingLicense(license);
-    setFormSalonName(license.salonName);
-    setFormOwnerName(license.ownerName);
-    setFormOwnerPhone(license.ownerPhone);
-    setFormPlan(license.plan);
-    setFormStartDate(license.startDate);
-    setShowAddModal(true);
+  function addProduct() {
+    if (!productForm.nombre.trim() || productForm.costoUSD <= 0) return;
+    const newProduct: Product = { ...productForm, id: genId() };
+    setProducts((prev) => [...prev, newProduct]);
+    resetProductForm();
   }
 
-  async function handleFormSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!formSalonName.trim() || !formOwnerName.trim() || !formOwnerPhone.trim()) return;
-
-    setFormSubmitting(true);
-    const expiration = calcExpiration(formStartDate, formPlan);
-    const status: License['status'] = isExpired(expiration) ? 'expired' : 'active';
-
-    try {
-      if (editingLicense) {
-        await updateDoc(doc(db, 'licenses', editingLicense.id), {
-          salonName: formSalonName.trim(),
-          ownerName: formOwnerName.trim(),
-          ownerPhone: formOwnerPhone.trim(),
-          plan: formPlan,
-          startDate: formStartDate,
-          expirationDate: expiration,
-          status,
-        });
-      } else {
-        await addDoc(collection(db, 'licenses'), {
-          salonName: formSalonName.trim(),
-          ownerName: formOwnerName.trim(),
-          ownerPhone: formOwnerPhone.trim(),
-          plan: formPlan,
-          startDate: formStartDate,
-          expirationDate: expiration,
-          status,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      resetForm();
-    } catch (err) {
-      console.error('Error saving license:', err);
-    } finally {
-      setFormSubmitting(false);
-    }
+  function removeProduct(id: string) {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
   }
 
-  // ─── Delete ─────────────────────────────────────────────────────────────
-  async function handleDelete(id: string) {
-    if (!window.confirm('¿Estás segura de eliminar esta licencia?')) return;
-    try {
-      await deleteDoc(doc(db, 'licenses', id));
-    } catch (err) {
-      console.error('Error deleting license:', err);
-    }
+  function duplicateProduct(id: string) {
+    const original = products.find((p) => p.id === id);
+    if (!original) return;
+    const dup: Product = { ...original, id: genId(), nombre: original.nombre + ' (copia)' };
+    setProducts((prev) => [...prev, dup]);
   }
 
-  // ─── Toggle Status ──────────────────────────────────────────────────────
-  async function handleToggleStatus(license: License) {
-    const newStatus: License['status'] = license.status === 'active' ? 'suspended' : 'active';
-    try {
-      await updateDoc(doc(db, 'licenses', license.id), { status: newStatus });
-    } catch (err) {
-      console.error('Error toggling status:', err);
-    }
+  // ─── Sale handlers ───────────────────────────────────────────────────
+  function addSale() {
+    if (!saleForm.productoId || saleForm.precioVentaBs <= 0 || saleForm.cantidad <= 0) return;
+    const newSale: Sale = { ...saleForm, id: genId() };
+    setSales((prev) => [...prev, newSale]);
+    setSaleForm({ fecha: todayStr(), productoId: '', productoNombre: '', costoUnitBs: 0, precioVentaBs: 0, cantidad: 1 });
+    setShowSalesModal(false);
   }
 
-  // ─── Import JSON ────────────────────────────────────────────────────────
-  async function handleImport() {
-    if (!importJson.trim()) return;
-    setImporting(true);
-    try {
-      const data = JSON.parse(importJson);
-      const items = Array.isArray(data) ? data : [data];
-      const batch = writeBatch(db);
-
-      for (const item of items) {
-        const salonName = item.salonName || item.nombre || item.salon || '';
-        const ownerName = item.ownerName || item.propietario || item.owner || '';
-        const ownerPhone = item.ownerPhone || item.telefono || item.phone || '';
-        const planRaw = (item.plan || item.planType || 'mensual').toLowerCase();
-        const planMap: Record<string, License['plan']> = {
-          mensual: 'mensual', monthly: 'mensual', mes: 'mensual', '1mes': 'mensual',
-          trimestral: 'trimestral', quarterly: 'trimestral', trim: 'trimestral', '3meses': 'trimestral',
-          semestral: 'semestral', semiannual: 'semestral', sem: 'semestral', '6meses': 'semestral',
-          anual: 'anual', annual: 'anual', año: 'anual', year: 'anual', '12meses': 'anual',
-        };
-        const plan = planMap[planRaw] || 'mensual';
-        const startDate = item.startDate || item.fechaInicio || todayISO();
-        const expiration = calcExpiration(startDate, plan);
-        const status: License['status'] = isExpired(expiration) ? 'expired' : 'active';
-
-        const docRef = doc(collection(db, 'licenses'));
-        batch.set(docRef, {
-          salonName, ownerName, ownerPhone, plan, startDate, expirationDate: expiration, status,
-          createdAt: new Date().toISOString(),
-        });
-      }
-
-      await batch.commit();
-      setImportJson('');
-      setShowImportModal(false);
-      alert(`✅ ${items.length} licencia(s) importada(s) exitosamente`);
-    } catch (err) {
-      console.error('Import error:', err);
-      alert('❌ Error al importar. Verifica el formato del JSON.');
-    } finally {
-      setImporting(false);
-    }
+  function removeSale(id: string) {
+    setSales((prev) => prev.filter((s) => s.id !== id));
   }
 
-  // ─── Handle File Upload ─────────────────────────────────────────────────
-  function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      setImportJson(text);
-    };
-    reader.readAsText(file);
+  function selectProductForSale(product: Product) {
+    const calc = calculateProduct(product, config);
+    setSaleForm({
+      fecha: todayStr(),
+      productoId: product.id,
+      productoNombre: product.nombre,
+      costoUnitBs: calc.costoPorUnidadBs,
+      precioVentaBs: calc.precioVentaBs,
+      cantidad: 1,
+    });
+    setShowSalesModal(true);
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // LOGIN SCREEN
-  // ═════════════════════════════════════════════════════════════════════════
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center mary-gradient p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-rose-200/50 p-8 fade-in">
-            {/* Logo / Branding */}
-            <div className="text-center mb-8">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full mary-gradient-dark flex items-center justify-center shadow-lg shadow-rose-300/40">
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 4L22 12L30 14L22 16L20 24L18 16L10 14L18 12L20 4Z" fill="white" />
-                  <path d="M12 18L13.5 23L18 24.5L13.5 26L12 31L10.5 26L6 24.5L10.5 23L12 18Z" fill="white" opacity="0.7" />
-                  <path d="M28 18L29.5 23L34 24.5L29.5 26L28 31L26.5 26L22 24.5L26.5 23L28 18Z" fill="white" opacity="0.7" />
-                  <path d="M20 28L21 31.5L24 32.5L21 33.5L20 37L19 33.5L16 32.5L19 31.5L20 28Z" fill="white" opacity="0.5" />
-                </svg>
-              </div>
-              <h1 className="text-3xl font-bold shimmer-text inline-block">Mary Bot</h1>
-              <p className="text-rose-400 mt-2 text-sm font-medium tracking-wide">Panel Maestro de Licencias</p>
-            </div>
-
-            {/* Firebase Status */}
-            {!firebaseReady && (
-              <div className="mb-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-rose-300 border-t-rose-600 rounded-full animate-spin" />
-                Conectando con Firebase...
-              </div>
-            )}
-            {firebaseError && (
-              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-sm text-center">
-                {firebaseError}
-              </div>
-            )}
-
-            {/* Login Form */}
-            <form onSubmit={handleLogin} className="space-y-4 fade-in-delay">
-              <div>
-                <label className="block text-sm font-medium text-rose-900 mb-2">
-                  🔑 Contraseña Maestra
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
-                  placeholder="Ingresa la contraseña"
-                  className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-white/70 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent text-rose-900 placeholder:text-rose-300 transition-all"
-                  disabled={!firebaseReady}
-                />
-              </div>
-              {passwordError && (
-                <p className="text-rose-500 text-sm text-center animate-pulse">{passwordError}</p>
-              )}
-              <button
-                type="submit"
-                disabled={!firebaseReady}
-                className="w-full py-3 px-4 rounded-xl mary-gradient-dark text-white font-semibold shadow-lg shadow-rose-300/30 hover:shadow-xl hover:shadow-rose-300/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                Ingresar al Panel
-              </button>
-            </form>
-
-            {/* Footer */}
-            <p className="text-center text-xs text-rose-300 mt-6">
-              © 2025 Mary Bot — Panel de Administración
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+  // ─── Print ───────────────────────────────────────────────────────────
+  function handlePrint() {
+    window.print();
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // DASHBOARD
-  // ═════════════════════════════════════════════════════════════════════════
+  // ─── Format helper for currency display ──────────────────────────────
+  function fmtMoney(bsVal: number, usdVal: number): string {
+    if (currency === 'Bs') return fmtBs(bsVal) + ' Bs';
+    return fmtUSD(usdVal);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50">
-      {/* Header */}
-      <header className="bg-white/70 backdrop-blur-md border-b border-rose-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      {/* ═══ HEADER ═══════════════════════════════════════════════════════ */}
+      <header className="navy-gradient text-white sticky top-0 z-50 no-print shadow-lg shadow-slate-900/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full mary-gradient-dark flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 40 40" fill="none">
-                  <path d="M20 4L22 12L30 14L22 16L20 24L18 16L10 14L18 12L20 4Z" fill="white" />
-                  <path d="M12 18L13.5 23L18 24.5L13.5 26L12 31L10.5 26L6 24.5L10.5 23L12 18Z" fill="white" opacity="0.7" />
-                  <path d="M28 18L29.5 23L34 24.5L29.5 26L28 31L26.5 26L22 24.5L26.5 23L28 18Z" fill="white" opacity="0.7" />
-                </svg>
+              <div className="w-9 h-9 rounded-lg bg-teal-500/20 flex items-center justify-center">
+                <Calculator className="w-5 h-5 text-teal-400" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-rose-900 leading-tight">Mary Bot</h1>
-                <p className="text-xs text-rose-400">Panel Maestro</p>
+                <h1 className="text-base sm:text-lg font-bold leading-tight tracking-tight">ImportCalc VE</h1>
+                <p className="text-[10px] sm:text-xs text-slate-400 leading-tight">Calculadora de Costos de Importación</p>
               </div>
             </div>
-            <button
-              onClick={() => setAuthenticated(false)}
-              className="text-sm text-rose-400 hover:text-rose-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-rose-50"
-            >
-              Cerrar sesión
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrency(currency === 'Bs' ? 'USD' : 'Bs')}
+                className="px-3 py-1.5 rounded-lg bg-white/10 text-xs sm:text-sm font-medium hover:bg-white/20 transition-colors"
+              >
+                {currency === 'Bs' ? '𝐁𝐬' : '$'}
+              </button>
+              <button
+                onClick={handlePrint}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                title="Imprimir"
+              >
+                <Printer className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Licencias"
-            value={totalLicenses}
-            icon={
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            }
-            color="rose"
-          />
-          <StatCard
-            title="Activas"
-            value={activeLicenses}
-            icon={
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-            color="emerald"
-          />
-          <StatCard
-            title="Expiradas"
-            value={expiredLicenses}
-            icon={
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-            color="amber"
-          />
-          <StatCard
-            title="Ingresos/Mes"
-            value={`$${revenueThisMonth}`}
-            icon={
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-            color="amber"
-          />
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* ═══ CONFIG PANEL ═════════════════════════════════════════════ */}
+        <div className="no-print print-break">
+          <button
+            onClick={() => setConfigOpen(!configOpen)}
+            className="w-full flex items-center justify-between bg-white rounded-xl border border-slate-200 px-4 sm:px-5 py-3 sm:py-4 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                <Settings className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="text-left">
+                <h2 className="font-semibold text-slate-800 text-sm sm:text-base">Configuración de Tasas y Costos</h2>
+                <p className="text-xs text-slate-400 hidden sm:block">Ajusta las tasas de cambio y costos operativos</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 hidden sm:inline">
+                Banco: {fmtBs(config.tasaBanco)} Bs/$ | USDT: {fmtBs(config.tasaUSDT)} Bs/$ | BCV: {fmtBs(config.tasaVentaBCV)} Bs/$
+              </span>
+              {configOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </div>
+          </button>
+
+          {configOpen && (
+            <div className="mt-2 bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 fade-in">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <ConfigField
+                  label="Tasa Dólar Banco"
+                  sublabel="BCV oficial"
+                  value={config.tasaBanco}
+                  onChange={(v) => updateConfig('tasaBanco', v)}
+                  icon={<Banknote className="w-3.5 h-3.5" />}
+                  color="blue"
+                />
+                <ConfigField
+                  label="Tasa USDT"
+                  sublabel="compra"
+                  value={config.tasaUSDT}
+                  onChange={(v) => updateConfig('tasaUSDT', v)}
+                  icon={<Globe className="w-3.5 h-3.5" />}
+                  color="green"
+                />
+                <ConfigField
+                  label="Tasa Venta BCV"
+                  sublabel="precio al público"
+                  value={config.tasaVentaBCV}
+                  onChange={(v) => updateConfig('tasaVentaBCV', v)}
+                  icon={<DollarSign className="w-3.5 h-3.5" />}
+                  color="teal"
+                />
+                <ConfigField
+                  label="Com. USDT→Zinli"
+                  sublabel="pérdida conversión"
+                  value={config.comisionUSDTZinli}
+                  onChange={(v) => updateConfig('comisionUSDTZinli', v)}
+                  icon={<Percent className="w-3.5 h-3.5" />}
+                  color="orange"
+                  suffix="%"
+                />
+                <ConfigField
+                  label="Com. Zinli recarga"
+                  sublabel="fee recarga"
+                  value={config.comisionZinli}
+                  onChange={(v) => updateConfig('comisionZinli', v)}
+                  icon={<Percent className="w-3.5 h-3.5" />}
+                  color="orange"
+                  suffix="%"
+                />
+                <ConfigField
+                  label="Courier Intl"
+                  sublabel="USD/kg"
+                  value={config.courierIntl}
+                  onChange={(v) => updateConfig('courierIntl', v)}
+                  icon={<Truck className="w-3.5 h-3.5" />}
+                  color="purple"
+                  prefix="$"
+                />
+                <ConfigField
+                  label="Courier Nacional"
+                  sublabel="USD/paquete"
+                  value={config.courierNacional}
+                  onChange={(v) => updateConfig('courierNacional', v)}
+                  icon={<Truck className="w-3.5 h-3.5" />}
+                  color="purple"
+                  prefix="$"
+                />
+                <ConfigField
+                  label="Impuesto/Arancel"
+                  sublabel="del producto"
+                  value={config.impuesto}
+                  onChange={(v) => updateConfig('impuesto', v)}
+                  icon={<Percent className="w-3.5 h-3.5" />}
+                  color="red"
+                  suffix="%"
+                />
+              </div>
+              {/* Exchange gap indicator */}
+              <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500">Brecha cambiaria:</span>
+                  <span className="font-semibold text-red-500">
+                    {fmtPct(((config.tasaBanco - config.tasaVentaBCV) / config.tasaVentaBCV) * 100)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500">Gap USDT vs Banco:</span>
+                  <span className="font-semibold text-amber-500">
+                    +{fmtPct(((config.tasaUSDT - config.tasaBanco) / config.tasaBanco) * 100)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setConfig(DEFAULT_CONFIG)}
+                  className="ml-auto text-slate-400 hover:text-slate-600 underline transition-colors"
+                >
+                  Restablecer valores
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Toolbar */}
-        <div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-            {/* Search */}
-            <div className="relative flex-1">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Buscar por nombre, teléfono..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-rose-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent text-sm text-rose-900 placeholder:text-rose-300"
-              />
-            </div>
-
-            {/* Filter */}
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2.5 rounded-xl border border-rose-200 bg-white text-sm text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-300 cursor-pointer"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="active">Activas</option>
-              <option value="expired">Expiradas</option>
-              <option value="suspended">Suspendidas</option>
-            </select>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => { resetForm(); setShowAddModal(true); }}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl mary-gradient-dark text-white text-sm font-medium shadow-sm hover:shadow-md transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="hidden sm:inline">Nueva Licencia</span>
-                <span className="sm:hidden">Nueva</span>
-              </button>
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium shadow-sm hover:bg-amber-600 hover:shadow-md transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span className="hidden sm:inline">Importar JSON</span>
-                <span className="sm:hidden">Importar</span>
-              </button>
-            </div>
+        {/* ═══ TAB NAVIGATION ═══════════════════════════════════════════ */}
+        <div className="no-print">
+          <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
+            {([
+              { key: 'calculator' as TabType, label: 'Calculadora', icon: Calculator },
+              { key: 'products' as TabType, label: 'Productos', icon: Package },
+              { key: 'sales' as TabType, label: 'Ventas', icon: ShoppingCart },
+              { key: 'dashboard' as TabType, label: 'Dashboard', icon: BarChart3 },
+            ]).map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                    isActive
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* License Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-rose-100 overflow-hidden">
-          {loadingLicenses ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <div className="w-8 h-8 border-3 border-rose-200 border-t-rose-500 rounded-full animate-spin" />
-              <p className="text-sm text-rose-400">Cargando licencias...</p>
-            </div>
-          ) : filteredLicenses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
-              <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center">
-                <svg className="w-8 h-8 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                </svg>
+        {/* ═══ TAB: CALCULATOR ══════════════════════════════════════════ */}
+        {activeTab === 'calculator' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 fade-in">
+            {/* Product Form */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+              <div className="px-4 sm:px-5 pt-5 pb-3">
+                <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-teal-500" />
+                  Datos del Producto
+                </h3>
               </div>
-              <p className="text-rose-400 font-medium">No se encontraron licencias</p>
-              <p className="text-rose-300 text-sm">
-                {searchTerm || filterStatus !== 'all'
-                  ? 'Intenta ajustar el filtro de búsqueda'
-                  : 'Agrega tu primera licencia con el botón de arriba'}
-              </p>
+              <div className="px-4 sm:px-5 pb-5 space-y-4">
+                {/* Nombre */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Nombre del producto</label>
+                  <input
+                    type="text"
+                    value={productForm.nombre}
+                    onChange={(e) => setProductForm((p) => ({ ...p, nombre: e.target.value }))}
+                    placeholder="Ej: Audífonos Bluetooth TWS"
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800 placeholder:text-slate-300"
+                  />
+                </div>
+
+                {/* Cost + Weight */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Costo (USD)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={productForm.costoUSD || ''}
+                        onChange={(e) => setProductForm((p) => ({ ...p, costoUSD: parseFloat(e.target.value) || 0 }))}
+                        placeholder="0.00"
+                        className="w-full pl-7 pr-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800 placeholder:text-slate-300"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Peso (kg)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={productForm.pesoKg || ''}
+                      onChange={(e) => setProductForm((p) => ({ ...p, pesoKg: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.50"
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800 placeholder:text-slate-300"
+                    />
+                  </div>
+                </div>
+
+                {/* Quantity + Margin */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Cantidad (unidades)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={productForm.cantidad || ''}
+                      onChange={(e) => setProductForm((p) => ({ ...p, cantidad: parseInt(e.target.value) || 1 }))}
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Margen deseado (%)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        step="1"
+                        value={productForm.margen || ''}
+                        onChange={(e) => setProductForm((p) => ({ ...p, margen: parseFloat(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Method */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-2">Método de Pago</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setProductForm((p) => ({ ...p, metodoPago: 'banco' }))}
+                      className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                        productForm.metodoPago === 'banco'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <Banknote className="w-4 h-4" />
+                      Tarjeta Banco
+                    </button>
+                    <button
+                      onClick={() => setProductForm((p) => ({ ...p, metodoPago: 'usdt' }))}
+                      className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                        productForm.metodoPago === 'usdt'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                      USDT → Zinli
+                    </button>
+                  </div>
+                  {productForm.metodoPago === 'usdt' && (
+                    <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Incluye {fmtPct(config.comisionUSDTZinli)} comisión USDT→Zinli + {fmtPct(config.comisionZinli)} recarga Zinli
+                    </p>
+                  )}
+                </div>
+
+                {/* Add button */}
+                <button
+                  onClick={addProduct}
+                  disabled={!productForm.nombre.trim() || productForm.costoUSD <= 0}
+                  className="w-full py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar a lista de productos
+                </button>
+              </div>
             </div>
-          ) : (
-            <>
-              {/* Desktop Table */}
-              <div className="hidden md:block overflow-x-auto custom-scrollbar">
+
+            {/* Cost Breakdown */}
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+                <div className="px-4 sm:px-5 pt-5 pb-3">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-teal-500" />
+                    Desglose de Costos
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {productForm.metodoPago === 'banco' ? 'Tarjeta de Banco' : 'USDT → Zinli'} | Tasa: {fmtBs(productForm.metodoPago === 'banco' ? config.tasaBanco : config.tasaUSDT)} Bs/$
+                  </p>
+                </div>
+                <div className="px-4 sm:px-5 pb-5 space-y-2.5">
+                  <CostRow label="1. Costo producto base" value={fmtUSD(currentCalc.costoProductoUSD)} type="base" />
+                  <CostRow label={`2. (+) Courier internacional (${productForm.pesoKg} kg)`} value={fmtUSD(currentCalc.courierIntlUSD)} type="cost" />
+                  <CostRow label={`3. (+) Impuestos (${config.impuesto}%)`} value={fmtUSD(currentCalc.impuestosUSD)} type="cost" />
+                  <div className="border-t border-slate-100 pt-2">
+                    <CostRow label="4. (=) Costo Total USD (FOB)" value={fmtUSD(currentCalc.costoTotalUSD)} type="subtotal" />
+                  </div>
+                  <CostRow label={`5. (×) Tasa de cambio aplicada`} value={`${fmtBs(currentCalc.tasaAplicada)} Bs/$`} type="rate" />
+                  <CostRow label="6. (=) Costo total en Bs" value={fmtBs(currentCalc.costoTotalBs) + ' Bs'} type="subtotal" />
+                  {productForm.metodoPago === 'usdt' && currentCalc.comisionZinliBs > 0 && (
+                    <CostRow label="7. (+) Comisión USDT→Zinli + Zinli recarga" value={fmtBs(currentCalc.comisionZinliBs) + ' Bs'} type="cost" />
+                  )}
+                  <CostRow label={`${productForm.metodoPago === 'usdt' ? '8' : '7'}. (+) Courier nacional`} value={fmtBs(currentCalc.courierNacionalBs) + ' Bs'} type="cost" />
+
+                  {/* TOTAL */}
+                  <div className="bg-gradient-to-r from-teal-50 to-emerald-50 rounded-lg p-3 border border-teal-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-teal-800">
+                        COSTO REAL TOTAL {productForm.cantidad > 1 ? `(×${productForm.cantidad} und)` : ''}
+                      </span>
+                      <span className="text-lg font-bold text-teal-700">
+                        {fmtBs(currentCalc.costoRealTotalBs)} Bs
+                      </span>
+                    </div>
+                    {productForm.cantidad > 1 && (
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-xs text-teal-600">Costo por unidad</span>
+                        <span className="text-sm font-semibold text-teal-600">{fmtBs(currentCalc.costoPorUnidadBs)} Bs</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing Section */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+                <div className="px-4 sm:px-5 pt-5 pb-3">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-teal-500" />
+                    Precio de Venta Sugerido
+                  </h3>
+                </div>
+                <div className="px-4 sm:px-5 pb-5 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <ResultCard label="Precio Venta" value={fmtBs(currentCalc.precioVentaBs) + ' Bs'} sublabel={fmtUSD(currentCalc.precioVentaUSD)} positive />
+                    <ResultCard label="Ganancia/Und" value={fmtBs(currentCalc.gananciaUnitBs) + ' Bs'} sublabel={fmtUSD(currentCalc.gananciaUnitUSD)} positive={currentCalc.gananciaUnitBs >= 0} />
+                  </div>
+
+                  {/* Brecha indicator */}
+                  <div className={`flex items-center gap-2 p-3 rounded-lg border ${
+                    currentCalc.cubreBrecha
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'bg-red-50 border-red-200 text-red-700'
+                  }`}>
+                    {currentCalc.cubreBrecha ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+                    )}
+                    <div className="text-sm">
+                      <span className="font-semibold">
+                        {currentCalc.cubreBrecha ? 'SÍ' : 'NO'}
+                      </span>
+                      {' '}— {currentCalc.cubreBrecha
+                        ? 'El margen cubre la brecha cambiaria'
+                        : 'El margen NO cubre la brecha cambiaria. Necesitas un margen mayor.'
+                      }
+                    </div>
+                  </div>
+
+                  {/* Cost breakdown bar */}
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1.5">Distribución del costo (USD)</div>
+                    <CostBar calc={currentCalc} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ TAB: PRODUCTS ════════════════════════════════════════════ */}
+        {activeTab === 'products' && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm fade-in">
+            <div className="px-4 sm:px-5 pt-5 pb-3 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                <Package className="w-4 h-4 text-teal-500" />
+                Lista de Productos ({products.length})
+              </h3>
+            </div>
+            {products.length === 0 ? (
+              <div className="px-5 pb-8 text-center">
+                <div className="w-16 h-16 mx-auto rounded-full bg-slate-50 flex items-center justify-center mb-3">
+                  <Package className="w-8 h-8 text-slate-300" />
+                </div>
+                <p className="text-slate-400 text-sm">No hay productos agregados</p>
+                <p className="text-slate-300 text-xs mt-1">Ve a la calculadora y agrega productos</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-rose-50/80 text-rose-600">
-                      <th className="text-left px-4 py-3 font-semibold">Salón</th>
-                      <th className="text-left px-4 py-3 font-semibold">Propietaria</th>
-                      <th className="text-left px-4 py-3 font-semibold">Teléfono</th>
-                      <th className="text-left px-4 py-3 font-semibold">Plan</th>
-                      <th className="text-center px-4 py-3 font-semibold">Estado</th>
-                      <th className="text-left px-4 py-3 font-semibold">Vencimiento</th>
-                      <th className="text-center px-4 py-3 font-semibold">Acciones</th>
+                    <tr className="bg-slate-50 text-slate-600 text-xs">
+                      <th className="text-left px-4 py-3 font-semibold">Producto</th>
+                      <th className="text-center px-3 py-3 font-semibold">Método</th>
+                      <th className="text-right px-3 py-3 font-semibold">Costo USD</th>
+                      <th className="text-right px-3 py-3 font-semibold">Courier Intl</th>
+                      <th className="text-right px-3 py-3 font-semibold">Total USD</th>
+                      <th className="text-right px-3 py-3 font-semibold">Costo Real Bs</th>
+                      <th className="text-right px-3 py-3 font-semibold">Precio Venta</th>
+                      <th className="text-right px-3 py-3 font-semibold">Ganancia</th>
+                      <th className="text-center px-3 py-3 font-semibold">¿Brecha?</th>
+                      <th className="text-center px-3 py-3 font-semibold no-print">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-rose-50">
-                    {filteredLicenses.map((lic) => (
-                      <tr key={lic.id} className="hover:bg-rose-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-rose-900">{lic.salonName}</td>
-                        <td className="px-4 py-3 text-rose-700">{lic.ownerName}</td>
-                        <td className="px-4 py-3 text-rose-600">
-                          <a href={`https://wa.me/${lic.ownerPhone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-green-600 transition-colors">
-                            {lic.ownerPhone}
-                          </a>
-                        </td>
+                  <tbody className="divide-y divide-slate-100">
+                    {productResults.map(({ product: p, calc }) => (
+                      <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-700">
-                            {formatPrice(lic.plan)}
+                          <div className="font-medium text-slate-800 max-w-[150px] truncate">{p.nombre}</div>
+                          <div className="text-xs text-slate-400">{p.cantidad} und × {p.pesoKg}kg | {p.margen}% margen</div>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            p.metodoPago === 'banco'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-green-100 text-green-700'
+                          }`}>
+                            {p.metodoPago === 'banco' ? 'Banco' : 'USDT'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[lic.status]}`}>
-                            {STATUS_LABELS[lic.status]}
+                        <td className="px-3 py-3 text-right text-slate-700">{fmtUSD(calc.costoProductoUSD)}</td>
+                        <td className="px-3 py-3 text-right text-slate-500">{fmtUSD(calc.courierIntlUSD)}</td>
+                        <td className="px-3 py-3 text-right font-medium text-slate-700">{fmtUSD(calc.costoTotalUSD)}</td>
+                        <td className="px-3 py-3 text-right font-semibold text-slate-800">{fmtBs(calc.costoPorUnidadBs)} Bs</td>
+                        <td className="px-3 py-3 text-right font-semibold text-teal-700">{fmtBs(calc.precioVentaBs)} Bs</td>
+                        <td className="px-3 py-3 text-right">
+                          <span className={calc.gananciaUnitBs >= 0 ? 'text-emerald-600' : 'text-red-500'}>
+                            {fmtBs(calc.gananciaUnitBs)} Bs
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-rose-600">{formatDate(lic.expirationDate)}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 text-center">
+                          {calc.cubreBrecha ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-red-400 mx-auto" />
+                          )}
+                        </td>
+                        <td className="px-3 py-3 no-print">
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => openEditModal(lic)}
-                              className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                              title="Editar"
+                              onClick={() => selectProductForSale(p)}
+                              className="p-1.5 rounded-lg text-teal-500 hover:bg-teal-50 transition-colors"
+                              title="Registrar venta"
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
+                              <ShoppingCart className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleToggleStatus(lic)}
-                              className={`p-1.5 rounded-lg transition-colors ${lic.status === 'active' ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
-                              title={lic.status === 'active' ? 'Suspender' : 'Activar'}
+                              onClick={() => duplicateProduct(p.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+                              title="Duplicar"
                             >
-                              {lic.status === 'active' ? (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                </svg>
-                              ) : (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
+                              <Copy className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDelete(lic.id)}
-                              className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                              onClick={() => removeProduct(p.id)}
+                              className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
                               title="Eliminar"
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -676,284 +856,568 @@ export default function Home() {
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Mobile Cards */}
-              <div className="md:hidden divide-y divide-rose-50 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                {filteredLicenses.map((lic) => (
-                  <div key={lic.id} className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-rose-900">{lic.salonName}</h3>
-                        <p className="text-sm text-rose-600">{lic.ownerName}</p>
-                      </div>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[lic.status]}`}>
-                        {STATUS_LABELS[lic.status]}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-rose-500">
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        {lic.ownerPhone}
-                      </span>
-                      <span>{formatPrice(lic.plan)}</span>
-                      <span>Vence: {formatDate(lic.expirationDate)}</span>
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => openEditModal(lic)}
-                        className="flex-1 py-2 rounded-lg bg-rose-50 text-rose-600 text-sm font-medium hover:bg-rose-100 transition-colors"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(lic)}
-                        className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          lic.status === 'active' ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                        }`}
-                      >
-                        {lic.status === 'active' ? 'Suspender' : 'Activar'}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(lic.id)}
-                        className="py-2 px-3 rounded-lg bg-rose-50 text-rose-500 text-sm hover:bg-rose-100 transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+        {/* ═══ TAB: SALES ═══════════════════════════════════════════════ */}
+        {activeTab === 'sales' && (
+          <div className="space-y-4 fade-in">
+            {/* Add Sale Button */}
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-teal-500" />
+                Registro de Ventas ({sales.length})
+              </h3>
+              <button
+                onClick={() => {
+                  setSaleForm({ fecha: todayStr(), productoId: '', productoNombre: '', costoUnitBs: 0, precioVentaBs: 0, cantidad: 1 });
+                  setShowSalesModal(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Registrar Venta
+              </button>
+            </div>
+
+            {/* Sales Table */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+              {sales.length === 0 ? (
+                <div className="px-5 py-12 text-center">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-slate-50 flex items-center justify-center mb-3">
+                    <ShoppingCart className="w-8 h-8 text-slate-300" />
                   </div>
-                ))}
-              </div>
-
-              {/* Footer count */}
-              <div className="px-4 py-3 bg-rose-50/50 border-t border-rose-100 text-xs text-rose-400">
-                Mostrando {filteredLicenses.length} de {totalLicenses} licencias
-              </div>
-            </>
-          )}
-        </div>
-      </main>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* ADD / EDIT MODAL */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={resetForm} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar fade-in">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-rose-900">
-                  {editingLicense ? 'Editar Licencia' : 'Nueva Licencia'}
-                </h2>
-                <button onClick={resetForm} className="p-1 rounded-lg hover:bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <form onSubmit={handleFormSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-rose-700 mb-1.5">Nombre del Salón *</label>
-                  <input
-                    type="text"
-                    value={formSalonName}
-                    onChange={(e) => setFormSalonName(e.target.value)}
-                    placeholder="Ej: Glam Nails Studio"
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-rose-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent text-sm text-rose-900 placeholder:text-rose-300"
-                  />
+                  <p className="text-slate-400 text-sm">No hay ventas registradas</p>
+                  <p className="text-slate-300 text-xs mt-1">Agrega productos y registra tus ventas</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-rose-700 mb-1.5">Nombre de la Propietaria *</label>
-                  <input
-                    type="text"
-                    value={formOwnerName}
-                    onChange={(e) => setFormOwnerName(e.target.value)}
-                    placeholder="Ej: María García"
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-rose-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent text-sm text-rose-900 placeholder:text-rose-300"
-                  />
+              ) : (
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-600 text-xs">
+                        <th className="text-left px-4 py-3 font-semibold">Fecha</th>
+                        <th className="text-left px-3 py-3 font-semibold">Producto</th>
+                        <th className="text-right px-3 py-3 font-semibold">Costo Unit</th>
+                        <th className="text-right px-3 py-3 font-semibold">Precio Venta</th>
+                        <th className="text-center px-3 py-3 font-semibold">Cant.</th>
+                        <th className="text-right px-3 py-3 font-semibold">Total Costo</th>
+                        <th className="text-right px-3 py-3 font-semibold">Total Ingreso</th>
+                        <th className="text-right px-3 py-3 font-semibold">Ganancia</th>
+                        <th className="text-center px-3 py-3 font-semibold no-print"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sales.map((sale) => {
+                        const totalCosto = sale.costoUnitBs * sale.cantidad;
+                        const totalIngreso = sale.precioVentaBs * sale.cantidad;
+                        const ganancia = totalIngreso - totalCosto;
+                        return (
+                          <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3 text-slate-500 text-xs">{sale.fecha}</td>
+                            <td className="px-3 py-3 font-medium text-slate-800 max-w-[150px] truncate">{sale.productoNombre}</td>
+                            <td className="px-3 py-3 text-right text-slate-500">{fmtBs(sale.costoUnitBs)} Bs</td>
+                            <td className="px-3 py-3 text-right text-slate-700">{fmtBs(sale.precioVentaBs)} Bs</td>
+                            <td className="px-3 py-3 text-center text-slate-600">{sale.cantidad}</td>
+                            <td className="px-3 py-3 text-right text-slate-500">{fmtBs(totalCosto)} Bs</td>
+                            <td className="px-3 py-3 text-right font-medium text-slate-700">{fmtBs(totalIngreso)} Bs</td>
+                            <td className={`px-3 py-3 text-right font-semibold ${ganancia >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {fmtBs(ganancia)} Bs
+                            </td>
+                            <td className="px-3 py-3 no-print">
+                              <button
+                                onClick={() => removeSale(sale.id)}
+                                className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-50 font-semibold">
+                        <td colSpan={5} className="px-4 py-3 text-slate-600 text-xs">TOTALES</td>
+                        <td className="px-3 py-3 text-right text-slate-700">{fmtBs(dashboardStats.totalCostoBs)} Bs</td>
+                        <td className="px-3 py-3 text-right text-slate-800">{fmtBs(dashboardStats.totalIngresosBs)} Bs</td>
+                        <td className={`px-3 py-3 text-right ${dashboardStats.gananciaNetaUSD >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {fmtBs(dashboardStats.totalIngresosBs - dashboardStats.totalCostoBs)} Bs
+                        </td>
+                        <td className="no-print" />
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-rose-700 mb-1.5">Teléfono *</label>
-                  <input
-                    type="tel"
-                    value={formOwnerPhone}
-                    onChange={(e) => setFormOwnerPhone(e.target.value)}
-                    placeholder="Ej: +52 55 1234 5678"
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-rose-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent text-sm text-rose-900 placeholder:text-rose-300"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-rose-700 mb-1.5">Plan</label>
-                    <select
-                      value={formPlan}
-                      onChange={(e) => setFormPlan(e.target.value as License['plan'])}
-                      className="w-full px-4 py-2.5 rounded-xl border border-rose-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm text-rose-900 cursor-pointer"
-                    >
-                      {PLANS.map((p) => (
-                        <option key={p.value} value={p.value}>
-                          {p.label} — ${p.price}/{p.unit}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-rose-700 mb-1.5">Fecha de Inicio</label>
-                    <input
-                      type="date"
-                      value={formStartDate}
-                      onChange={(e) => setFormStartDate(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-rose-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm text-rose-900"
-                    />
-                  </div>
-                </div>
-
-                {/* Expiration preview */}
-                <div className="bg-rose-50 rounded-xl p-3 flex items-center gap-2 text-sm">
-                  <svg className="w-4 h-4 text-rose-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-rose-600">
-                    Vencimiento calculado: <strong>{formatDate(calcExpiration(formStartDate, formPlan))}</strong>
-                  </span>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 py-2.5 rounded-xl border border-rose-200 text-rose-600 text-sm font-medium hover:bg-rose-50 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={formSubmitting}
-                    className="flex-1 py-2.5 rounded-xl mary-gradient-dark text-white text-sm font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-50"
-                  >
-                    {formSubmitting ? 'Guardando...' : editingLicense ? 'Actualizar' : 'Crear Licencia'}
-                  </button>
-                </div>
-              </form>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* IMPORT JSON MODAL */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => { setShowImportModal(false); setImportJson(''); }} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg fade-in">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-rose-900">Importar Licencias</h2>
-                <button onClick={() => { setShowImportModal(false); setImportJson(''); }} className="p-1 rounded-lg hover:bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+        {/* ═══ TAB: DASHBOARD ═══════════════════════════════════════════ */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-4 fade-in">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <DashboardCard
+                title="Total Invertido"
+                value={fmtUSD(dashboardStats.totalInvertidoUSD)}
+                sublabel="en productos"
+                icon={<DollarSign className="w-5 h-5" />}
+                color="blue"
+              />
+              <DashboardCard
+                title="Total Ingresos"
+                value={fmtBs(dashboardStats.totalIngresosBs) + ' Bs'}
+                sublabel={fmtUSD(dashboardStats.totalIngresosUSD)}
+                icon={<TrendingUp className="w-5 h-5" />}
+                color="teal"
+              />
+              <DashboardCard
+                title="Ganancia Neta Real"
+                value={fmtUSD(dashboardStats.gananciaNetaUSD)}
+                sublabel={fmtBs(dashboardStats.totalIngresosBs - dashboardStats.totalCostoBs) + ' Bs'}
+                icon={dashboardStats.gananciaNetaUSD >= 0
+                  ? <ArrowUpRight className="w-5 h-5" />
+                  : <ArrowDownRight className="w-5 h-5" />}
+                color={dashboardStats.gananciaNetaUSD >= 0 ? 'green' : 'red'}
+              />
+              <DashboardCard
+                title="Margen Real"
+                value={fmtPct(dashboardStats.margenReal)}
+                sublabel="promedio de ventas"
+                icon={<Percent className="w-5 h-5" />}
+                color="purple"
+              />
+              <DashboardCard
+                title="Brecha Cambiaria"
+                value={fmtPct(dashboardStats.brecha)}
+                sublabel={`Banco ${fmtBs(config.tasaBanco)} → BCV ${fmtBs(config.tasaVentaBCV)}`}
+                icon={<AlertTriangle className="w-5 h-5" />}
+                color="amber"
+              />
+            </div>
+
+            {/* Products summary chart */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                <BarChart3 className="w-4 h-4 text-teal-500" />
+                Análisis de Productos
+              </h3>
+              {productResults.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-8">No hay productos para analizar</p>
+              ) : (
+                <div className="space-y-3">
+                  {productResults.map(({ product: p, calc }) => (
+                    <ProductAnalysisBar key={p.id} product={p} calc={calc} config={config} currency={currency} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quick stats */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                <FileText className="w-4 h-4 text-teal-500" />
+                Resumen Rápido
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-800">{products.length}</div>
+                  <div className="text-xs text-slate-500 mt-1">Productos</div>
+                </div>
+                <div className="text-center p-3 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-800">{sales.length}</div>
+                  <div className="text-xs text-slate-500 mt-1">Ventas</div>
+                </div>
+                <div className="text-center p-3 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {productResults.filter((r) => r.calc.cubreBrecha).length}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Cubren Brecha</div>
+                </div>
+                <div className="text-center p-3 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-red-500">
+                    {productResults.filter((r) => !r.calc.cubreBrecha).length}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">No Cubren</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ═══ FOOTER ═══════════════════════════════════════════════════════ */}
+      <footer className="mt-auto border-t border-slate-200 bg-white no-print">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-xs text-slate-400">
+            ImportCalc VE — Calculadora de Costos de Importación Venezuela
+          </p>
+          <p className="text-xs text-slate-300">
+            Los datos se guardan localmente en tu navegador
+          </p>
+        </div>
+      </footer>
+
+      {/* ═══ SALE MODAL ══════════════════════════════════════════════════ */}
+      {showSalesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowSalesModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md fade-in">
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-lg font-bold text-slate-800">Registrar Venta</h2>
+                <button onClick={() => setShowSalesModal(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+                  <XCircle className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-sm text-rose-600">
-                  Pega un JSON array con las licencias o sube un archivo .json. Campos soportados:
-                  <code className="ml-1 px-1.5 py-0.5 bg-rose-50 rounded text-xs font-mono">salonName</code>,
-                  <code className="ml-1 px-1.5 py-0.5 bg-rose-50 rounded text-xs font-mono">ownerName</code>,
-                  <code className="ml-1 px-1.5 py-0.5 bg-rose-50 rounded text-xs font-mono">ownerPhone</code>,
-                  <code className="ml-1 px-1.5 py-0.5 bg-rose-50 rounded text-xs font-mono">plan</code>,
-                  <code className="ml-1 px-1.5 py-0.5 bg-rose-50 rounded text-xs font-mono">startDate</code>
-                </p>
-
-                {/* File upload */}
+                {/* Select Product */}
                 <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Producto</label>
+                  <select
+                    value={saleForm.productoId}
+                    onChange={(e) => {
+                      const p = products.find((pr) => pr.id === e.target.value);
+                      if (p) {
+                        const calc = calculateProduct(p, config);
+                        setSaleForm({
+                          ...saleForm,
+                          productoId: p.id,
+                          productoNombre: p.nombre,
+                          costoUnitBs: calc.costoPorUnidadBs,
+                          precioVentaBs: calc.precioVentaBs,
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Seleccionar producto...</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Fecha</label>
                   <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileUpload}
-                    className="hidden"
+                    type="date"
+                    value={saleForm.fecha}
+                    onChange={(e) => setSaleForm((s) => ({ ...s, fecha: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
                   />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-2.5 rounded-xl border-2 border-dashed border-rose-200 text-rose-400 text-sm hover:border-rose-300 hover:text-rose-500 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Subir archivo JSON
-                  </button>
                 </div>
 
-                <textarea
-                  value={importJson}
-                  onChange={(e) => setImportJson(e.target.value)}
-                  placeholder='[{"salonName": "Glam Nails", "ownerName": "María", "ownerPhone": "+52 55 1234", "plan": "mensual"}]'
-                  rows={6}
-                  className="w-full px-4 py-3 rounded-xl border border-rose-200 bg-rose-50/50 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent text-sm text-rose-900 placeholder:text-rose-300 font-mono resize-none custom-scrollbar"
-                />
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => { setShowImportModal(false); setImportJson(''); }}
-                    className="flex-1 py-2.5 rounded-xl border border-rose-200 text-rose-600 text-sm font-medium hover:bg-rose-50 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleImport}
-                    disabled={importing || !importJson.trim()}
-                    className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium shadow-sm hover:bg-amber-600 transition-all disabled:opacity-50"
-                  >
-                    {importing ? 'Importando...' : 'Importar'}
-                  </button>
+                {/* Cost & Price */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Costo Unit (Bs)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={saleForm.costoUnitBs || ''}
+                      onChange={(e) => setSaleForm((s) => ({ ...s, costoUnitBs: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Precio Venta (Bs)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={saleForm.precioVentaBs || ''}
+                      onChange={(e) => setSaleForm((s) => ({ ...s, precioVentaBs: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
+                    />
+                  </div>
                 </div>
+
+                {/* Quantity */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Cantidad</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={saleForm.cantidad || ''}
+                    onChange={(e) => setSaleForm((s) => ({ ...s, cantidad: parseInt(e.target.value) || 1 }))}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
+                  />
+                </div>
+
+                {/* Preview */}
+                {saleForm.precioVentaBs > 0 && saleForm.costoUnitBs > 0 && (
+                  <div className="bg-slate-50 rounded-lg p-3 text-xs space-y-1">
+                    <div className="flex justify-between text-slate-500">
+                      <span>Ganancia por unidad:</span>
+                      <span className={saleForm.precioVentaBs - saleForm.costoUnitBs >= 0 ? 'text-emerald-600 font-semibold' : 'text-red-500 font-semibold'}>
+                        {fmtBs(saleForm.precioVentaBs - saleForm.costoUnitBs)} Bs
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-500">
+                      <span>Ganancia total:</span>
+                      <span className={(saleForm.precioVentaBs - saleForm.costoUnitBs) * saleForm.cantidad >= 0 ? 'text-emerald-600 font-semibold' : 'text-red-500 font-semibold'}>
+                        {fmtBs((saleForm.precioVentaBs - saleForm.costoUnitBs) * saleForm.cantidad)} Bs
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={addSale}
+                  disabled={!saleForm.productoId || saleForm.precioVentaBs <= 0 || saleForm.cantidad <= 0}
+                  className="w-full py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Registrar Venta
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="text-center py-6 text-xs text-rose-300">
-        © 2025 Mary Bot — Panel Maestro de Licencias
-      </footer>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// STAT CARD COMPONENT
+// SUB-COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════
-function StatCard({ title, value, icon, color }: { title: string; value: number | string; icon: React.ReactNode; color: string }) {
-  const colorClasses: Record<string, { bg: string; iconBg: string; iconText: string; valueText: string }> = {
-    rose: { bg: 'bg-white', iconBg: 'bg-rose-100', iconText: 'text-rose-600', valueText: 'text-rose-900' },
-    emerald: { bg: 'bg-white', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', valueText: 'text-emerald-700' },
-    amber: { bg: 'bg-white', iconBg: 'bg-amber-100', iconText: 'text-amber-600', valueText: 'text-amber-700' },
+
+function ConfigField({
+  label,
+  sublabel,
+  value,
+  onChange,
+  icon,
+  color,
+  prefix,
+  suffix,
+}: {
+  label: string;
+  sublabel: string;
+  value: number;
+  onChange: (v: number) => void;
+  icon: React.ReactNode;
+  color: string;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const colorMap: Record<string, string> = {
+    blue: 'border-blue-200 focus-within:border-blue-400 focus-within:ring-blue-100',
+    green: 'border-green-200 focus-within:border-green-400 focus-within:ring-green-100',
+    teal: 'border-teal-200 focus-within:border-teal-400 focus-within:ring-teal-100',
+    orange: 'border-orange-200 focus-within:border-orange-400 focus-within:ring-orange-100',
+    purple: 'border-purple-200 focus-within:border-purple-400 focus-within:ring-purple-100',
+    red: 'border-red-200 focus-within:border-red-400 focus-within:ring-red-100',
   };
-  const c = colorClasses[color] || colorClasses.rose;
+
+  const iconColorMap: Record<string, string> = {
+    blue: 'bg-blue-100 text-blue-600',
+    green: 'bg-green-100 text-green-600',
+    teal: 'bg-teal-100 text-teal-600',
+    orange: 'bg-orange-100 text-orange-600',
+    purple: 'bg-purple-100 text-purple-600',
+    red: 'bg-red-100 text-red-600',
+  };
 
   return (
-    <div className={`${c.bg} rounded-2xl shadow-sm border border-rose-100 p-4 flex items-center gap-4`}>
-      <div className={`w-11 h-11 rounded-xl ${c.iconBg} flex items-center justify-center ${c.iconText} shrink-0`}>
-        {icon}
+    <div className={`rounded-lg border p-3 transition-all focus-within:ring-2 ${colorMap[color] || colorMap.teal}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-6 h-6 rounded flex items-center justify-center ${iconColorMap[color] || iconColorMap.teal}`}>
+          {icon}
+        </div>
+        <div>
+          <div className="text-xs font-medium text-slate-700 leading-tight">{label}</div>
+          <div className="text-[10px] text-slate-400 leading-tight">{sublabel}</div>
+        </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-xs text-rose-400 font-medium truncate">{title}</p>
-        <p className={`text-2xl font-bold ${c.valueText} leading-tight`}>{value}</p>
+      <div className="relative">
+        {prefix && <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{prefix}</span>}
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={value || ''}
+          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          className={`w-full ${prefix ? 'pl-7' : 'pl-2.5'} ${suffix ? 'pr-7' : 'pr-2.5'} py-2 rounded-md border border-slate-200 bg-white focus:outline-none text-sm text-slate-800 font-medium`}
+        />
+        {suffix && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
+function CostRow({ label, value, type }: { label: string; value: string; type: 'base' | 'cost' | 'subtotal' | 'rate' }) {
+  const typeStyles: Record<string, string> = {
+    base: 'text-slate-600',
+    cost: 'text-slate-500',
+    subtotal: 'font-semibold text-slate-800',
+    rate: 'text-amber-600',
+  };
+
+  return (
+    <div className={`flex justify-between items-center text-sm py-1 px-2 rounded ${type === 'cost' ? 'bg-slate-50/50 -mx-2 px-2' : ''}`}>
+      <span className={`text-xs ${type === 'subtotal' ? 'font-semibold text-slate-700' : 'text-slate-500'}`}>{label}</span>
+      <span className={`text-sm ${typeStyles[type]}`}>{value}</span>
+    </div>
+  );
+}
+
+function ResultCard({ label, value, sublabel, positive }: { label: string; value: string; sublabel: string; positive: boolean }) {
+  return (
+    <div className={`p-3 rounded-lg border ${
+      positive ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'
+    }`}>
+      <div className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{label}</div>
+      <div className={`text-base font-bold mt-1 ${positive ? 'text-emerald-700' : 'text-red-600'}`}>{value}</div>
+      <div className="text-xs text-slate-400 mt-0.5">{sublabel}</div>
+    </div>
+  );
+}
+
+function CostBar({ calc }: { calc: CalcResult }) {
+  const totalUSD = calc.costoProductoUSD + calc.courierIntlUSD + calc.impuestosUSD;
+  if (totalUSD <= 0) {
+    return <div className="h-3 bg-slate-100 rounded-full" />;
+  }
+
+  const productoPct = (calc.costoProductoUSD / totalUSD) * 100;
+  const courierPct = (calc.courierIntlUSD / totalUSD) * 100;
+  const impuestosPct = (calc.impuestosUSD / totalUSD) * 100;
+
+  return (
+    <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+      <div
+        className="bg-teal-500 rounded-l-full"
+        style={{ width: `${productoPct}%` }}
+        title={`Producto: ${productoPct.toFixed(1)}%`}
+      />
+      <div
+        className="bg-amber-400"
+        style={{ width: `${courierPct}%` }}
+        title={`Courier: ${courierPct.toFixed(1)}%`}
+      />
+      <div
+        className="bg-rose-400 rounded-r-full"
+        style={{ width: `${impuestosPct}%` }}
+        title={`Impuestos: ${impuestosPct.toFixed(1)}%`}
+      />
+    </div>
+  );
+}
+
+function DashboardCard({
+  title,
+  value,
+  sublabel,
+  icon,
+  color,
+}: {
+  title: string;
+  value: string;
+  sublabel: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  const bgMap: Record<string, string> = {
+    blue: 'bg-blue-50 text-blue-600',
+    teal: 'bg-teal-50 text-teal-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    red: 'bg-red-50 text-red-500',
+    purple: 'bg-purple-50 text-purple-600',
+    amber: 'bg-amber-50 text-amber-600',
+  };
+
+  const iconBgMap: Record<string, string> = {
+    blue: 'bg-blue-100 text-blue-600',
+    teal: 'bg-teal-100 text-teal-600',
+    green: 'bg-emerald-100 text-emerald-600',
+    red: 'bg-red-100 text-red-600',
+    purple: 'bg-purple-100 text-purple-600',
+    amber: 'bg-amber-100 text-amber-600',
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBgMap[color] || iconBgMap.teal}`}>
+          {icon}
+        </div>
+      </div>
+      <div className="text-xs text-slate-500 font-medium mb-1">{title}</div>
+      <div className="text-lg sm:text-xl font-bold text-slate-800 leading-tight">{value}</div>
+      <div className="text-xs text-slate-400 mt-1">{sublabel}</div>
+    </div>
+  );
+}
+
+function ProductAnalysisBar({
+  product,
+  calc,
+  config,
+  currency,
+}: {
+  product: Product;
+  calc: CalcResult;
+  config: Config;
+  currency: CurrencyDisplay;
+}) {
+  const costoPorUnidadUSD = calc.costoPorUnidadBs / config.tasaVentaBCV;
+  const costoTotalUSD = calc.costoTotalUSD * product.cantidad;
+  const gananciaTotalUSD = calc.gananciaUnitUSD * product.cantidad;
+
+  return (
+    <div className="border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <div className="font-medium text-slate-800 text-sm">{product.nombre}</div>
+          <div className="text-xs text-slate-400">{product.cantidad} und | {product.metodoPago === 'banco' ? 'Banco' : 'USDT'}</div>
+        </div>
+        <div className="flex items-center gap-1">
+          {calc.cubreBrecha ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          ) : (
+            <XCircle className="w-4 h-4 text-red-400" />
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+        <div>
+          <span className="text-slate-400">Costo Und: </span>
+          <span className="font-medium text-slate-700">{currency === 'Bs' ? fmtBs(calc.costoPorUnidadBs) + ' Bs' : fmtUSD(costoPorUnidadUSD)}</span>
+        </div>
+        <div>
+          <span className="text-slate-400">Venta: </span>
+          <span className="font-medium text-teal-700">{currency === 'Bs' ? fmtBs(calc.precioVentaBs) + ' Bs' : fmtUSD(calc.precioVentaUSD)}</span>
+        </div>
+        <div>
+          <span className="text-slate-400">Ganancia Und: </span>
+          <span className={`font-medium ${calc.gananciaUnitBs >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+            {currency === 'Bs' ? fmtBs(calc.gananciaUnitBs) + ' Bs' : fmtUSD(calc.gananciaUnitUSD)}
+          </span>
+        </div>
+        <div>
+          <span className="text-slate-400">Ganancia Total: </span>
+          <span className={`font-medium ${gananciaTotalUSD >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+            {currency === 'Bs' ? fmtBs(calc.gananciaUnitBs * product.cantidad) + ' Bs' : fmtUSD(gananciaTotalUSD)}
+          </span>
+        </div>
+      </div>
+      {/* Mini cost bar */}
+      <div className="mt-2">
+        <CostBar calc={calc} />
+        <div className="flex gap-4 mt-1 text-[10px] text-slate-400">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />Producto</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Courier</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />Impuestos</span>
+        </div>
       </div>
     </div>
   );
