@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "export",
+  basePath: "/zync-electronics-calculadora",
+  assetPrefix: "/zync-electronics-calculadora",
   typescript: {
     ignoreBuildErrors: true,
   },
