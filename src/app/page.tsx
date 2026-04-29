@@ -27,7 +27,6 @@ import {
   BarChart3,
   FileText,
   X,
-  Box,
   ShieldAlert,
   Zap,
   Wifi,
@@ -35,7 +34,6 @@ import {
   Gem,
   MapPin,
   Weight,
-  Ruler,
   RotateCcw,
   Sun,
   Moon,
@@ -51,18 +49,16 @@ interface Config {
   spreadUSDT: number;
   comisionZinli: number;
   comisionUSDTZinli: number;
-  fleteKg: number;
-  fleteCBM: number;
-  fleteMetodo: 'peso' | 'volumen';
+  fleteTotalUSD: number;
   seguroCarga: number;
-  courierImport2Ven: number;
-  courierNacional: number;
+  courierImport2VenUSD: number;
+  courierNacionalUSD: number;
   ivaChina: number;
   impuesto: number;
-  opexInternet: number;
-  opexPublicidad: number;
-  opexEmpaques: number;
-  opexDelivery: number;
+  opexInternetMensual: number;
+  opexPublicidadMensual: number;
+  opexEmpaquesUSD: number;
+  opexDeliveryUSD: number;
   merma: number;
 }
 
@@ -71,9 +67,6 @@ interface Product {
   nombre: string;
   costoUSD: number;
   pesoKg: number;
-  dimL: number;
-  dimW: number;
-  dimH: number;
   cantidad: number;
   metodoPago: 'banco' | 'usdt';
   margen: number;
@@ -95,31 +88,42 @@ interface CalcResult {
   ivaChina: number;
   costoOrigenChina: number;
   // Logistics
-  fleteInternacional: number;
+  fleteTotalUSD: number;
+  fletePorUnidadUSD: number;
   seguroCarga: number;
-  courierImport2Ven: number;
+  courierImport2VenUSD: number;
+  courierNacionalUSD: number;
+  courierNacionalPorUnidadUSD: number;
   costoFOBTotal: number;
+  costoFOBporUnidad: number;
   // Exchange
   tasaEfectivaP2P: number;
-  costoConvertidoBs: number;
-  courierNacionalBs: number;
+  costoFOBporUnidadBs: number;
+  courierNacionalPorUnidadBs: number;
   costoAterrizajeBs: number;
   // OPEX
-  opexTotalUSD: number;
-  opexTotalBs: number;
+  opexInternetMensual: number;
+  opexInternetPorUnidad: number;
+  opexPublicidadMensual: number;
+  opexPublicidadPorUnidad: number;
+  opexEmpaquesPorUnidad: number;
+  opexDeliveryPorUnidad: number;
+  opexTotalPorUnidadUSD: number;
+  opexTotalPorUnidadBs: number;
   costoTotalOperativoBs: number;
   // Risk
   costoRealPorUnidadBs: number;
   // Pricing
   puntoEquilibrio: number;
+  margenUSDsobreProducto: number;
+  margenUSDtotal: number;
   precioVentaBs: number;
   precioVentaUSD: number;
   gananciaUnitBs: number;
   gananciaUnitUSD: number;
   cubreBrecha: boolean;
   // Detail
-  cbm: number;
-  fleteDetalle: string;
+  cantidad: number;
 }
 
 type CurrencyDisplay = 'Bs' | 'USD';
@@ -135,18 +139,16 @@ const DEFAULT_CONFIG: Config = {
   spreadUSDT: 1.5,
   comisionZinli: 3.5,
   comisionUSDTZinli: 3,
-  fleteKg: 3.50,
-  fleteCBM: 65,
-  fleteMetodo: 'peso',
+  fleteTotalUSD: 97.50,
   seguroCarga: 1.5,
-  courierImport2Ven: 2.00,
-  courierNacional: 5.00,
+  courierImport2VenUSD: 2.00,
+  courierNacionalUSD: 5.00,
   ivaChina: 13,
   impuesto: 0,
-  opexInternet: 0.50,
-  opexPublicidad: 1.00,
-  opexEmpaques: 0.30,
-  opexDelivery: 1.50,
+  opexInternetMensual: 34,
+  opexPublicidadMensual: 15,
+  opexEmpaquesUSD: 0.30,
+  opexDeliveryUSD: 1.50,
   merma: 3,
 };
 
@@ -155,9 +157,6 @@ const DEFAULT_PRODUCT: Product = {
   nombre: '',
   costoUSD: 0,
   pesoKg: 0.5,
-  dimL: 20,
-  dimW: 15,
-  dimH: 10,
   cantidad: 1,
   metodoPago: 'banco',
   margen: 40,
@@ -210,36 +209,34 @@ function todayStr(): string {
 // CALCULATION ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
 function calculateProduct(product: Product, config: Config): CalcResult {
-  // 1. Costo producto base
+  const qty = product.cantidad || 1;
+
+  // ══════ 1. COSTO DE ORIGEN (por unidad) ══════
   const costoProductoBase = product.costoUSD;
-
-  // 2. IVA China
   const ivaChinaUSD = costoProductoBase * (config.ivaChina / 100);
-
-  // 3. Costo origen China
   const costoOrigenChina = costoProductoBase + ivaChinaUSD;
 
-  // Calculate CBM
-  const cbm = (product.dimL * product.dimW * product.dimH) / 1000000;
+  // ══════ 2. LOGÍSTICA INTERNACIONAL (total envío → por unidad) ══════
+  const fleteTotalUSD = config.fleteTotalUSD;
+  const fletePorUnidadUSD = qty > 0 ? fleteTotalUSD / qty : 0;
 
-  // 4. Flete internacional — auto-select whichever is more expensive
-  const fletePorPeso = config.fleteKg * product.pesoKg;
-  const fletePorVolumen = config.fleteCBM * cbm;
-  const fleteInternacional = Math.max(fletePorPeso, fletePorVolumen);
-  const fleteDetalle = config.fleteMetodo === 'auto'
-    ? (fletePorPeso >= fletePorVolumen ? 'peso' : 'volumen (CBM)')
-    : config.fleteMetodo;
+  // Seguro de carga (% del valor de mercancía)
+  const valorMercanciaTotal = costoOrigenChina * qty;
+  const seguroCargaTotal = valorMercanciaTotal * (config.seguroCarga / 100);
+  const seguroCargaPorUnidad = qty > 0 ? seguroCargaTotal / qty : 0;
 
-  // 5. Seguro de carga (% of merchandise value)
-  const seguroCarga = costoOrigenChina * (config.seguroCarga / 100);
+  // Courier Import2Ven (total del envío)
+  const courierImport2VenUSD = config.courierImport2VenUSD;
 
-  // 6. Courier Import2Ven handling
-  const courierImport2Ven = config.courierImport2Ven * product.pesoKg;
+  // Courier nacional (total del envío)
+  const courierNacionalUSD = config.courierNacionalUSD;
+  const courierNacionalPorUnidadUSD = qty > 0 ? courierNacionalUSD / qty : 0;
 
-  // 7. COSTO FOB TOTAL
-  const costoFOBTotal = costoOrigenChina + fleteInternacional + seguroCarga + courierImport2Ven;
+  // ══════ 3. COSTO FOB TOTAL (por unidad) ══════
+  const costoFOBTotal = valorMercanciaTotal + fleteTotalUSD + seguroCargaTotal + courierImport2VenUSD;
+  const costoFOBporUnidad = qty > 0 ? costoFOBTotal / qty : 0;
 
-  // 8. Tasa efectiva P2P
+  // ══════ 4. CONVERSIÓN CAMBIARIA ══════
   let tasaEfectivaP2P: number;
   if (product.metodoPago === 'usdt') {
     tasaEfectivaP2P = config.tasaUSDT * (1 + config.spreadUSDT / 100) * (1 + config.comisionUSDTZinli / 100) * (1 + config.comisionZinli / 100);
@@ -247,70 +244,88 @@ function calculateProduct(product: Product, config: Config): CalcResult {
     tasaEfectivaP2P = config.tasaBanco;
   }
 
-  // 9. Costo convertido Bs
-  const costoConvertidoBs = costoFOBTotal * tasaEfectivaP2P;
+  const costoFOBporUnidadBs = costoFOBporUnidad * tasaEfectivaP2P;
 
-  // 10. Courier nacional Bs
-  const courierNacionalBs = config.courierNacional * tasaEfectivaP2P;
+  // Courier nacional convertido a Bs (por unidad)
+  const courierNacionalPorUnidadBs = courierNacionalPorUnidadUSD * tasaEfectivaP2P;
 
-  // 11. COSTO ATERRIZAJE Bs
-  const costoAterrizajeBs = costoConvertidoBs + courierNacionalBs;
+  // ══════ 5. COSTO ATERRIZAJE Bs (por unidad) ══════
+  const costoAterrizajeBs = costoFOBporUnidadBs + courierNacionalPorUnidadBs;
 
-  // 12. OPEX total USD
-  const opexTotalUSD = config.opexInternet + config.opexPublicidad + config.opexEmpaques + config.opexDelivery;
+  // ══════ 6. OPEX (costos fijos mensuales → por unidad) ══════
+  const opexInternetMensual = config.opexInternetMensual;
+  const opexInternetPorUnidad = qty > 0 ? opexInternetMensual / qty : 0;
 
-  // OPEX total Bs
-  const opexTotalBs = opexTotalUSD * tasaEfectivaP2P;
+  const opexPublicidadMensual = config.opexPublicidadMensual;
+  const opexPublicidadPorUnidad = qty > 0 ? opexPublicidadMensual / qty : 0;
 
-  // 13. COSTO TOTAL OPERATIVO Bs (per unit, before merma)
-  const costoTotalOperativoBs = costoAterrizajeBs + opexTotalBs;
+  // Estos son por unidad directamente
+  const opexEmpaquesPorUnidad = config.opexEmpaquesUSD;
+  const opexDeliveryPorUnidad = config.opexDeliveryUSD;
 
-  // 14. Factor merma — adjust for defective units
+  const opexTotalPorUnidadUSD = opexInternetPorUnidad + opexPublicidadPorUnidad + opexEmpaquesPorUnidad + opexDeliveryPorUnidad;
+  const opexTotalPorUnidadBs = opexTotalPorUnidadUSD * tasaEfectivaP2P;
+
+  // ══════ 7. COSTO TOTAL OPERATIVO Bs (por unidad, antes de merma) ══════
+  const costoTotalOperativoBs = costoAterrizajeBs + opexTotalPorUnidadBs;
+
+  // ══════ 8. FACTOR DE RIESGO (merma) ══════
   const mermaFactor = 1 - config.merma / 100;
   const costoRealPorUnidadBs = mermaFactor > 0 ? costoTotalOperativoBs / mermaFactor : costoTotalOperativoBs;
 
-  // 15. Punto de equilibrio
+  // ══════ 9. PUNTO DE EQUILIBRIO ══════
   const puntoEquilibrio = costoRealPorUnidadBs;
 
-  // 16. Precio de venta with margin
+  // ══════ 10. PRECIO DE VENTA — margen sobre el PRODUCTO, no sobre todo ══════
   const margen = product.margen / 100;
-  const precioVentaBs = margen >= 1 ? costoRealPorUnidadBs * 10 : costoRealPorUnidadBs / (1 - margen);
+  const costoRealPorUnidadUSD = config.tasaVentaBCV > 0 ? costoRealPorUnidadBs / config.tasaVentaBCV : 0;
+  const margenUSDsobreProducto = costoProductoBase * margen;
+  const precioVentaUSD = costoRealPorUnidadUSD + margenUSDsobreProducto;
+  const precioVentaBs = precioVentaUSD * config.tasaVentaBCV;
+  const margenUSDtotal = precioVentaUSD - costoRealPorUnidadUSD;
 
-  // 17. En USD (BCV)
-  const precioVentaUSD = config.tasaVentaBCV > 0 ? precioVentaBs / config.tasaVentaBCV : 0;
-
-  // 18. Ganancia
+  // ══════ 11. GANANCIA ══════
   const gananciaUnitBs = precioVentaBs - costoRealPorUnidadBs;
   const gananciaUnitUSD = config.tasaVentaBCV > 0 ? gananciaUnitBs / config.tasaVentaBCV : 0;
 
-  // 19. ¿Cubre brecha?
-  const costoEnUSD_BCVRate = config.tasaVentaBCV > 0 ? costoRealPorUnidadBs / config.tasaVentaBCV : 0;
-  const cubreBrecha = gananciaUnitUSD > 0 && precioVentaUSD > costoEnUSD_BCVRate;
+  // ══════ 12. ¿CUBRE BRECHA? ══════
+  const cubreBrecha = gananciaUnitUSD > 0;
 
   return {
     costoProductoBase,
     ivaChina: ivaChinaUSD,
     costoOrigenChina,
-    fleteInternacional,
-    seguroCarga,
-    courierImport2Ven,
+    fleteTotalUSD,
+    fletePorUnidadUSD,
+    seguroCarga: seguroCargaPorUnidad,
+    courierImport2VenUSD,
+    courierNacionalUSD,
+    courierNacionalPorUnidadUSD,
     costoFOBTotal,
+    costoFOBporUnidad,
     tasaEfectivaP2P,
-    costoConvertidoBs,
-    courierNacionalBs,
+    costoFOBporUnidadBs,
+    courierNacionalPorUnidadBs,
     costoAterrizajeBs,
-    opexTotalUSD,
-    opexTotalBs,
+    opexInternetMensual,
+    opexInternetPorUnidad,
+    opexPublicidadMensual,
+    opexPublicidadPorUnidad,
+    opexEmpaquesPorUnidad,
+    opexDeliveryPorUnidad,
+    opexTotalPorUnidadUSD,
+    opexTotalPorUnidadBs,
     costoTotalOperativoBs,
     costoRealPorUnidadBs,
     puntoEquilibrio,
+    margenUSDsobreProducto,
+    margenUSDtotal,
     precioVentaBs,
     precioVentaUSD,
     gananciaUnitBs,
     gananciaUnitUSD,
     cubreBrecha,
-    cbm,
-    fleteDetalle,
+    cantidad: qty,
   };
 }
 
@@ -407,7 +422,7 @@ export default function Home() {
   const dashboardStats = useMemo(() => {
     const totalInvertidoUSD = products.reduce((s, p) => {
       const c = calculateProduct(p, config);
-      return s + c.costoFOBTotal * p.cantidad;
+      return s + c.costoFOBTotal;
     }, 0);
     const totalIngresosBs = sales.reduce((s, sale) => s + sale.precioVentaBs * sale.cantidad, 0);
     const totalIngresosUSD = config.tasaVentaBCV > 0 ? totalIngresosBs / config.tasaVentaBCV : 0;
@@ -578,11 +593,10 @@ export default function Home() {
               {/* Section: Logística Internacional */}
               <ConfigSection title="Logística Internacional" icon={<Truck className="w-4 h-4" />}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <CfgField label="Flete por Peso" sub="USD/kg" value={config.fleteKg} onChange={(v) => updateConfig('fleteKg', v)} icon={<Weight className="w-3.5 h-3.5" />} color="purple" prefix="$" />
-                  <CfgField label="Flete por Volumen" sub="USD/CBM" value={config.fleteCBM} onChange={(v) => updateConfig('fleteCBM', v)} icon={<Box className="w-3.5 h-3.5" />} color="purple" prefix="$" />
+                  <CfgField label="Flete Total Envío" sub="USD total del envío (ej: Biagio $97.50)" value={config.fleteTotalUSD} onChange={(v) => updateConfig('fleteTotalUSD', v)} icon={<Truck className="w-3.5 h-3.5" />} color="purple" prefix="$" />
+                  <CfgField label="Courier Import2Ven" sub="USD total manejo" value={config.courierImport2VenUSD} onChange={(v) => updateConfig('courierImport2VenUSD', v)} icon={<Truck className="w-3.5 h-3.5" />} color="purple" prefix="$" />
+                  <CfgField label="Courier Nacional" sub="USD total envío nacional" value={config.courierNacionalUSD} onChange={(v) => updateConfig('courierNacionalUSD', v)} icon={<Truck className="w-3.5 h-3.5" />} color="purple" prefix="$" />
                   <CfgField label="Seguro de Carga" sub="% valor mercancía" value={config.seguroCarga} onChange={(v) => updateConfig('seguroCarga', v)} icon={<ShieldAlert className="w-3.5 h-3.5" />} color="purple" suffix="%" />
-                  <CfgField label="Courier Import2Ven" sub="USD/kg manejo" value={config.courierImport2Ven} onChange={(v) => updateConfig('courierImport2Ven', v)} icon={<Truck className="w-3.5 h-3.5" />} color="purple" prefix="$" />
-                  <CfgField label="Courier Nacional" sub="USD/paquete" value={config.courierNacional} onChange={(v) => updateConfig('courierNacional', v)} icon={<Truck className="w-3.5 h-3.5" />} color="purple" prefix="$" />
                 </div>
               </ConfigSection>
 
@@ -597,11 +611,14 @@ export default function Home() {
               {/* Section: OPEX */}
               <ConfigSection title="OPEX por Unidad" icon={<TrendingUp className="w-4 h-4" />}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <CfgField label="Internet (Galanet)" sub="USD/unidad" value={config.opexInternet} onChange={(v) => updateConfig('opexInternet', v)} icon={<Wifi className="w-3.5 h-3.5" />} color="teal" prefix="$" />
-                  <CfgField label="Publicidad Redes" sub="USD/unidad" value={config.opexPublicidad} onChange={(v) => updateConfig('opexPublicidad', v)} icon={<Megaphone className="w-3.5 h-3.5" />} color="teal" prefix="$" />
-                  <CfgField label="Empaques" sub="USD/unidad" value={config.opexEmpaques} onChange={(v) => updateConfig('opexEmpaques', v)} icon={<Gem className="w-3.5 h-3.5" />} color="teal" prefix="$" />
-                  <CfgField label="Delivery Local" sub="USD/unidad" value={config.opexDelivery} onChange={(v) => updateConfig('opexDelivery', v)} icon={<MapPin className="w-3.5 h-3.5" />} color="teal" prefix="$" />
+                  <CfgField label="Internet (Galanet)" sub="USD MENSUAL (se divide entre cantidad)" value={config.opexInternetMensual} onChange={(v) => updateConfig('opexInternetMensual', v)} icon={<Wifi className="w-3.5 h-3.5" />} color="teal" prefix="$" />
+                  <CfgField label="Publicidad Redes" sub="USD MENSUAL (se divide entre cantidad)" value={config.opexPublicidadMensual} onChange={(v) => updateConfig('opexPublicidadMensual', v)} icon={<Megaphone className="w-3.5 h-3.5" />} color="teal" prefix="$" />
+                  <CfgField label="Empaques" sub="USD por unidad" value={config.opexEmpaquesUSD} onChange={(v) => updateConfig('opexEmpaquesUSD', v)} icon={<Gem className="w-3.5 h-3.5" />} color="teal" prefix="$" />
+                  <CfgField label="Delivery Local" sub="USD por unidad" value={config.opexDeliveryUSD} onChange={(v) => updateConfig('opexDeliveryUSD', v)} icon={<MapPin className="w-3.5 h-3.5" />} color="teal" prefix="$" />
                 </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Los costos mensuales (internet, publicidad) se dividen entre las {currentCalc.cantidad} unidades. Empaques y delivery son por unidad.
+                </p>
               </ConfigSection>
 
               {/* Section: Riesgo */}
@@ -610,7 +627,7 @@ export default function Home() {
                   <CfgField label="Merma (Defectuosos)" sub="% unidades dañadas" value={config.merma} onChange={(v) => updateConfig('merma', v)} icon={<AlertTriangle className="w-3.5 h-3.5" />} color="red" suffix="%" />
                 </div>
                 <p className="mt-2 text-xs text-slate-500">
-                  Si ordenas 100 unidades con {config.merma}% merma, solo recibes {100 - config.merma} vendibles. El costo de las {config.merma} defectuosas se distribuye entre las buenas.
+                  Si ordenas {currentCalc.cantidad} unidades con {config.merma}% merma, solo recibes {Math.round(currentCalc.cantidad * (1 - config.merma / 100))} vendibles. El costo de las defectuosas se distribuye entre las buenas.
                 </p>
               </ConfigSection>
 
@@ -724,51 +741,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Dimensions */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Dimensiones (cm) — para cálculo CBM</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">L</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={productForm.dimL || ''}
-                        onChange={(e) => setProductForm((p) => ({ ...p, dimL: parseFloat(e.target.value) || 0 }))}
-                        placeholder="20"
-                        className="w-full pl-7 pr-2 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
-                      />
-                    </div>
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">W</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={productForm.dimW || ''}
-                        onChange={(e) => setProductForm((p) => ({ ...p, dimW: parseFloat(e.target.value) || 0 }))}
-                        placeholder="15"
-                        className="w-full pl-7 pr-2 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
-                      />
-                    </div>
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">H</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={productForm.dimH || ''}
-                        onChange={(e) => setProductForm((p) => ({ ...p, dimH: parseFloat(e.target.value) || 0 }))}
-                        placeholder="10"
-                        className="w-full pl-7 pr-2 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 text-sm text-slate-800"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    CBM: {fmtNum(currentCalc.cbm, 6)} m³ | Flete calcula por {currentCalc.fleteDetalle} (más caro)
-                  </p>
-                </div>
 
                 {/* Quantity + Margin */}
                 <div className="grid grid-cols-2 gap-3">
@@ -882,10 +854,10 @@ export default function Home() {
                   <div className="pt-2 pb-1 border-b border-slate-200 mb-2 mt-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Logística Internacional</span>
                   </div>
-                  <BR label={`4. (+) Flete internacional (${currentCalc.fleteDetalle})`} value={fmtUSD(currentCalc.fleteInternacional)} type="cost" />
+                  <BR label={`4. (+) Flete total (${fmtUSD(currentCalc.fleteTotalUSD)} / ${currentCalc.cantidad} und)`} value={fmtUSD(currentCalc.fletePorUnidadUSD) + ' c/u'} type="cost" />
                   <BR label={`5. (+) Seguro de carga (${config.seguroCarga}%)`} value={fmtUSD(currentCalc.seguroCarga)} type="cost" />
-                  <BR label={`6. (+) Manejo Import2Ven (${productForm.pesoKg} kg × $${config.courierImport2Ven})`} value={fmtUSD(currentCalc.courierImport2Ven)} type="cost" />
-                  <BR label="7. ═══ COSTO FOB TOTAL" value={fmtUSD(currentCalc.costoFOBTotal)} type="total" />
+                  <BR label={`6. (+) Courier Import2Ven (${fmtUSD(currentCalc.courierImport2VenUSD)} / ${currentCalc.cantidad} und)`} value={fmtUSD(currentCalc.cantidad > 0 ? currentCalc.courierImport2VenUSD / currentCalc.cantidad : 0)} type="cost" />
+                  <BR label="7. ═══ COSTO FOB POR UNIDAD" value={fmtUSD(currentCalc.costoFOBporUnidad)} type="sub-bold" />
 
                   {/* ── CAMBIO ── */}
                   <div className="pt-2 pb-1 border-b border-slate-200 mb-2 mt-3">
@@ -900,28 +872,28 @@ export default function Home() {
                       <div className="text-[10px] text-amber-500 mt-0.5">Incluye spread + comisiones USDT→Zinli + Zinli recarga</div>
                     </div>
                   )}
-                  <BR label={`8. (×) Tasa ${productForm.metodoPago === 'usdt' ? 'Efectiva P2P' : 'Banco BCV'}`} value={`${fmtBs(currentCalc.tasaEfectivaP2P)} Bs/$`} type="rate" />
-                  <BR label="9. (=) Costo convertido Bs" value={fmtBs(currentCalc.costoConvertidoBs) + ' Bs'} type="sub" />
+                  <BR label={`8. (×) Tasa ${productForm.metodoPago === 'usdt' ? 'USDT→Zinli' : 'Banco BCV'}`} value={`${fmtBs(currentCalc.tasaEfectivaP2P)} Bs/$`} type="rate" />
+                  <BR label="9. (=) Costo FOB por unidad Bs" value={fmtBs(currentCalc.costoFOBporUnidadBs) + ' Bs'} type="sub" />
 
                   {/* ── ATERRIZAJE ── */}
                   <div className="pt-2 pb-1 border-b border-slate-200 mb-2 mt-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aterrizaje Nacional</span>
                   </div>
-                  <BR label={`10. (+) Courier nacional ($${config.courierNacional} × tasa)`} value={fmtBs(currentCalc.courierNacionalBs) + ' Bs'} type="cost" />
-                  <BR label="11. ═══ COSTO ATERRIZAJE Bs" value={fmtBs(currentCalc.costoAterrizajeBs) + ' Bs'} type="total" />
+                  <BR label={`10. (+) Courier nacional (${fmtUSD(currentCalc.courierNacionalUSD)} / ${currentCalc.cantidad} und)`} value={fmtBs(currentCalc.courierNacionalPorUnidadBs) + ' Bs'} type="cost" />
+                  <BR label="11. ═══ COSTO ATERRIZAJE Bs" value={fmtBs(currentCalc.costoAterrizajeBs) + ' Bs'} type="sub-bold" />
 
                   {/* ── OPEX ── */}
                   <div className="pt-2 pb-1 border-b border-slate-200 mb-2 mt-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gastos Operativos OPEX</span>
                   </div>
-                  <BR label="12. (+) OPEX por unidad" value={fmtUSD(currentCalc.opexTotalUSD)} type="sub" />
+                  <BR label="12. (+) OPEX por unidad" value={fmtUSD(currentCalc.opexTotalPorUnidadUSD)} type="sub" />
                   <div className="pl-4 space-y-0.5 my-1">
-                    <OR label={`• Internet (Galanet)`} value={fmtUSD(config.opexInternet)} />
-                    <OR label={`• Publicidad redes`} value={fmtUSD(config.opexPublicidad)} />
-                    <OR label={`• Empaques`} value={fmtUSD(config.opexEmpaques)} />
-                    <OR label={`• Delivery local`} value={fmtUSD(config.opexDelivery)} />
+                    <OR label={`• Internet (${fmtUSD(currentCalc.opexInternetMensual)} mens / ${currentCalc.cantidad} und)`} value={fmtUSD(currentCalc.opexInternetPorUnidad)} />
+                    <OR label={`• Publicidad (${fmtUSD(currentCalc.opexPublicidadMensual)} mens / ${currentCalc.cantidad} und)`} value={fmtUSD(currentCalc.opexPublicidadPorUnidad)} />
+                    <OR label={`• Empaques`} value={fmtUSD(currentCalc.opexEmpaquesPorUnidad)} />
+                    <OR label={`• Delivery local`} value={fmtUSD(currentCalc.opexDeliveryPorUnidad)} />
                   </div>
-                  <BR label="13. ═══ COSTO TOTAL OPERATIVO Bs" value={fmtBs(currentCalc.costoTotalOperativoBs) + ' Bs'} type="total" />
+                  <BR label="13. ═══ COSTO TOTAL OPERATIVO Bs" value={fmtBs(currentCalc.costoTotalOperativoBs) + ' Bs'} type="sub-bold" />
 
                   {/* ── RIESGO ── */}
                   <div className="pt-2 pb-1 border-b border-slate-200 mb-2 mt-3">
@@ -929,7 +901,7 @@ export default function Home() {
                   </div>
                   <BR label={`14. (+) Factor merma (${config.merma}%)`} value={fmtBs(currentCalc.costoRealPorUnidadBs - currentCalc.costoTotalOperativoBs) + ' Bs'} type="cost" />
                   <div className="text-[10px] text-slate-400 px-2 py-0.5">
-                    {productForm.cantidad} und × (1 - {config.merma}%) = {(productForm.cantidad * (1 - config.merma / 100)).toFixed(1)} und vendibles reales
+                    1 und × (1 - {config.merma}%) = {(1 - config.merma / 100).toFixed(1)} und vendibles reales
                   </div>
 
                   {/* ── COSTO REAL ── */}
@@ -944,7 +916,7 @@ export default function Home() {
                   <div className="mt-4 pt-3 border-t-2 border-slate-200">
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">━━━━ PRECIO DE VENTA ━━━━</div>
                     <BR label="16. Punto de equilibrio" value={fmtBs(currentCalc.puntoEquilibrio) + ' Bs'} type="base" />
-                    <BR label={`17. (+) Margen deseado (${productForm.margen}%)`} value={fmtBs(currentCalc.precioVentaBs - currentCalc.puntoEquilibrio) + ' Bs'} type="cost" />
+                    <BR label={`17. (+) Margen sobre producto (${productForm.margen}%) = ${fmtUSD(currentCalc.margenUSDsobreProducto)}`} value={fmtBs(currentCalc.margenUSDsobreProducto * currentCalc.tasaEfectivaP2P) + ' Bs'} type="cost" />
                     <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg p-3 border border-emerald-200 mt-1">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-bold text-emerald-800">18. ═══ PRECIO DE VENTA REC. Bs</span>
@@ -952,7 +924,7 @@ export default function Home() {
                       </div>
                     </div>
                     <BR label="19. En USD (BCV)" value={fmtUSD(currentCalc.precioVentaUSD)} type="sub" />
-                    <BR label="20. Ganancia real por unidad" value={`${fmtBs(currentCalc.gananciaUnitBs)} Bs / ${fmtUSD(currentCalc.gananciaUnitUSD)}`} type={currentCalc.gananciaUnitBs >= 0 ? 'profit' : 'loss'} />
+                    <BR label="20. Ganancia por unidad" value={fmtUSD(currentCalc.gananciaUnitUSD)} type={currentCalc.gananciaUnitBs >= 0 ? 'profit' : 'loss'} />
                     <div className={`flex items-center gap-2 p-2.5 rounded-lg border mt-2 ${
                       currentCalc.cubreBrecha
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
@@ -1037,7 +1009,7 @@ export default function Home() {
                             {p.metodoPago === 'banco' ? 'Banco' : 'USDT'}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-right text-slate-700">{fmtUSD(calc.costoFOBTotal)}</td>
+                        <td className="px-3 py-3 text-right text-slate-700">{fmtUSD(calc.costoFOBporUnidad)}</td>
                         <td className="px-3 py-3 text-right font-semibold text-slate-800">{fmtBs(calc.costoRealPorUnidadBs)} Bs</td>
                         <td className="px-3 py-3 text-right font-semibold text-teal-700">{fmtBs(calc.precioVentaBs)} Bs</td>
                         <td className="px-3 py-3 text-right">
@@ -1430,14 +1402,16 @@ function CfgField({
   );
 }
 
-function BR({ label, value, type = 'base' }: { label: string; value: string; type?: 'base' | 'cost' | 'sub' | 'total' | 'rate' | 'profit' | 'loss' }) {
+function BR({ label, value, type = 'base' }: { label: string; value: string; type?: 'base' | 'cost' | 'sub' | 'sub-bold' | 'total' | 'rate' | 'profit' | 'loss' | 'gain' }) {
   const styles: Record<string, string> = {
     base: 'text-slate-500',
     cost: 'text-slate-600 bg-slate-50/50 -mx-2 px-2 rounded',
     sub: 'font-semibold text-slate-800',
+    'sub-bold': 'font-bold text-slate-900 border-t border-slate-200 pt-2 mt-1',
     total: 'font-bold text-slate-900 border-t border-slate-200 pt-2 mt-1',
     rate: 'text-amber-700 font-semibold bg-amber-50 -mx-2 px-2 rounded',
     profit: 'text-emerald-600 font-semibold',
+    gain: 'text-emerald-600 font-semibold',
     loss: 'text-red-500 font-semibold',
   };
   return (
@@ -1566,25 +1540,25 @@ function ReceiptModal({
 
             {/* Logistics */}
             <div className="section-title">Logística Internacional</div>
-            <RRow label={`Flete (${calc.fleteDetalle})`} value={fmtUSD(calc.fleteInternacional)} />
+            <RRow label={`Flete (${fmtUSD(calc.fleteTotalUSD)} / ${calc.cantidad} und)`} value={fmtUSD(calc.fletePorUnidadUSD) + ' c/u'} />
             <RRow label={`Seguro (${config.seguroCarga}%)`} value={fmtUSD(calc.seguroCarga)} />
-            <RRow label={`Import2Ven (${product.pesoKg}kg)`} value={fmtUSD(calc.courierImport2Ven)} />
-            <RRow label="COSTO FOB TOTAL" value={fmtUSD(calc.costoFOBTotal)} bold total />
+            <RRow label={`Import2Ven (${fmtUSD(calc.courierImport2VenUSD)} / ${calc.cantidad} und)`} value={fmtUSD(calc.cantidad > 0 ? calc.courierImport2VenUSD / calc.cantidad : 0)} />
+            <RRow label="COSTO FOB POR UNIDAD" value={fmtUSD(calc.costoFOBporUnidad)} bold total />
 
             {/* Exchange */}
             <div className="section-title">Conversión</div>
-            <RRow label={`Tasa ${product.metodoPago === 'usdt' ? 'Efectiva P2P' : 'Banco'}`} value={`${fmtBs(calc.tasaEfectivaP2P)} Bs/$`} />
-            <RRow label="Costo convertido" value={fmtBs(calc.costoConvertidoBs) + ' Bs'} bold />
-            <RRow label="Courier nacional" value={fmtBs(calc.courierNacionalBs) + ' Bs'} />
+            <RRow label={`Tasa ${product.metodoPago === 'usdt' ? 'USDT→Zinli' : 'Banco'}`} value={`${fmtBs(calc.tasaEfectivaP2P)} Bs/$`} />
+            <RRow label="Costo FOB por unidad Bs" value={fmtBs(calc.costoFOBporUnidadBs) + ' Bs'} bold />
+            <RRow label={`Courier nacional (${fmtUSD(calc.courierNacionalUSD)} / ${calc.cantidad} und)`} value={fmtBs(calc.courierNacionalPorUnidadBs) + ' Bs'} />
             <RRow label="COSTO ATERRIZAJE" value={fmtBs(calc.costoAterrizajeBs) + ' Bs'} bold total />
 
             {/* OPEX */}
             <div className="section-title">OPEX</div>
-            <RRow label="Internet" value={fmtUSD(config.opexInternet)} />
-            <RRow label="Publicidad" value={fmtUSD(config.opexPublicidad)} />
-            <RRow label="Empaques" value={fmtUSD(config.opexEmpaques)} />
-            <RRow label="Delivery" value={fmtUSD(config.opexDelivery)} />
-            <RRow label="OPEX Total" value={fmtUSD(calc.opexTotalUSD)} bold />
+            <RRow label={`Internet (${fmtUSD(calc.opexInternetMensual)} mens / ${calc.cantidad} und)`} value={fmtUSD(calc.opexInternetPorUnidad)} />
+            <RRow label={`Publicidad (${fmtUSD(calc.opexPublicidadMensual)} mens / ${calc.cantidad} und)`} value={fmtUSD(calc.opexPublicidadPorUnidad)} />
+            <RRow label="Empaques" value={fmtUSD(calc.opexEmpaquesPorUnidad)} />
+            <RRow label="Delivery" value={fmtUSD(calc.opexDeliveryPorUnidad)} />
+            <RRow label="OPEX Total" value={fmtUSD(calc.opexTotalPorUnidadUSD)} bold />
             <RRow label="COSTO OPERATIVO" value={fmtBs(calc.costoTotalOperativoBs) + ' Bs'} bold total />
 
             {/* Risk */}
