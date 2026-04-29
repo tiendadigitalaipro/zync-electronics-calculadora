@@ -37,6 +37,8 @@ import {
   Weight,
   Ruler,
   RotateCcw,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -344,6 +346,14 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('calculator');
   const [currency, setCurrency] = useState<CurrencyDisplay>('Bs');
   const [configOpen, setConfigOpen] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const saved = localStorage.getItem('importcalc_darkmode');
+      if (saved !== null) return saved === 'true';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch { return false; }
+  });
   const [showSalesModal, setShowSalesModal] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [saleForm, setSaleForm] = useState<Omit<Sale, 'id'>>({
@@ -370,6 +380,16 @@ export default function Home() {
   useEffect(() => {
     try { localStorage.setItem('importcalc_sales', JSON.stringify(sales)); } catch { /* */ }
   }, [sales]);
+
+  // Dark mode effect
+  useEffect(() => {
+    try { localStorage.setItem('importcalc_darkmode', String(darkMode)); } catch { /* */ }
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   // ─── Current calculation ─────────────────────────────────────────────
   const currentCalc = useMemo(
@@ -481,6 +501,13 @@ export default function Home() {
               />
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                title={darkMode ? 'Modo Claro' : 'Modo Oscuro'}
+              >
+                {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+              </button>
               <button
                 onClick={() => setCurrency(currency === 'Bs' ? 'USD' : 'Bs')}
                 className="px-3 py-1.5 rounded-lg bg-white/10 text-xs sm:text-sm font-medium hover:bg-white/20 transition-colors"
