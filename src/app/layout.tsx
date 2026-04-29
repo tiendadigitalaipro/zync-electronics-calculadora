@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ImportCalc VE | Calculadora de Costos de Importación",
-  description: "Calculadora profesional de costos de importación para importadores venezolanos. Calcula el costo real, márgenes y brecha cambiaria.",
+  title: "ZYNC ELECTRONICS | Calculadora Profesional de Importación",
+  description: "ZYNC ELECTRONICS - Calculadora profesional de costos de importación. Calcula el precio de venta real, márgenes, brecha cambiaria y todos los costos ocultos de la cadena China→Venezuela.",
   icons: {
     icon: "/favicon.ico",
   },

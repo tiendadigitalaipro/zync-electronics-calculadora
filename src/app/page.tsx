@@ -473,13 +473,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-teal-500/20 flex items-center justify-center">
-                <Calculator className="w-5 h-5 text-teal-400" />
-              </div>
-              <div>
-                <h1 className="text-base sm:text-lg font-bold leading-tight tracking-tight">ImportCalc VE</h1>
-                <p className="text-[10px] sm:text-xs text-slate-400 leading-tight">Calculadora Profesional de Importación</p>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/zync-logo.png"
+                alt="ZYNC ELECTRONICS"
+                className="h-10 sm:h-12 w-auto rounded-md"
+              />
             </div>
             <div className="flex items-center gap-2">
               <button
