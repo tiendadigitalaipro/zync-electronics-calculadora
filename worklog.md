@@ -82,3 +82,37 @@ Stage Summary:
 - Professional blue/teal/dark theme suitable for business use
 - All UI text in Spanish, all monetary values in Venezuelan format
 - Real-time calculation as user types
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Upgrade ImportCalc VE with ALL advanced modules (professional import cost engineering)
+
+Work Log:
+- Completely rewrote `src/app/page.tsx` (~1100 lines) with 9 new advanced modules:
+  - **Costo de Origen (Origin Cost)**: Added IVA China (13% default) applied to product cost. Configurable in settings.
+  - **Logística Internacional (International Logistics)**: Upgraded freight to support calculation by CBM (L×W×H/1000000) OR by weight (kg), auto-selects whichever is more expensive. Added Seguro de Carga (1.5% default) and Courier Import2Ven handling ($2/kg default). Product form now includes dimension fields (L/W/H cm).
+  - **Fricción Financiera P2P (Financial Friction)**: Added Spread compra USDT (1.5% default). Calculates "Tasa Efectiva P2P" — the REAL exchange rate after all P2P friction using formula: `tasaUSDT × (1 + spread/100) × (1 + comisionUSDTZinli/100) × (1 + comisionZinli/100)`. Displays prominently throughout the app.
+  - **Gastos Operativos OPEX**: New section with 4 configurable per-unit costs — Internet/Galanet ($0.50), Publicidad ($1.00), Empaques ($0.30), Delivery local ($1.50).
+  - **Factor de Riesgo y Garantía**: Added Merma (defective units, 3% default). Formula distributes cost of defective units across sellable ones: `costo_total / (cantidad × (1 - merma/100))`.
+  - **Updated Config Panel**: Reorganized into 6 labeled sections — Tasas de Cambio, Comisiones P2P, Logística Internacional, Impuestos, OPEX por unidad, Factor de Riesgo. All with section headers and icons. Shows "Tasa Efectiva Real P2P" prominently with warning that the real rate differs from nominal.
+  - **21-Step Cost Breakdown**: Complete professional breakdown from origin cost through to sale price. Sections: Costo de Origen (3 lines), Logística Internacional (4 lines), Conversión Cambiaria (3 lines), Aterrizaje Nacional (2 lines), OPEX (6 lines), Factor de Riesgo (2 lines), COSTO REAL POR UNIDAD, Precio de Venta (6 lines). Footer shows Tasa Efectiva Real.
+  - **Professional Receipt Modal**: "Ver Recibo Profesional" button opens a receipt modal with dashed borders, company header, line-by-line breakdown, color-coded totals, tasa efectiva box, brecha indicator, and print button that opens a clean print window.
+  - **Updated Product Form**: Added dimension fields (L × W × H cm) with auto CBM calculation display. Shows which freight method is selected (peso vs volumen) and why.
+- Updated `src/app/globals.css`: Added receipt box styles for the professional receipt view.
+- New Config fields: spreadUSDT, fleteKg, fleteCBM, seguroCarga, courierImport2Ven, ivaChina, opexInternet, opexPublicidad, opexEmpaques, opexDelivery, merma (11 new fields)
+- New Product fields: dimL, dimW, dimH (3 new fields)
+- New CalcResult fields: All intermediate calculation values for the 21-step breakdown
+- localStorage keys updated to v2 to avoid conflicts with old format
+- Removed all unused imports (ArrowRight, etc.), cleaned up unused variables
+- ESLint passes with zero errors
+
+Stage Summary:
+- 2 files modified: page.tsx (complete rewrite), globals.css (receipt styles added)
+- 9 new advanced modules fully implemented
+- 21-step professional cost breakdown with all Venezuelan import engineering factors
+- Tasa Efectiva P2P prominently displayed as the key financial insight
+- Professional receipt modal with print functionality
+- Config panel reorganized into 6 logical sections with 18 total configurable fields
+- All text in Spanish, all values in Venezuelan Bs format
+- Mobile responsive, print friendly
