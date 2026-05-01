@@ -1,1 +1,5 @@
-const nextConfig={output:'export',basePath:'/zync-electronics-calculadora',images:{unoptimized:true}};module.exports=nextConfig;
+const nextConfig = {
+  images: { unoptimized: true },
+  output: 'standalone'
+};
+module.exports = nextConfig;
