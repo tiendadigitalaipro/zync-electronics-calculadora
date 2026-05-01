@@ -98,6 +98,8 @@ export default function ZyncSuite() {
   const [inv, setInv] = useState<InvEntry[]>(JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('zync_inv') || '[]' : '[]'))
   const [sales, setSales] = useState<SaleRecord[]>(JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('zync_sales') || '[]' : '[]'))
   const [newProd, setNewProd] = useState({ name: '', qty: '', fob: '' })
+  const [editId, setEditId] = useState<number | null>(null)
+  const [editData, setEditData] = useState({ name: '', qty: '', fob: '' })
 
   // --- Helpers ---
   const v = (k: keyof Form) => parseFloat(f[k]) || 0
@@ -204,6 +206,32 @@ export default function ZyncSuite() {
     setInv(updated)
     localStorage.setItem('zync_inv', JSON.stringify(updated))
     setNewProd({ name: '', qty: '', fob: '' })
+  }
+
+  const startEdit = (e: InvEntry) => {
+    setEditId(e.id)
+    setEditData({ name: e.product, qty: e.qty.toString(), fob: e.fobCost.toString() })
+  }
+
+  const saveEdit = () => {
+    if (editId === null) return
+    const name = editData.name.trim()
+    const qty = parseInt(editData.qty) || 0
+    const fob = parseFloat(editData.fob) || 0
+    if (!name || qty <= 0 || fob <= 0) { toast('Completa todos los campos correctamente', 'err'); return }
+    const updated = inv.map(e => e.id === editId ? { ...e, product: name, qty, fobCost: fob } : e)
+    setInv(updated)
+    localStorage.setItem('zync_inv', JSON.stringify(updated))
+    setEditId(null)
+    toast('Producto actualizado correctamente')
+  }
+
+  const deleteInv = (id: number, name: string) => {
+    if (!window.confirm(`¿Eliminar "${name}" del inventario?\nEsta accion no se puede deshacer.`)) return
+    const updated = inv.filter(e => e.id !== id)
+    setInv(updated)
+    localStorage.setItem('zync_inv', JSON.stringify(updated))
+    toast('Producto eliminado del inventario')
   }
 
   const recordSale = (invId: number) => {
@@ -716,7 +744,7 @@ export default function ZyncSuite() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                     <thead>
                       <tr>
-                        {['Producto', 'Cantidad', 'Vendidos', 'Disponible', 'Costo FOB', 'Inversion', 'Merma 3%', 'Fecha', 'Accion'].map(h => (
+                        {['Producto', 'Cantidad', 'Vendidos', 'Disponible', 'Costo FOB', 'Inversion', 'Merma 3%', 'Fecha', 'ACCIONES'].map(h => (
                           <th key={h} style={{
                             padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700,
                             letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase',
@@ -740,11 +768,37 @@ export default function ZyncSuite() {
                             <td style={{ padding: '12px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
                             <td style={{ padding: '12px 14px', fontSize: 11, color: C.textMuted }}>{e.date}</td>
                             <td style={{ padding: '12px 14px' }}>
-                              <button onClick={() => recordSale(e.id)} style={{
-                                padding: '5px 12px', border: `1px solid ${C.green}40`, borderRadius: 6,
-                                background: `${C.green}10`, color: C.green, fontSize: 11, fontWeight: 700,
-                                cursor: 'pointer', fontFamily: 'var(--font-body)'
-                              }}>Vender</button>
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <button onClick={() => recordSale(e.id)} style={{
+                                  padding: '5px 10px', border: `1px solid ${C.green}40`, borderRadius: 6,
+                                  background: `${C.green}10`, color: C.green, fontSize: 11, fontWeight: 700,
+                                  cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
+                                }}>Vender</button>
+                                <button onClick={() => startEdit(e)} title="Editar producto" style={{
+                                  padding: '6px 8px', border: `1px solid rgba(212,175,55,0.35)`, borderRadius: 6,
+                                  background: 'rgba(212,175,55,0.08)', color: C.goldLight,
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1,
+                                  transition: 'all 0.2s'
+                                }}>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                  </svg>
+                                </button>
+                                <button onClick={() => deleteInv(e.id, e.product)} title="Eliminar producto" style={{
+                                  padding: '6px 8px', border: `1px solid rgba(248,113,113,0.35)`, borderRadius: 6,
+                                  background: 'rgba(248,113,113,0.08)', color: C.red,
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1,
+                                  transition: 'all 0.2s'
+                                }}>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                    <path d="M10 11v6M14 11v6"/>
+                                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                                  </svg>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         )
@@ -950,6 +1004,93 @@ export default function ZyncSuite() {
           </div>
         )}
       </main>
+
+      {/* ============ EDIT MODAL ============ */}
+      {editId !== null && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(6,6,10,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }} onClick={() => setEditId(null)}>
+          <div style={{
+            ...card, width: '100%', maxWidth: 460, margin: '0 24px',
+            border: `1px solid rgba(212,175,55,0.3)`,
+            boxShadow: `0 0 80px rgba(212,175,55,0.1), 0 24px 64px rgba(0,0,0,0.6)`,
+            animation: 'fadeUp 0.25s ease-out'
+          }} onClick={ev => ev.stopPropagation()}>
+            {/* Modal Header */}
+            <div style={{ ...cardHead, borderBottom: `1px solid rgba(212,175,55,0.2)` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(212,175,55,0.12)', border: `1px solid rgba(212,175,55,0.25)`
+                }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.goldLight} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: C.goldLight }}>Editar Producto</div>
+                  <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginTop: 1 }}>Corrige nombre, stock o precios</div>
+                </div>
+              </div>
+              <button onClick={() => setEditId(null)} style={{
+                background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.textMuted,
+                fontSize: 14, cursor: 'pointer', padding: '4px 8px', lineHeight: 1, transition: 'all 0.2s'
+              }}>✕</button>
+            </div>
+            {/* Modal Body */}
+            <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={label}>Nombre del Producto</label>
+                <input
+                  type="text"
+                  value={editData.name}
+                  onChange={ev => setEditData(p => ({ ...p, name: ev.target.value }))}
+                  style={{ ...inp, borderColor: editData.name ? 'rgba(212,175,55,0.3)' : C.border }}
+                  autoFocus
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={label}>Cantidad (unidades)</label>
+                  <input
+                    type="number"
+                    value={editData.qty}
+                    onChange={ev => setEditData(p => ({ ...p, qty: ev.target.value }))}
+                    style={inp} step="1" min="0"
+                  />
+                </div>
+                <div>
+                  <label style={label}>Costo FOB (USD)</label>
+                  <input
+                    type="number"
+                    value={editData.fob}
+                    onChange={ev => setEditData(p => ({ ...p, fob: ev.target.value }))}
+                    style={inp} step="0.01" min="0"
+                  />
+                </div>
+              </div>
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
+                <button onClick={() => setEditId(null)} style={{
+                  padding: '10px 20px', border: `1px solid ${C.border}`, borderRadius: 8,
+                  background: 'transparent', color: C.textSec, fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.2s'
+                }}>Cancelar</button>
+                <button onClick={saveEdit} style={{
+                  padding: '10px 28px', border: 'none', borderRadius: 8,
+                  background: `linear-gradient(135deg,${C.goldDark},${C.gold})`,
+                  color: '#0a0a0f', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'var(--font-body)',
+                  boxShadow: `0 4px 16px rgba(212,175,55,0.25)`
+                }}>Guardar Cambios</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============ FOOTER ============ */}
       <footer style={{
