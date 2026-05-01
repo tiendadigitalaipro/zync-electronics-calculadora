@@ -1,166 +1,969 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, CartesianGrid
+} from 'recharts'
 
-interface ExchangeRates { bcv: number; usdt: number; p2p: number }
-interface ProductForm { costUSD: string; quantity: string; length: string; width: string; height: string; weight: string }
+// ============================================================
+// TYPES
+// ============================================================
+interface Rates { bcv: number; usdt: number; p2p: number }
+interface Form {
+  costUSD: string; quantity: string; length: string; width: string; height: string; weight: string
+  insuranceR: string; arancelR: string; iceR: string; ivaR: string
+  cbmRate: string; fixedCosts: string
+  galanetUsd: string; adUsd: string; packagingUsd: string; deliveryUsd: string
+  marginR: string; shippingBs: string
+}
+interface InvEntry { id: number; product: string; qty: number; fobCost: number; sold: number; mermaR: number; date: string }
+interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string }
 
-const fmtUSD = (v: number) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}).format(v)
+// ============================================================
+// FORMATTERS
+// ============================================================
+const fUSD = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v)
+const fBs = (v: number) => {
+  const [i, d] = v.toFixed(2).split('.')
+  return i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + d + ' Bs'
+}
+const fNum = (v: number, dec = 2) => v.toFixed(dec)
 
-const fmtVE = (v: number) => {
-  const [i,d] = v.toFixed(2).split('.')
-  return i.replace(/\B(?=(\d{3})+(?!\d))/g,'.') + ',' + d + ' Bs'
+// ============================================================
+// COLORS
+// ============================================================
+const C = {
+  gold: '#D4AF37', goldLight: '#E8CC6E', goldPale: '#F7E7CE', goldDark: '#B8962E',
+  bgPrimary: '#06060a', bgSecondary: '#0e0e16', bgCard: '#111119', bgCardHover: '#16161f',
+  bgInput: '#0b0b12', bgElevated: '#14141e',
+  border: '#1c1c2c', borderActive: '#2a2a3e', borderGold: 'rgba(212,175,55,0.25)',
+  text: '#eaeaf2', textSec: '#8a8aa4', textMuted: '#55556a',
+  goldGlow: 'rgba(212,175,55,0.08)',
+  green: '#4ADE80', blue: '#60A5FA', orange: '#FB923C', red: '#F87171', cyan: '#22D3EE', purple: '#A78BFA'
 }
 
-function Corner({p}:{p:'tl'|'tr'|'bl'|'br'}) {
-  const s:Record<string,React.CSSProperties> = {
-    tl:{top:0,left:0,borderTop:'2px solid #D4AF37',borderLeft:'2px solid #D4AF37',borderTopLeftRadius:'10px'},
-    tr:{top:0,right:0,borderTop:'2px solid #D4AF37',borderRight:'2px solid #D4AF37',borderTopRightRadius:'10px'},
-    bl:{bottom:0,left:0,borderBottom:'2px solid #D4AF37',borderLeft:'2px solid #D4AF37',borderBottomLeftRadius:'10px'},
-    br:{bottom:0,right:0,borderBottom:'2px solid #D4AF37',borderRight:'2px solid #D4AF37',borderBottomRightRadius:'10px'}
-  }
-  return <div style={{position:'absolute',width:'18px',height:'18px',...s[p]}}/>
+const inp: React.CSSProperties = {
+  width: '100%', background: C.bgInput, border: `1px solid ${C.border}`,
+  borderRadius: 8, padding: '10px 12px', color: C.text, fontSize: 14,
+  fontWeight: 600, outline: 'none', transition: 'border-color 0.2s', fontFamily: 'var(--font-body)'
 }
 
-export default function Calc() {
-  const [dark, setDark] = useState(true)
-  const [rates, setRates] = useState<ExchangeRates>({bcv:78,usdt:78.5,p2p:681.69})
-  const [form, setForm] = useState<ProductForm>({costUSD:'',quantity:'',length:'',width:'',height:'',weight:''})
+const card: React.CSSProperties = {
+  background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden'
+}
 
-  const chRate = useCallback((k:keyof ExchangeRates,v:string)=>{
-    const n=parseFloat(v)
-    if(!isNaN(n)&&n>=0) setRates(p=>({...p,[k]:n}))
-    else if(v==='') setRates(p=>({...p,[k]:0}))
-  },[])
+const cardHead: React.CSSProperties = {
+  padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex',
+  alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.006)'
+}
 
-  const chForm = useCallback((k:keyof ProductForm,v:string)=>{
-    if(v===''||/^\d*\.?\d*$/.test(v)) setForm(p=>({...p,[k]:v}))
-  },[])
+const cardBody: React.CSSProperties = { padding: 20 }
 
-  const cbm = useMemo(()=>{
-    const l=parseFloat(form.length)||0, w=parseFloat(form.width)||0, h=parseFloat(form.height)||0
-    return (l&&w&&h) ? (l*w*h)/1000000 : 0
-  },[form.length,form.width,form.height])
+const label: React.CSSProperties = {
+  display: 'block', fontSize: 10, fontWeight: 700, color: C.textMuted,
+  marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.8px'
+}
 
-  const calc = useMemo(()=>{
-    const c=parseFloat(form.costUSD)||0, q=parseInt(form.quantity)||0
-    const cif=c*q, seg=cif*0.015, ar=cif*0.15, ice=cif*0.10
-    const iva=(cif+ar+ice)*0.16, ti=seg+ar+ice+iva, cf=15
-    const total=cif+ti+cf, pv=total*1.30, pvebs=pv*rates.p2p
-    return {cif,seg,ar,ice,iva,ti,cf,total,pv,pvebs,ok:c>0&&q>0}
-  },[form.costUSD,form.quantity,rates.p2p])
+const secTitle: React.CSSProperties = {
+  fontSize: 10, fontWeight: 700, letterSpacing: 2, color: C.goldDark,
+  textTransform: 'uppercase', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8
+}
 
-  const th = dark ? 'dark' : 'light'
-  const S = (s:React.CSSProperties)=>({...s})
-  const cardBg = 'var(--bg-secondary)'
-  const inp = (extra={}:React.CSSProperties):React.CSSProperties=>({
-    width:'100%',background:'var(--bg-input)',border:'1px solid var(--border-color)',
-    borderRadius:'8px',padding:'10px 12px',color:'var(--text-primary)',fontSize:'15px',
-    fontWeight:600,outline:'none',transition:'border-color 0.2s',...extra
+const PIE_COLORS = [C.gold, C.blue, C.green, C.orange, C.red, C.cyan, C.purple]
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+export default function ZyncSuite() {
+  const [tab, setTab] = useState<'calc' | 'inv' | 'dash'>('calc')
+
+  // --- Rates ---
+  const [rates, setRates] = useState<Rates>({
+    bcv: parseFloat(typeof window !== 'undefined' ? localStorage.getItem('zync_r_bcv') || '78.50' : '78.50'),
+    usdt: parseFloat(typeof window !== 'undefined' ? localStorage.getItem('zync_r_usdt') || '85.30' : '85.30'),
+    p2p: parseFloat(typeof window !== 'undefined' ? localStorage.getItem('zync_r_p2p') || '681.69' : '681.69')
+  })
+  const [activeRate, setActiveRate] = useState<'bcv' | 'usdt' | 'p2p'>((typeof window !== 'undefined' ? localStorage.getItem('zync_ar') : null) as any || 'p2p')
+
+  // --- Form ---
+  const [f, setF] = useState<Form>({
+    costUSD: '', quantity: '1', length: '', width: '', height: '', weight: '',
+    insuranceR: '1.5', arancelR: '15', iceR: '10', ivaR: '16',
+    cbmRate: '250', fixedCosts: '15',
+    galanetUsd: '34', adUsd: '15', packagingUsd: '3', deliveryUsd: '5',
+    marginR: '30', shippingBs: '0'
   })
 
+  // --- Inventory ---
+  const [inv, setInv] = useState<InvEntry[]>(JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('zync_inv') || '[]' : '[]'))
+  const [sales, setSales] = useState<SaleRecord[]>(JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('zync_sales') || '[]' : '[]'))
+  const [newProd, setNewProd] = useState({ name: '', qty: '', fob: '' })
+
+  // --- Helpers ---
+  const v = (k: keyof Form) => parseFloat(f[k]) || 0
+  const chF = (k: keyof Form, val: string) => { if (val === '' || /^\d*\.?\d*$/.test(val)) setF(p => ({ ...p, [k]: val })) }
+  const chRate = (k: keyof Rates, val: string) => {
+    const n = parseFloat(val)
+    if (!isNaN(n) && n >= 0) { setRates(p => ({ ...p, [k]: n })); localStorage.setItem(`zync_r_${k}`, val) }
+  }
+  const selRate = (k: 'bcv' | 'usdt' | 'p2p') => { setActiveRate(k); localStorage.setItem('zync_ar', k) }
+  const rate = rates[activeRate]
+  const p2p = rates.p2p
+
+  // ============================================================
+  // CBM
+  // ============================================================
+  const cbm = useMemo(() => {
+    const l = v('length'), w = v('width'), h = v('height')
+    return (l && w && h) ? (l * w * h) / 1000000 : 0
+  }, [f.length, f.width, f.height])
+
+  // ============================================================
+  // BRECHA CAMBIARIA & FRICCION P2P
+  // ============================================================
+  const brecha = useMemo(() => {
+    const spread = p2p * 0.015 // 1.5% spread
+    const comisionUSDT = 2.5 // USD fijo approx por conversion USDT→Zinli
+    const tasaNeta = p2p - spread
+    const friccion = spread + (comisionUSDT * p2p / p2p) // simplificado
+    return { spread, comisionUSDT, tasaNeta, friccion, tasaBruta: p2p }
+  }, [p2p])
+
+  // ============================================================
+  // CALCULATION ENGINE — 9 LINEAS
+  // ============================================================
+  const calc = useMemo(() => {
+    const c = v('costUSD'), q = parseInt(f.quantity) || 1
+    if (c <= 0) return null
+
+    // Por unidad
+    const cifUnit = c
+    const insurance = cifUnit * (v('insuranceR') / 100)
+    const arancel = cifUnit * (v('arancelR') / 100)
+    const ice = cifUnit * (v('iceR') / 100)
+    const ivaBase = cifUnit + arancel + ice
+    const iva = ivaBase * (v('ivaR') / 100)
+    const totalTaxes = insurance + arancel + ice + iva
+    const freight = cbm > 0 ? (cbm * v('cbmRate')) / q : 0
+    const fixedPerUnit = v('fixedCosts')
+
+    // OPEX por unidad
+    const galanetPerUnit = v('galanetUsd')
+    const adPerUnit = v('adUsd')
+    const packagingPerUnit = v('packagingUsd')
+    const deliveryPerUnit = v('deliveryUsd')
+    const totalOpex = galanetPerUnit + adPerUnit + packagingPerUnit + deliveryPerUnit
+
+    const costBase = cifUnit + totalTaxes + freight + fixedPerUnit + totalOpex
+    const margin = v('marginR')
+
+    // Galanet es % del precio de venta → formula iterativa
+    const galanetPct = 2.5
+    const sellingPrice = galanetPct > 0
+      ? (costBase * (1 + margin / 100)) / (1 - galanetPct / 100)
+      : costBase * (1 + margin / 100)
+    const galanetCalc = sellingPrice * (galanetPct / 100)
+
+    const totalUnit = cifUnit + totalTaxes + freight + fixedPerUnit + galanetCalc + totalOpex
+    const totalWithMargin = totalUnit * (1 + margin / 100)
+
+    // Correccion con Galanet %
+    const finalPrice = galanetPct > 0
+      ? (totalUnit * (1 + margin / 100)) / (1 - galanetPct / 100)
+      : totalWithMargin
+
+    const finalGalanet = finalPrice * (galanetPct / 100)
+    const profitPerUnit = finalPrice - totalUnit
+    const profitPct = totalUnit > 0 ? (profitPerUnit / totalUnit) * 100 : 0
+
+    return {
+      cifUnit, insurance, arancel, ice, iva, totalTaxes,
+      freight, fixedPerUnit, galanetCalc: finalGalanet,
+      adPerUnit, packagingPerUnit, deliveryPerUnit, totalOpex,
+      costBase, totalUnit, finalPrice, profitPerUnit, profitPct,
+      sellingBs: finalPrice * rate,
+      sellingBsP2P: finalPrice * p2p,
+      gap: ((p2p - rate) / rate) * 100,
+      q
+    }
+  }, [f, rates, activeRate, cbm])
+
+  // ============================================================
+  // INVENTORY LOGIC
+  // ============================================================
+  const addInv = () => {
+    const name = newProd.name.trim()
+    const qty = parseInt(newProd.qty) || 0
+    const fob = parseFloat(newProd.fob) || 0
+    if (!name || qty <= 0 || fob <= 0) return
+    const entry: InvEntry = {
+      id: Date.now(), product: name, qty, fobCost: fob, sold: 0, mermaR: 3,
+      date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
+    const updated = [entry, ...inv]
+    setInv(updated)
+    localStorage.setItem('zync_inv', JSON.stringify(updated))
+    setNewProd({ name: '', qty: '', fob: '' })
+  }
+
+  const recordSale = (invId: number) => {
+    const qty = parseInt(prompt('Cantidad vendida:') || '0')
+    if (qty <= 0) return
+    const price = parseFloat(prompt('Precio de venta USD por unidad:') || '0')
+    if (price <= 0) return
+
+    setInv(prev => prev.map(e => {
+      if (e.id === invId) {
+        const newSold = e.sold + qty
+        if (newSold > e.qty) return e
+        return { ...e, sold: newSold }
+      }
+      return e
+    }))
+
+    const sale: SaleRecord = {
+      id: Date.now(), invId, qty, priceUSD: price,
+      date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    }
+    const updatedSales = [sale, ...sales]
+    setSales(updatedSales)
+    localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+  }
+
+  // ============================================================
+  // DASHBOARD DATA
+  // ============================================================
+  const dashData = useMemo(() => {
+    // OPEX breakdown pie
+    const opexPie = [
+      { name: 'Internet Galanet', value: v('galanetUsd'), color: C.gold },
+      { name: 'Publicidad', value: v('adUsd'), color: C.blue },
+      { name: 'Empaques', value: v('packagingUsd'), color: C.green },
+      { name: 'Delivery', value: v('deliveryUsd'), color: C.orange },
+    ].filter(x => x.value > 0)
+
+    // Cost breakdown bar
+    const costBar = calc ? [
+      { name: 'CIF', value: calc.cifUnit },
+      { name: 'Impuestos', value: calc.totalTaxes },
+      { name: 'Flete CBM', value: calc.freight },
+      { name: 'Galanet', value: calc.galanetCalc },
+      { name: 'OPEX', value: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit },
+      { name: 'Ganancia', value: calc.profitPerUnit },
+    ] : []
+
+    // Inventory summary
+    const totalInvCost = inv.reduce((s, e) => s + (e.qty * e.fobCost), 0)
+    const totalSold = inv.reduce((s, e) => s + e.sold, 0)
+    const totalRevenue = sales.reduce((s, r) => s + (r.qty * r.priceUSD), 0)
+    const totalCOGS = sales.reduce((s, r) => {
+      const entry = inv.find(e => e.id === r.invId)
+      return s + (r.qty * (entry?.fobCost || 0))
+    }, 0)
+    const grossProfit = totalRevenue - totalCOGS
+    const totalMerma = inv.reduce((s, e) => {
+      const mermaQty = Math.round(e.qty * (e.mermaR / 100))
+      return s + mermaQty
+    }, 0)
+
+    // Brecha chart
+    const brechaBar = [
+      { name: 'BCV', value: rates.bcv },
+      { name: 'USDT', value: rates.usdt },
+      { name: 'P2P Efectivo', value: rates.p2p },
+    ]
+
+    return { opexPie, costBar, totalInvCost, totalSold, totalRevenue, grossProfit, totalMerma, brechaBar }
+  }, [f, calc, inv, sales, rates])
+
+  // ============================================================
+  // TABS
+  // ============================================================
+  const tabs = [
+    { key: 'calc' as const, label: 'Calculadora', icon: '🧮' },
+    { key: 'inv' as const, label: 'Inventario', icon: '📦' },
+    { key: 'dash' as const, label: 'Dashboard', icon: '📊' },
+  ]
+
+  // ============================================================
+  // TOAST HELPER
+  // ============================================================
+  const toast = (msg: string, type: 'ok' | 'err' = 'ok') => {
+    // Simple toast via native notification
+    if (typeof window !== 'undefined') {
+      const el = document.createElement('div')
+      el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${type === 'ok' ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)'};border:1px solid ${type === 'ok' ? C.green : C.red};border-radius:12px;padding:14px 20px;color:${type === 'ok' ? C.green : C.red};font-size:13px;font-weight:600;font-family:var(--font-body);box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:fadeUp 0.3s ease-out;max-width:360px`
+      el.textContent = msg
+      document.body.appendChild(el)
+      setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300) }, 2500)
+    }
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
-    <div data-theme={th} style={{minHeight:'100vh',background:'var(--bg-primary)'}}>
-      <div style={{maxWidth:'520px',margin:'0 auto',padding:'20px 16px 40px'}}>
-        {/* Header */}
-        <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 0 24px'}}>
-          <div>
-            <h1 style={{fontSize:'22px',fontWeight:800,letterSpacing:'3px',color:'var(--text-primary)',lineHeight:1.1}}>ZYNC ELECTRONICS</h1>
-            <p style={{fontSize:'11px',color:'var(--text-muted)',letterSpacing:'1.5px',marginTop:'4px',textTransform:'uppercase'}}>Calculadora de Importación</p>
-          </div>
-          <button onClick={()=>setDark(!dark)} style={{width:'44px',height:'44px',borderRadius:'12px',border:'1px solid var(--border-color)',backgroundColor:cardBg,color:'var(--text-primary)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px'}}>
-            {dark?'☀️':'🌙'}
-          </button>
-        </header>
+    <div style={{ minHeight: '100vh', background: C.bgPrimary, position: 'relative', zIndex: 1 }}>
 
-        {/* Rate Cards */}
-        <section style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px',marginBottom:'24px'}}>
-          {([['bcv','BCV','Banco Central'],['usdt','USDT','Tether'],['p2p','P2P','Efectivo']] as const).map(([k,lb,sl])=>(
-            <div key={k} style={{background:cardBg,border:'1px solid var(--border-color)',borderRadius:'8px',padding:'12px 10px',textAlign:'center'}}>
-              <div style={{fontSize:'10px',fontWeight:600,letterSpacing:'1.2px',color:'var(--text-muted)',textTransform:'uppercase',marginBottom:'2px'}}>{lb}</div>
-              <div style={{fontSize:'9px',color:'var(--text-muted)',marginBottom:'8px'}}>{sl}</div>
-              <input type="number" value={rates[k as keyof ExchangeRates]} onChange={e=>chRate(k as keyof ExchangeRates,e.target.value)} style={{...inp({padding:'6px 4px',color:'var(--gold)',fontSize:'14px',textAlign:'center'})}} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-color)'} step="0.01" min="0"/>
-              <div style={{fontSize:'9px',color:'var(--text-muted)',marginTop:'3px'}}>Bs/USD</div>
-            </div>
-          ))}
-        </section>
-
-        {/* Product Form */}
-        <section style={{background:cardBg,border:'1px solid var(--border-color)',borderRadius:'12px',padding:'20px',marginBottom:'24px'}}>
-          <h2 style={{fontSize:'13px',fontWeight:700,letterSpacing:'1.5px',color:'var(--text-secondary)',textTransform:'uppercase',marginBottom:'16px',paddingBottom:'10px',borderBottom:'1px solid var(--border-color)'}}>Datos del Producto</h2>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'14px'}}>
-            <div>
-              <label style={{display:'block',fontSize:'11px',fontWeight:600,color:'var(--text-muted)',marginBottom:'6px',textTransform:'uppercase',letterSpacing:'0.8px'}}>Costo USD</label>
-              <input type="number" value={form.costUSD} onChange={e=>chForm('costUSD',e.target.value)} placeholder="0.00" style={inp()} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-color)'} step="0.01" min="0"/>
+      {/* ============ A2K DIGITAL STUDIO MEMBRETE ============ */}
+      <header style={{
+        background: 'linear-gradient(180deg, rgba(212,175,55,0.06) 0%, transparent 100%)',
+        borderBottom: `1px solid ${C.border}`,
+        position: 'sticky', top: 0, zIndex: 100,
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+      }}>
+        <div style={{
+          maxWidth: 1200, margin: '0 auto', padding: '0 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72
+        }}>
+          {/* LEFT: A2K Logo + Name */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12, overflow: 'hidden',
+              border: `2px solid ${C.gold}`, boxShadow: `0 0 16px ${C.goldDark}40`,
+              flexShrink: 0
+            }}>
+              <img src="/a2k-logo.jpeg" alt="A2K Digital Studio" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
-              <label style={{display:'block',fontSize:'11px',fontWeight:600,color:'var(--text-muted)',marginBottom:'6px',textTransform:'uppercase',letterSpacing:'0.8px'}}>Cantidad</label>
-              <input type="number" value={form.quantity} onChange={e=>chForm('quantity',e.target.value)} placeholder="0" style={inp()} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-color)'} step="1" min="0"/>
+              <div style={{
+                fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700,
+                letterSpacing: 3,
+                background: `linear-gradient(135deg, ${C.goldPale}, ${C.gold}, ${C.goldDark})`,
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                lineHeight: 1.1
+              }}>A2K DIGITAL STUDIO</div>
+              <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2, fontWeight: 600 }}>
+                Desarrollo &amp; Innovacion Digital
+              </div>
             </div>
           </div>
-          <div style={{marginBottom:'14px'}}>
-            <label style={{display:'block',fontSize:'11px',fontWeight:600,color:'var(--text-muted)',marginBottom:'6px',textTransform:'uppercase',letterSpacing:'0.8px'}}>Dimensiones (cm)</label>
-            <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr auto 1fr',gap:'6px',alignItems:'center'}}>
-              {(['length','Largo'],['width','Ancho'],['height','Alto'] as [string,string][]).map(([k,ph],i)=>(
-                <>{i>0&&<span style={{color:'var(--text-muted)',fontSize:'16px',fontWeight:300}}>×</span>}<input key={k} type="number" value={form[k as keyof ProductForm]} onChange={e=>chForm(k as keyof ProductForm,e.target.value)} placeholder={ph} style={inp({padding:'10px 8px',fontSize:'14px',textAlign:'center'})} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-color)'} step="0.1" min="0"/></>
+
+          {/* CENTER: ZYNC ELECTRONICS */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2.5, color: C.text, textTransform: 'uppercase', fontFamily: 'var(--font-display)' }}>
+              ZYNC ELECTRONICS
+            </div>
+            <div style={{
+              fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: C.goldDark,
+              textTransform: 'uppercase', marginTop: 1,
+              background: C.goldGlow,
+              padding: '2px 10px', borderRadius: 4, display: 'inline-block'
+            }}>Suite Financiera v3.0</div>
+          </div>
+
+          {/* RIGHT: Tasa P2P Badge */}
+          <div style={{
+            background: C.bgCard, border: `1px solid ${C.border}`,
+            borderRadius: 12, padding: '10px 16px', textAlign: 'center',
+            boxShadow: '0 0 20px rgba(212,175,55,0.1)'
+          }}>
+            <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: C.textMuted, textTransform: 'uppercase' }}>Tasa P2P Real</div>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
+              color: C.goldLight, lineHeight: 1.2
+            }}>{p2p.toFixed(2)}</div>
+            <div style={{ fontSize: 9, color: C.textMuted }}>Bs/$</div>
+          </div>
+        </div>
+      </header>
+
+      {/* ============ TAB NAV ============ */}
+      <nav style={{
+        maxWidth: 1200, margin: '0 auto', padding: '20px 24px 0',
+        display: 'flex', gap: 6, borderBottom: `1px solid ${C.border}`
+      }}>
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '10px 20px', border: 'none', borderRadius: `${12}px 12px 0 0`,
+            background: tab === t.key ? C.bgCard : 'transparent',
+            color: tab === t.key ? C.goldLight : C.textMuted,
+            fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase',
+            cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'var(--font-body)',
+            borderBottom: tab === t.key ? `2px solid ${C.gold}` : '2px solid transparent',
+            marginBottom: -1
+          }}>{t.icon} {t.label}</button>
+        ))}
+      </nav>
+
+      {/* ============ MAIN CONTENT ============ */}
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+
+        {/* ==================== TAB: CALCULADORA ==================== */}
+        {tab === 'calc' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, animation: 'fadeUp 0.4s ease-out' }}>
+
+            {/* --- LEFT: FORM --- */}
+            <div style={{ ...card, animation: 'fadeUp 0.4s ease-out' }}>
+              <div style={cardHead}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>📦</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Datos del Producto</span>
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.goldDark, background: 'rgba(212,175,55,0.1)', padding: '3px 8px', borderRadius: 5 }}>FORM</span>
+              </div>
+              <div style={cardBody}>
+
+                {/* Rate Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 18 }}>
+                  {([['bcv', 'BCV Oficial'], ['usdt', 'USDT'], ['p2p', 'P2P Efectivo']] as const).map(([k, lb]) => (
+                    <div key={k} onClick={() => selRate(k)} style={{
+                      background: activeRate === k ? 'rgba(212,175,55,0.06)' : C.bgInput,
+                      border: `1px solid ${activeRate === k ? C.gold : C.border}`,
+                      borderRadius: 8, padding: '10px 8px', textAlign: 'center', cursor: 'pointer',
+                      transition: 'all 0.2s', boxShadow: activeRate === k ? `0 0 12px rgba(212,175,55,0.1)` : 'none'
+                    }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>{lb}</div>
+                      <input type="number" value={rates[k]} onChange={e => chRate(k, e.target.value)} onClick={e => e.stopPropagation()}
+                        style={{ ...inp, padding: '4px 2px', color: activeRate === k ? C.goldLight : C.text, fontSize: 15, textAlign: 'center' }}
+                        step="0.01" min="0" />
+                      <div style={{ fontSize: 8, color: C.textMuted, marginTop: 2 }}>Bs/$</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Brecha Info */}
+                <div style={{ background: 'rgba(251,146,60,0.05)', border: '1px solid rgba(251,146,60,0.12)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', fontSize: 11, color: C.orange, fontWeight: 500 }}>
+                  <span style={{ fontSize: 16 }}>⚡</span>
+                  <span>Tasa Base <b>681.69</b> incluye spread 1.5%, comisiones USDT→Zinli y recargas. Brecha vs BCV: <b>{((p2p - rates.bcv) / rates.bcv * 100).toFixed(1)}%</b></span>
+                </div>
+
+                {/* Cost + Qty */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                  <div>
+                    <label style={label}>Costo Unitario (USD)</label>
+                    <input type="number" value={f.costUSD} onChange={e => chF('costUSD', e.target.value)} placeholder="0.00" style={inp} step="0.01" min="0" />
+                  </div>
+                  <div>
+                    <label style={label}>Cantidad (unidades)</label>
+                    <input type="number" value={f.quantity} onChange={e => chF('quantity', e.target.value)} placeholder="1" style={inp} step="1" min="1" />
+                  </div>
+                </div>
+
+                <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
+
+                {/* CBM MODULE */}
+                <div style={secTitle}><span>🚢</span> Modulo Maritimo CBM</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  {([['length', 'Largo (cm)'], ['width', 'Ancho (cm)'], ['height', 'Alto (cm)']] as [keyof Form, string][]).map(([k, lb]) => (
+                    <div key={k}>
+                      <label style={label}>{lb}</label>
+                      <input type="number" value={f[k]} onChange={e => chF(k, e.target.value)} placeholder="0.0" style={{ ...inp, textAlign: 'center', fontSize: 13 }} step="0.1" min="0" />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  <div>
+                    <label style={label}>CBM Calculado</label>
+                    <div style={{
+                      width: '100%', background: C.bgInput, border: `1px solid ${cbm > 0 ? 'rgba(212,175,55,0.2)' : C.border}`,
+                      borderRadius: 8, padding: '10px 12px', fontSize: 14, fontWeight: 700,
+                      color: cbm > 0 ? C.goldLight : C.textMuted, textAlign: 'center'
+                    }}>{cbm > 0 ? cbm.toFixed(6) : '0.000000'} m³</div>
+                  </div>
+                  <div>
+                    <label style={label}>Peso (kg)</label>
+                    <input type="number" value={f.weight} onChange={e => chF('weight', e.target.value)} placeholder="0.0" style={inp} step="0.1" min="0" />
+                  </div>
+                  <div>
+                    <label style={label}>Tarifa Flete (USD/m³)</label>
+                    <input type="number" value={f.cbmRate} onChange={e => chF('cbmRate', e.target.value)} style={inp} step="1" min="0" />
+                  </div>
+                </div>
+                <div>
+                  <label style={label}>Costos Fijos Importacion (USD)</label>
+                  <input type="number" value={f.fixedCosts} onChange={e => chF('fixedCosts', e.target.value)} style={inp} step="0.01" min="0" />
+                </div>
+
+                <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
+
+                {/* TAXES */}
+                <div style={secTitle}><span>💰</span> Impuestos y Porcentajes</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  {([['insuranceR', 'Seguro (% CIF)'], ['arancelR', 'Arancel (% CIF)'], ['iceR', 'ICE (% CIF)'], ['ivaR', 'IVA (%)']] as [keyof Form, string][]).map(([k, lb]) => (
+                    <div key={k}>
+                      <label style={label}>{lb}</label>
+                      <input type="number" value={f[k]} onChange={e => chF(k, e.target.value)} style={inp} step="0.1" min="0" />
+                    </div>
+                  ))}
+                </div>
+
+                <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
+
+                {/* OPEX */}
+                <div style={secTitle}><span>📊</span> Desglose OPEX (por unidad)</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  {([['galanetUsd', 'Internet Galanet'], ['adUsd', 'Publicidad'], ['packagingUsd', 'Empaques'], ['deliveryUsd', 'Delivery']] as [keyof Form, string][]).map(([k, lb]) => (
+                    <div key={k}>
+                      <label style={label}>{lb} (USD)</label>
+                      <input type="number" value={f[k]} onChange={e => chF(k, e.target.value)} style={inp} step="0.01" min="0" />
+                    </div>
+                  ))}
+                </div>
+
+                <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
+
+                {/* MARGIN + SHIPPING */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={label}>Margen de Ganancia (%)</label>
+                    <input type="number" value={f.marginR} onChange={e => chF('marginR', e.target.value)} style={inp} step="0.1" min="0" />
+                  </div>
+                  <div>
+                    <label style={label}>Envio Nacional (Bs/unidad)</label>
+                    <input type="number" value={f.shippingBs} onChange={e => chF('shippingBs', e.target.value)} style={inp} step="0.01" min="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* --- RIGHT: BREAKDOWN --- */}
+            <div style={{ ...card, animation: 'fadeUp 0.4s ease-out 0.1s both' }}>
+              <div style={cardHead}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>📋</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Desglose de Costos</span>
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.goldDark, background: 'rgba(212,175,55,0.1)', padding: '3px 8px', borderRadius: 5 }}>9 LINEAS</span>
+              </div>
+              <div style={cardBody}>
+                {calc ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      {[
+                        { n: 1, name: 'CIF (Costo Unitario)', val: calc.cifUnit, detail: `FOB $${fNum(calc.cifUnit)}`, hl: false },
+                        { n: 2, name: `Seguro (${f.insuranceR}% del CIF)`, val: calc.insurance, detail: `${f.insuranceR}% de $${fNum(calc.cifUnit)}`, hl: false },
+                        { n: 3, name: `Arancel (${f.arancelR}% del CIF)`, val: calc.arancel, detail: `${f.arancelR}% de $${fNum(calc.cifUnit)}`, hl: false },
+                        { n: 4, name: `ICE (${f.iceR}% del CIF)`, val: calc.ice, detail: `${f.iceR}% de $${fNum(calc.cifUnit)}`, hl: false },
+                        { n: 5, name: `IVA (${f.ivaR}% sobre CIF+Arl+ICE)`, val: calc.iva, detail: `${f.ivaR}% de $${fNum(calc.cifUnit + calc.arancel + calc.ice)}`, hl: false },
+                        { n: 6, name: 'Flete Maritimo (CBM)', val: calc.freight, detail: cbm > 0 ? `${cbm.toFixed(6)} m³` : 'Sin dimensiones', hl: true },
+                        { n: 7, name: 'OPEX Galanet (2.5% PV)', val: calc.galanetCalc, detail: `2.5% de $${fNum(calc.finalPrice)}`, hl: true },
+                        { n: 8, name: 'OPEX Publicidad + Empaque + Delivery', val: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit, detail: `$${fNum(calc.adPerUnit)} + $${fNum(calc.packagingPerUnit)} + $${fNum(calc.deliveryPerUnit)}`, hl: true },
+                        { n: 9, name: 'TOTAL COSTO + MARGEN', val: calc.finalPrice, detail: `Incluye ${f.marginR}% margen`, hl: false, total: true },
+                      ].map(item => (
+                        <div key={item.n} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '12px 0',
+                          borderBottom: item.n < 9 ? `1px solid rgba(28,28,44,0.5)` : 'none'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{
+                              width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 10, fontWeight: 700,
+                              background: item.total ? `linear-gradient(135deg,${C.goldDark},${C.gold})` : item.hl ? 'rgba(212,175,55,0.12)' : C.bgInput,
+                              color: item.total ? '#0a0a0f' : item.hl ? C.gold : C.textMuted
+                            }}>{item.n}</span>
+                            <span style={{
+                              fontSize: 12, fontWeight: item.total ? 700 : item.hl ? 600 : 400,
+                              color: item.total ? C.goldLight : item.hl ? C.text : C.textSec,
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                            }}>{item.name}</span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{
+                              fontFamily: 'var(--font-display)', fontSize: item.total ? 16 : 13,
+                              fontWeight: item.total ? 800 : item.hl ? 700 : 600,
+                              ...(item.total ? {
+                                background: `linear-gradient(135deg,${C.goldPale},${C.gold},${C.goldDark})`,
+                                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
+                              } : { color: C.text })
+                            }}>{fUSD(item.val)}</div>
+                            <div style={{ fontSize: 9, color: C.textMuted, marginTop: 1 }}>{item.detail}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* PRECIO DE VENTA CARD */}
+                    <div style={{
+                      marginTop: 16, position: 'relative', borderRadius: 16, padding: 24,
+                      background: `linear-gradient(135deg, rgba(212,175,55,0.06), rgba(212,175,55,0.02))`,
+                      border: `1px solid ${C.borderGold}`, overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        position: 'absolute', inset: 0, borderRadius: 16, padding: 1,
+                        background: `linear-gradient(160deg,${C.gold},${C.goldDark},transparent,transparent)`,
+                        WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                        WebkitMaskComposite: 'xor', maskComposite: 'exclude', pointerEvents: 'none'
+                      }} />
+                      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.textMuted, textTransform: 'uppercase', marginBottom: 6 }}>PRECIO DE VENTA</div>
+                        <div style={{
+                          fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, lineHeight: 1.1,
+                          background: `linear-gradient(160deg,${C.goldPale},${C.goldLight},${C.gold})`,
+                          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
+                        }}>{fUSD(calc.finalPrice)}</div>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{fBs(calc.sellingBs)}</div>
+                            <div style={{ fontSize: 9, color: C.textMuted }}>Tasa {activeRate.toUpperCase()}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: C.goldLight }}>{fBs(calc.sellingBsP2P)}</div>
+                            <div style={{ fontSize: 9, color: C.textMuted }}>Tasa P2P Efectivo</div>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 16 }}>
+                          <div style={{
+                            background: C.green + '10', border: `1px solid ${C.green}30`, borderRadius: 8,
+                            padding: '6px 14px', fontSize: 11, fontWeight: 700, color: C.green
+                          }}>Margen: {calc.profitPct.toFixed(1)}%</div>
+                          <div style={{
+                            background: C.orange + '10', border: `1px solid ${C.orange}30`, borderRadius: 8,
+                            padding: '6px 14px', fontSize: 11, fontWeight: 700, color: C.orange
+                          }}>Brecha: {calc.gap.toFixed(1)}%</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Profit breakdown mini */}
+                    <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                      {[
+                        { label: 'Ganancia/Unidad', value: fUSD(calc.profitPerUnit), color: C.green },
+                        { label: 'Ganancia en Bs', value: fBs(calc.profitPerUnit * p2p), color: C.goldLight },
+                        { label: 'Ganancia Total', value: fUSD(calc.profitPerUnit * calc.q), color: C.cyan },
+                      ].map((item, i) => (
+                        <div key={i} style={{
+                          background: C.bgInput, border: `1px solid ${C.border}`,
+                          borderRadius: 8, padding: '10px 12px', textAlign: 'center'
+                        }}>
+                          <div style={{ fontSize: 9, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{item.label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: item.color, fontFamily: 'var(--font-display)' }}>{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>📦</div>
+                    <div style={{ fontSize: 13, color: C.textMuted }}>Ingresa el costo USD del producto para ver el desglose completo</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== TAB: INVENTARIO ==================== */}
+        {tab === 'inv' && (
+          <div style={{ animation: 'fadeUp 0.4s ease-out' }}>
+            {/* Add Product */}
+            <div style={{ ...card, marginBottom: 20, animation: 'fadeUp 0.4s ease-out' }}>
+              <div style={cardHead}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>➕</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Agregar Producto al Inventario</span>
+                </div>
+              </div>
+              <div style={{ ...cardBody, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ flex: 2, minWidth: 200 }}>
+                  <label style={label}>Nombre del Producto</label>
+                  <input type="text" value={newProd.name} onChange={e => setNewProd(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Rebanadora 14-en-1" style={inp} />
+                </div>
+                <div style={{ flex: 1, minWidth: 100 }}>
+                  <label style={label}>Cantidad</label>
+                  <input type="number" value={newProd.qty} onChange={e => setNewProd(p => ({ ...p, qty: e.target.value }))} placeholder="50" style={inp} step="1" min="0" />
+                </div>
+                <div style={{ flex: 1, minWidth: 100 }}>
+                  <label style={label}>Costo FOB (USD)</label>
+                  <input type="number" value={newProd.fob} onChange={e => setNewProd(p => ({ ...p, fob: e.target.value }))} placeholder="0.37" style={inp} step="0.01" min="0" />
+                </div>
+                <button onClick={() => { addInv(); toast('Producto agregado al inventario') }} style={{
+                  height: 44, padding: '0 24px', border: 'none', borderRadius: 8,
+                  background: `linear-gradient(135deg,${C.goldDark},${C.gold})`, color: '#0a0a0f',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                  fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
+                }}>Agregar</button>
+              </div>
+            </div>
+
+            {/* Inventory Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+              {[
+                { label: 'Productos', value: inv.length.toString(), icon: '📦', color: C.blue },
+                { label: 'Inversion Total', value: fUSD(dashData.totalInvCost), icon: '💰', color: C.gold },
+                { label: 'Unidades Vendidas', value: dashData.totalSold.toString(), icon: '✅', color: C.green },
+                { label: 'Merma Estimada', value: dashData.totalMerma.toString() + ' uds', icon: '⚠️', color: C.orange },
+              ].map((s, i) => (
+                <div key={i} style={{ ...card, padding: 0 }}>
+                  <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ fontSize: 24 }}>{s.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>{s.label}</div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: s.color }}>{s.value}</div>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
-            <div>
-              <label style={{display:'block',fontSize:'11px',fontWeight:600,color:'var(--text-muted)',marginBottom:'6px',textTransform:'uppercase',letterSpacing:'0.8px'}}>CBM</label>
-              <div style={{width:'100%',background:'var(--bg-tertiary)',border:'1px solid var(--border-color)',borderRadius:'8px',padding:'10px 12px',color:cbm>0?'var(--gold)':'var(--text-muted)',fontSize:'14px',fontWeight:600}}>{cbm>0?cbm.toFixed(6):'0.000000'}</div>
-            </div>
-            <div>
-              <label style={{display:'block',fontSize:'11px',fontWeight:600,color:'var(--text-muted)',marginBottom:'6px',textTransform:'uppercase',letterSpacing:'0.8px'}}>Peso (kg)</label>
-              <input type="number" value={form.weight} onChange={e=>chForm('weight',e.target.value)} placeholder="0.00" style={inp()} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-color)'} step="0.1" min="0"/>
-            </div>
-          </div>
-        </section>
 
-        {/* Receipt */}
-        {calc.ok && (
-          <section style={{background:cardBg,border:'1px solid var(--border-color)',borderRadius:'12px',padding:'20px',marginBottom:'24px'}}>
-            <h2 style={{fontSize:'13px',fontWeight:700,letterSpacing:'1.5px',color:'var(--text-secondary)',textTransform:'uppercase',marginBottom:'16px',paddingBottom:'10px',borderBottom:'1px solid var(--border-color)'}}>Desglose de Costos</h2>
-            {[
-              [1,'CIF (Costo × Cantidad)',calc.cif,false],
-              [2,'Seguro (1.5%)',calc.seg,false],
-              [3,'Arancel (15%)',calc.ar,false],
-              [4,'ICE (10%)',calc.ice,false],
-              [5,'IVA 16%',calc.iva,false],
-              [6,'Total Impuestos',calc.ti,true],
-              [7,'Costos Fijos',calc.cf,false],
-              [8,'TOTAL GENERAL USD',calc.total,true]
-            ].map(([n,lb,v,b]:[number,string,number,boolean])=>(
-              <div key={n} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:n<8?'1px solid var(--border-color)':'none'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                  <span style={{width:'22px',height:'22px',borderRadius:'6px',backgroundColor:(n===6||n===8)?'rgba(212,175,55,0.15)':'var(--bg-input)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:700,color:(n===6||n===8)?'var(--gold)':'var(--text-muted)'}}>{n}</span>
-                  <span style={{fontSize:'13px',fontWeight:b?700:500,color:b?'var(--text-primary)':'var(--text-secondary)'}}>{lb}</span>
+            {/* Inventory Table */}
+            <div style={{ ...card, animation: 'fadeUp 0.4s ease-out 0.1s both' }}>
+              <div style={cardHead}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>📋</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Inventario Actual</span>
                 </div>
-                <span style={{fontSize:'13px',fontWeight:b?700:600,color:b?'var(--text-primary)':'var(--text-secondary)',fontVariantNumeric:'tabular-nums'}}>{fmtUSD(v)}</span>
               </div>
-            ))}
-          </section>
-        )}
-
-        {/* PRECIO DE VENTA REC. */}
-        {calc.ok && (
-          <section style={{position:'relative',background:cardBg,borderRadius:'12px',padding:'28px 24px',marginBottom:'24px',overflow:'hidden'}}>
-            <div style={{position:'absolute',inset:0,borderRadius:'12px',padding:'2px',background:'linear-gradient(160deg,#e8cc6e,#D4AF37,#b8962e)',WebkitMask:'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',WebkitMaskComposite:'xor',maskComposite:'exclude',pointerEvents:'none'}}/>
-            <Corner p="tl"/><Corner p="tr"/><Corner p="bl"/><Corner p="br"/>
-            <div style={{position:'relative',zIndex:1,textAlign:'center'}}>
-              <div style={{fontSize:'10px',fontWeight:700,letterSpacing:'2px',color:'var(--text-muted)',textTransform:'uppercase',marginBottom:'8px'}}>9. Precio de Venta Recomendado</div>
-              <div style={{fontSize:'36px',fontWeight:900,lineHeight:1.1,marginBottom:'10px',background:'linear-gradient(160deg,#e8cc6e,#D4AF37,#b8962e)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{fmtUSD(calc.pv)}</div>
-              <div style={{fontSize:'16px',fontWeight:600,color:'var(--text-secondary)',fontVariantNumeric:'tabular-nums'}}>{fmtVE(calc.pvebs)}</div>
-              <div style={{fontSize:'10px',color:'var(--text-muted)',marginTop:'8px',letterSpacing:'0.5px'}}>* Tasa P2P Efectivo ({rates.p2p.toFixed(2)} Bs/USD)</div>
+              <div style={{ overflowX: 'auto' }}>
+                {inv.length === 0 ? (
+                  <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.2 }}>📦</div>
+                    <div style={{ fontSize: 13, color: C.textMuted }}>No hay productos en el inventario</div>
+                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>Agrega productos usando el formulario de arriba</div>
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                    <thead>
+                      <tr>
+                        {['Producto', 'Cantidad', 'Vendidos', 'Disponible', 'Costo FOB', 'Inversion', 'Merma 3%', 'Fecha', 'Accion'].map(h => (
+                          <th key={h} style={{
+                            padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700,
+                            letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase',
+                            borderBottom: `1px solid ${C.border}`, background: C.bgSecondary
+                          }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inv.map(e => {
+                        const merma = Math.round(e.qty * (e.mermaR / 100))
+                        const avail = e.qty - e.sold - merma
+                        return (
+                          <tr key={e.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
+                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{e.product}</td>
+                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.textSec }}>{e.qty}</td>
+                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.green, fontWeight: 600 }}>{e.sold}</td>
+                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: avail > 0 ? C.goldLight : C.red }}>{avail}</td>
+                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.textSec }}>{fUSD(e.fobCost)}</td>
+                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{fUSD(e.qty * e.fobCost)}</td>
+                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
+                            <td style={{ padding: '12px 14px', fontSize: 11, color: C.textMuted }}>{e.date}</td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <button onClick={() => recordSale(e.id)} style={{
+                                padding: '5px 12px', border: `1px solid ${C.green}40`, borderRadius: 6,
+                                background: `${C.green}10`, color: C.green, fontSize: 11, fontWeight: 700,
+                                cursor: 'pointer', fontFamily: 'var(--font-body)'
+                              }}>Vender</button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
-          </section>
+
+            {/* Sales History */}
+            {sales.length > 0 && (
+              <div style={{ ...card, marginTop: 20 }}>
+                <div style={cardHead}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>🧾</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Historial de Ventas</span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.green }}>
+                    Ingresos: {fUSD(dashData.totalRevenue)} | Ganancia Bruta: {fUSD(dashData.grossProfit)}
+                  </span>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                    <thead>
+                      <tr>
+                        {['Producto', 'Cantidad', 'Precio USD', 'Total', 'Fecha'].map(h => (
+                          <th key={h} style={{
+                            padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700,
+                            letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase',
+                            borderBottom: `1px solid ${C.border}`, background: C.bgSecondary
+                          }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sales.slice(0, 20).map(s => {
+                        const entry = inv.find(e => e.id === s.invId)
+                        return (
+                          <tr key={s.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
+                            <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{entry?.product || '-'}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.textSec }}>{s.qty}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.goldLight, fontWeight: 600 }}>{fUSD(s.priceUSD)}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: C.text }}>{fUSD(s.qty * s.priceUSD)}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 11, color: C.textMuted }}>{s.date}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
-        {/* Footer */}
-        <footer style={{textAlign:'center',padding:'20px 0',borderTop:'1px solid var(--border-color)'}}>
-          <p style={{fontSize:'10px',fontWeight:600,letterSpacing:'2px',color:'var(--text-muted)',textTransform:'uppercase'}}>ZYNC ELECTRONICS © {new Date().getFullYear()}</p>
-        </footer>
-      </div>
+        {/* ==================== TAB: DASHBOARD ==================== */}
+        {tab === 'dash' && (
+          <div style={{ animation: 'fadeUp 0.4s ease-out' }}>
+            {/* KPIs */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+              {[
+                { label: 'Tasa P2P', value: p2p.toFixed(2) + ' Bs/$', icon: '💱', color: C.goldLight },
+                { label: 'Brecha P2P vs BCV', value: ((p2p - rates.bcv) / rates.bcv * 100).toFixed(1) + '%', icon: '📈', color: C.orange },
+                { label: 'Total Invertido', value: fUSD(dashData.totalInvCost), icon: '💸', color: C.red },
+                { label: 'Ganancia Bruta', value: fUSD(dashData.grossProfit), icon: '🏆', color: C.green },
+              ].map((kpi, i) => (
+                <div key={i} style={{ ...card, padding: 0, animation: `fadeUp 0.4s ease-out ${i * 0.05}s both` }}>
+                  <div style={{ padding: '18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ fontSize: 28 }}>{kpi.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 2 }}>{kpi.label}</div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              {/* Brecha Cambiaria */}
+              <div style={{ ...card, animation: 'fadeUp 0.4s ease-out 0.1s both' }}>
+                <div style={cardHead}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>💱</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Brecha Cambiaria</span>
+                  </div>
+                </div>
+                <div style={{ ...cardBody, height: 280 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dashData.brechaBar} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1c1c2c" />
+                      <XAxis dataKey="name" tick={{ fill: C.textMuted, fontSize: 11 }} axisLine={{ stroke: C.border }} />
+                      <YAxis tick={{ fill: C.textMuted, fontSize: 10 }} axisLine={{ stroke: C.border }} />
+                      <Tooltip contentStyle={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: C.text, fontWeight: 700 }} />
+                      <Bar dataKey="value" radius={[6, 6, 0, 0]} name="Bs/$">
+                        {dashData.brechaBar.map((_, i) => <Cell key={i} fill={[C.blue, C.green, C.gold][i]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* OPEX Pie */}
+              <div style={{ ...card, animation: 'fadeUp 0.4s ease-out 0.15s both' }}>
+                <div style={cardHead}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>📊</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Desglose OPEX</span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.goldLight }}>
+                    Total: {fUSD(v('galanetUsd') + v('adUsd') + v('packagingUsd') + v('deliveryUsd'))}/unidad
+                  </span>
+                </div>
+                <div style={{ ...cardBody, height: 280 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={dashData.opexPie} cx="50%" cy="45%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" label={({ name, value }) => `${name}: $${value}`}>
+                        {dashData.opexPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
+                      </Pie>
+                      <Legend verticalAlign="bottom" iconType="circle" iconSize={8} formatter={(v: string) => <span style={{ color: C.textSec, fontSize: 11 }}>{v}</span>} />
+                      <Tooltip contentStyle={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Cost Structure */}
+              {calc && (
+                <div style={{ ...card, animation: 'fadeUp 0.4s ease-out 0.2s both' }}>
+                  <div style={cardHead}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 16 }}>🏗️</span>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Estructura de Costos por Unidad</span>
+                    </div>
+                  </div>
+                  <div style={{ ...cardBody, height: 280 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dashData.costBar} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1c1c2c" />
+                        <XAxis type="number" tick={{ fill: C.textMuted, fontSize: 10 }} axisLine={{ stroke: C.border }} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: C.textSec, fontSize: 11 }} axisLine={{ stroke: C.border }} width={80} />
+                        <Tooltip contentStyle={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12 }} formatter={(v: number) => fUSD(v)} />
+                        <Bar dataKey="value" radius={[0, 6, 6, 0]} name="USD">
+                          {dashData.costBar.map((_, i) => <Cell key={i} fill={[C.gold, C.red, C.blue, C.orange, C.purple, C.green][i]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Margin Analysis */}
+              {calc && (
+                <div style={{ ...card, animation: 'fadeUp 0.4s ease-out 0.25s both' }}>
+                  <div style={cardHead}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 16 }}>🎯</span>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Analisis de Margen</span>
+                    </div>
+                </div>
+                <div style={cardBody}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {[
+                      { label: 'Precio de Venta', value: fUSD(calc.finalPrice), color: C.goldLight },
+                      { label: 'Costo Total/Unidad', value: fUSD(calc.totalUnit), color: C.red },
+                      { label: 'Ganancia/Unidad', value: fUSD(calc.profitPerUnit), color: C.green },
+                      { label: 'Margen Real', value: calc.profitPct.toFixed(1) + '%', color: calc.profitPct > 20 ? C.green : C.orange },
+                      { label: 'ROI', value: (calc.profitPerUnit / calc.totalUnit * 100).toFixed(1) + '%', color: C.cyan },
+                      { label: 'Punto de Equilibrio', value: fUSD(calc.totalUnit), color: C.purple },
+                    ].map((m, i) => (
+                      <div key={i} style={{
+                        background: C.bgInput, border: `1px solid ${C.border}`,
+                        borderRadius: 8, padding: '12px 14px'
+                      }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{m.label}</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: m.color }}>{m.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Brecha P2P Detail */}
+                  <div style={{ marginTop: 16, background: 'rgba(251,146,60,0.05)', border: `1px solid rgba(251,146,60,0.12)`, borderRadius: 8, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.orange, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>Analisis de Friccion P2P</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {[
+                        ['Tasa Bruta P2P', fBs(brecha.tasaBruta)],
+                        ['Spread 1.5%', fBs(brecha.spread)],
+                        ['Tasa Neta Efectiva', fBs(brecha.tasaNeta)],
+                        ['Brecha vs BCV', ((p2p - rates.bcv) / rates.bcv * 100).toFixed(1) + '%'],
+                      ].map(([lb, vl], i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                          <span style={{ color: C.textMuted }}>{lb}</span>
+                          <span style={{ color: C.text, fontWeight: 600 }}>{vl}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ============ FOOTER ============ */}
+      <footer style={{
+        textAlign: 'center', padding: '24px', borderTop: `1px solid ${C.border}`,
+        marginTop: 32, maxWidth: 1200, margin: '32px auto 0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+          <img src="/a2k-logo.jpeg" alt="" style={{ width: 20, height: 20, borderRadius: 4 }} />
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.goldDark, textTransform: 'uppercase' }}>A2K Digital Studio</span>
+        </div>
+        <p style={{ fontSize: 10, color: C.textMuted, fontWeight: 500 }}>
+          ZYNC ELECTRONICS &copy; {new Date().getFullYear()} — Suite Financiera v3.0 MODO DIOS
+        </p>
+      </footer>
     </div>
   )
 }

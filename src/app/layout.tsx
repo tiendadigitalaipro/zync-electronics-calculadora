@@ -1,44 +1,21 @@
 import type { Metadata } from "next";
-import { Montserrat, Inter, Geist_Mono } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"], weight: ["300","400","500","600","700","800","900"] });
+const space = Space_Grotesk({ variable: "--font-space", subsets: ["latin"], weight: ["400","500","600","700"] });
 
 export const metadata: Metadata = {
-  title: "A2K Digital Studio | Calculadora de Importación",
-  description: "A2K Digital Studio — Calculadora profesional de costos de importación. Calcula el precio de venta real, márgenes, brecha cambiaria y todos los costos ocultos de la cadena China→Venezuela.",
-  icons: {
-    icon: "/favicon.ico",
-  },
+  title: "ZYNC Electronics — Suite Financiera v3.0 | A2K Digital Studio",
+  description: "Suite Financiera Profesional ZYNC Electronics. Calculadora de importacion, modulo CBM maritimo, inventario, OPEX y dashboard. Desarrollado por A2K Digital Studio.",
+  icons: { icon: "/favicon.ico" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body
-        className={`${montserrat.variable} ${inter.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${inter.variable} ${space.variable} antialiased`}>
         {children}
-        <Toaster />
       </body>
     </html>
   );
