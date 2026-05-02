@@ -14,7 +14,7 @@ interface Form {
   insuranceR: string; arancelR: string; iceR: string; ivaR: string
   cbmRate: string; fixedCosts: string
   galanetUsd: string; adUsd: string; packagingUsd: string; deliveryUsd: string
-  marginR: string; shippingBs: string
+  marginR: string; shippingBs: string; freightUsd: string
 }
 interface InvEntry { id: number; product: string; qty: number; fobCost: number; sold: number; mermaR: number; date: string }
 interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string }
@@ -91,7 +91,7 @@ export default function ZyncSuite() {
     insuranceR: '1.5', arancelR: '15', iceR: '10', ivaR: '16',
     cbmRate: '250', fixedCosts: '15',
     galanetUsd: '34', adUsd: '15', packagingUsd: '3', deliveryUsd: '5',
-    marginR: '30', shippingBs: '0'
+    marginR: '30', shippingBs: '0', freightUsd: '0'
   })
 
   // --- Inventory ---
@@ -146,7 +146,11 @@ export default function ZyncSuite() {
     const ivaBase = cifUnit + arancel + ice
     const iva = ivaBase * (v('ivaR') / 100)
     const totalTaxes = insurance + arancel + ice + iva
-    const freight = cbm > 0 ? (cbm * v('cbmRate')) / q : 0
+    const freightFixed = v('freightUsd')
+    const freight = freightFixed > 0
+      ? freightFixed / q
+      : (cbm > 0 ? (cbm * v('cbmRate')) / q : 0)
+    const freightMode: 'fixed' | 'cbm' = freightFixed > 0 ? 'fixed' : 'cbm'
     const fixedPerUnit = v('fixedCosts')
 
     // OPEX por unidad
@@ -186,7 +190,7 @@ export default function ZyncSuite() {
       sellingBs: finalPrice * rate,
       sellingBsP2P: finalPrice * p2p,
       gap: ((p2p - rate) / rate) * 100,
-      q
+      q, freightFixed, freightMode
     }
   }, [f, rates, activeRate, cbm])
 
@@ -503,6 +507,37 @@ export default function ZyncSuite() {
                   <input type="number" value={f.fixedCosts} onChange={e => chF('fixedCosts', e.target.value)} style={inp} step="0.01" min="0" />
                 </div>
 
+                {/* FLETE TOTAL FIJO */}
+                <div style={{ marginTop: 14 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+                    padding: '7px 12px', borderRadius: 7,
+                    background: v('freightUsd') > 0 ? 'rgba(212,175,55,0.07)' : 'rgba(96,165,250,0.05)',
+                    border: `1px solid ${v('freightUsd') > 0 ? 'rgba(212,175,55,0.28)' : 'rgba(96,165,250,0.15)'}`,
+                  }}>
+                    <span style={{ fontSize: 13 }}>{v('freightUsd') > 0 ? '⚡' : '📐'}</span>
+                    <span style={{
+                      fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase',
+                      color: v('freightUsd') > 0 ? C.goldLight : C.blue
+                    }}>
+                      Modo Flete: {v('freightUsd') > 0 ? 'FIJO — CBM ignorado' : 'POR VOLUMEN CBM'}
+                    </span>
+                  </div>
+                  <label style={label}>Flete Total Cerrado (USD) — pon 0 para usar CBM</label>
+                  <input
+                    type="number"
+                    value={f.freightUsd}
+                    onChange={e => chF('freightUsd', e.target.value)}
+                    placeholder="Ej: 57 — si ya conoces el flete total del envío"
+                    style={{
+                      ...inp,
+                      borderColor: v('freightUsd') > 0 ? 'rgba(212,175,55,0.35)' : C.border,
+                      color: v('freightUsd') > 0 ? C.goldLight : C.text
+                    }}
+                    step="0.01" min="0"
+                  />
+                </div>
+
                 <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
 
                 {/* TAXES */}
@@ -564,7 +599,7 @@ export default function ZyncSuite() {
                         { n: 3, name: `Arancel (${f.arancelR}% del CIF)`, val: calc.arancel, detail: `${f.arancelR}% de $${fNum(calc.cifUnit)}`, hl: false },
                         { n: 4, name: `ICE (${f.iceR}% del CIF)`, val: calc.ice, detail: `${f.iceR}% de $${fNum(calc.cifUnit)}`, hl: false },
                         { n: 5, name: `IVA (${f.ivaR}% sobre CIF+Arl+ICE)`, val: calc.iva, detail: `${f.ivaR}% de $${fNum(calc.cifUnit + calc.arancel + calc.ice)}`, hl: false },
-                        { n: 6, name: 'Flete Maritimo (CBM)', val: calc.freight, detail: cbm > 0 ? `${cbm.toFixed(6)} m³` : 'Sin dimensiones', hl: true },
+                        { n: 6, name: calc.freightMode === 'fixed' ? `Flete Cerrado (÷${calc.q} uds)` : 'Flete Maritimo (CBM)', val: calc.freight, detail: calc.freightMode === 'fixed' ? `$${fNum(calc.freightFixed)} ÷ ${calc.q} uds` : (cbm > 0 ? `${cbm.toFixed(6)} m³` : 'Sin dimensiones'), hl: true },
                         { n: 7, name: 'OPEX Galanet (2.5% PV)', val: calc.galanetCalc, detail: `2.5% de $${fNum(calc.finalPrice)}`, hl: true },
                         { n: 8, name: 'OPEX Publicidad + Empaque + Delivery', val: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit, detail: `$${fNum(calc.adPerUnit)} + $${fNum(calc.packagingPerUnit)} + $${fNum(calc.deliveryPerUnit)}`, hl: true },
                         { n: 9, name: 'TOTAL COSTO + MARGEN', val: calc.finalPrice, detail: `Incluye ${f.marginR}% margen`, hl: false, total: true },
