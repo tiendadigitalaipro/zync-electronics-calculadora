@@ -10,6 +10,7 @@ import {
 // ============================================================
 interface Rates { bcv: number; usdt: number; p2p: number }
 interface Form {
+  productName: string
   costUSD: string; quantity: string; length: string; width: string; height: string; weight: string
   insuranceR: string; arancelR: string; iceR: string; ivaR: string
   cbmRate: string; fixedCosts: string
@@ -87,10 +88,11 @@ export default function ZyncSuite() {
 
   // --- Form ---
   const [f, setF] = useState<Form>({
+    productName: '',
     costUSD: '', quantity: '1', length: '', width: '', height: '', weight: '',
     insuranceR: '0', arancelR: '0', iceR: '0', ivaR: '0',
-    cbmRate: '250', fixedCosts: '15',
-    galanetUsd: '34', adUsd: '15', packagingUsd: '3', deliveryUsd: '5',
+    cbmRate: '250', fixedCosts: '0',
+    galanetUsd: '0', adUsd: '0', packagingUsd: '0', deliveryUsd: '0',
     marginR: '30', shippingBs: '0', freightUsd: '0', supplierShipping: '0'
   })
 
@@ -462,6 +464,18 @@ export default function ZyncSuite() {
                   <span>Tasa Base <b>681.69</b> incluye spread 1.5%, comisiones USDT→Zinli y recargas. Brecha vs BCV: <b>{((p2p - rates.bcv) / rates.bcv * 100).toFixed(1)}%</b></span>
                 </div>
 
+                {/* Product Name */}
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ ...label, color: C.goldDark }}>Nombre del Producto</label>
+                  <input
+                    type="text"
+                    value={f.productName}
+                    onChange={e => setF(p => ({ ...p, productName: e.target.value }))}
+                    placeholder="Ej: Micrófono Lavalier x30 uds"
+                    style={{ ...inp, borderColor: f.productName ? 'rgba(212,175,55,0.35)' : C.border, color: f.productName ? C.goldLight : C.text }}
+                  />
+                </div>
+
                 {/* Cost + Qty */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                   <div>
@@ -628,7 +642,10 @@ export default function ZyncSuite() {
               <div style={cardHead}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 16 }}>📋</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Desglose de Costos</span>
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Desglose de Costos</span>
+                    {f.productName && <div style={{ fontSize: 10, color: C.goldDark, fontWeight: 600, marginTop: 1 }}>{f.productName}</div>}
+                  </div>
                 </div>
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.goldDark, background: 'rgba(212,175,55,0.1)', padding: '3px 8px', borderRadius: 5 }}>DESGLOSE</span>
               </div>
