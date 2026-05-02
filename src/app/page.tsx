@@ -260,6 +260,24 @@ export default function ZyncSuite() {
     localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
   }
 
+  const saveToInventory = () => {
+    if (!calc) return
+    const name = f.productName.trim() || `Producto ${new Date().toLocaleDateString('es-VE')}`
+    const entry: InvEntry = {
+      id: Date.now(),
+      product: name,
+      qty: calc.q,
+      fobCost: parseFloat(calc.costWithMerma.toFixed(4)),
+      sold: 0,
+      mermaR: parseFloat(f.mermaR) || 0,
+      date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
+    const updated = [entry, ...inv]
+    setInv(updated)
+    localStorage.setItem('zync_inv', JSON.stringify(updated))
+    toast(`"${name}" guardado — ${calc.q} uds · Costo ${fUSD(calc.costWithMerma)}/ud · PV ${fUSD(calc.finalPrice)}/ud`)
+  }
+
   // ============================================================
   // DASHBOARD DATA
   // ============================================================
@@ -783,6 +801,29 @@ export default function ZyncSuite() {
                         </div>
                       ))}
                     </div>
+
+                    {/* GUARDAR EN INVENTARIO */}
+                    <button
+                      onClick={saveToInventory}
+                      style={{
+                        marginTop: 16, width: '100%', padding: '16px',
+                        border: `2px solid rgba(212,175,55,0.4)`, borderRadius: 12,
+                        background: `linear-gradient(135deg, rgba(212,175,55,0.10), rgba(212,175,55,0.04))`,
+                        color: C.goldLight, fontSize: 13, fontWeight: 800,
+                        cursor: 'pointer', transition: 'all 0.2s',
+                        fontFamily: 'var(--font-body)', letterSpacing: 0.5,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                        boxShadow: '0 4px 20px rgba(212,175,55,0.08)'
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>📦</span>
+                      <span>GUARDAR EN INVENTARIO</span>
+                      {f.productName && (
+                        <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 400, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          — {f.productName}
+                        </span>
+                      )}
+                    </button>
                   </>
                 ) : (
                   <div style={{ padding: '60px 20px', textAlign: 'center' }}>
