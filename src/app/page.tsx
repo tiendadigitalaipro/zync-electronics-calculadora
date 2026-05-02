@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, CartesianGrid
@@ -103,6 +103,18 @@ export default function ZyncSuite() {
   const [editId, setEditId] = useState<number | null>(null)
   const [editData, setEditData] = useState({ name: '', qty: '', fob: '' })
   const [freightTab, setFreightTab] = useState<'fixed' | 'cbm'>('cbm')
+
+  // Migración forzada: rellena sellingPrice vacío con fobCost × 1.30
+  useEffect(() => {
+    const needsFix = inv.some(e => !(e.sellingPrice > 0))
+    if (!needsFix) return
+    const fixed = inv.map(e => ({
+      ...e,
+      sellingPrice: (e.sellingPrice > 0) ? e.sellingPrice : parseFloat((e.fobCost * 1.30).toFixed(4))
+    }))
+    setInv(fixed)
+    localStorage.setItem('zync_inv', JSON.stringify(fixed))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Helpers ---
   const v = (k: keyof Form) => parseFloat(f[k]) || 0
@@ -236,11 +248,29 @@ export default function ZyncSuite() {
     toast('Producto eliminado del inventario')
   }
 
+  const updatePrice = (invId: number) => {
+    const entry = inv.find(e => e.id === invId)
+    if (!entry) return
+    const margin = parseFloat(f.marginR) || 30
+    const suggested = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
+    const input = prompt(
+      `Precio de venta para "${entry.product}"\nCosto: ${fUSD(entry.fobCost)}/ud\nSugerido (${margin}% margen): ${fUSD(suggested)}\n\nIngresa el precio de venta USD/unidad:`,
+      suggested.toFixed(2)
+    )
+    const price = parseFloat(input || '0')
+    if (price <= 0) return
+    const updated = inv.map(e => e.id === invId ? { ...e, sellingPrice: price } : e)
+    setInv(updated)
+    localStorage.setItem('zync_inv', JSON.stringify(updated))
+    toast(`Precio actualizado: ${fUSD(price)}/ud`)
+  }
+
   const recordSale = (invId: number) => {
     const entry = inv.find(e => e.id === invId)
     if (!entry) return
 
-    const price = entry.sellingPrice || 0
+    const margin = parseFloat(f.marginR) || 30
+    const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
     if (price <= 0) {
       alert(`"${entry.product}" no tiene precio de venta registrado.\n\nVe a la Calculadora → calcula el precio → presiona GUARDAR EN INVENTARIO.`)
       return
@@ -333,11 +363,13 @@ export default function ZyncSuite() {
       const mermaQty = Math.round(e.qty * (e.mermaR / 100))
       return s + mermaQty
     }, 0)
+    const defaultMargin = parseFloat(f.marginR) || 30
     const estimatedProfit = inv.reduce((s, e) => {
       const mermaQty = Math.round(e.qty * ((e.mermaR || 0) / 100))
       const avail = e.qty - e.sold - mermaQty
       if (avail <= 0) return s
-      return s + avail * ((e.sellingPrice || 0) - e.fobCost)
+      const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + defaultMargin / 100)
+      return s + avail * (sp - e.fobCost)
     }, 0)
 
     // Brecha chart
@@ -967,8 +999,11 @@ export default function ZyncSuite() {
                     </thead>
                     <tbody>
                       {inv.map(e => {
-                        const merma = Math.round(e.qty * (e.mermaR / 100))
+                        const merma = Math.round(e.qty * ((e.mermaR || 0) / 100))
                         const avail = e.qty - e.sold - merma
+                        const margin = parseFloat(f.marginR) || 30
+                        const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + margin / 100)
+                        const isEstimated = !(e.sellingPrice > 0)
                         return (
                           <tr key={e.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
                             <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{e.product}</td>
@@ -977,11 +1012,21 @@ export default function ZyncSuite() {
                             <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: avail > 0 ? C.goldLight : C.red }}>{avail}</td>
                             <td style={{ padding: '12px 14px', fontSize: 13, color: C.textSec }}>{fUSD(e.fobCost)}</td>
                             <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{fUSD(e.qty * e.fobCost)}</td>
-                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: (e.sellingPrice || 0) > 0 ? C.green : C.textMuted }}>
-                              {(e.sellingPrice || 0) > 0 ? fUSD(e.sellingPrice) : '—'}
+                            <td style={{ padding: '12px 14px' }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: isEstimated ? C.orange : C.green }}>
+                                {fUSD(sp)}{isEstimated && <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>est.</span>}
+                              </div>
+                              {isEstimated && (
+                                <button onClick={() => updatePrice(e.id)} style={{
+                                  fontSize: 8, padding: '2px 6px', marginTop: 3, border: `1px solid ${C.orange}40`,
+                                  borderRadius: 4, background: `${C.orange}10`, color: C.orange,
+                                  cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 700, display: 'block'
+                                }}>✏ Actualizar</button>
+                              )}
                             </td>
-                            <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 700, color: (e.sellingPrice || 0) > 0 ? C.goldLight : C.textMuted }}>
-                              {(e.sellingPrice || 0) > 0 ? fBs(e.sellingPrice * rate) : '—'}
+                            <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 700, color: isEstimated ? C.orange : C.goldLight }}>
+                              {fBs(sp * rate)}
+                              {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
                             </td>
                             <td style={{ padding: '12px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
                             <td style={{ padding: '12px 14px', fontSize: 11, color: C.textMuted }}>{e.date}</td>
