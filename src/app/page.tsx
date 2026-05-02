@@ -88,7 +88,7 @@ export default function ZyncSuite() {
   // --- Form ---
   const [f, setF] = useState<Form>({
     costUSD: '', quantity: '1', length: '', width: '', height: '', weight: '',
-    insuranceR: '1.5', arancelR: '15', iceR: '10', ivaR: '16',
+    insuranceR: '0', arancelR: '0', iceR: '0', ivaR: '0',
     cbmRate: '250', fixedCosts: '15',
     galanetUsd: '34', adUsd: '15', packagingUsd: '3', deliveryUsd: '5',
     marginR: '30', shippingBs: '0', freightUsd: '0', supplierShipping: '0'
@@ -630,27 +630,27 @@ export default function ZyncSuite() {
                   <span style={{ fontSize: 16 }}>📋</span>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Desglose de Costos</span>
                 </div>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.goldDark, background: 'rgba(212,175,55,0.1)', padding: '3px 8px', borderRadius: 5 }}>9 LINEAS</span>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: C.goldDark, background: 'rgba(212,175,55,0.1)', padding: '3px 8px', borderRadius: 5 }}>DESGLOSE</span>
               </div>
               <div style={cardBody}>
                 {calc ? (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                       {[
-                        { n: 1, name: 'CIF (Costo Unitario)', val: calc.cifUnit, detail: `FOB $${fNum(calc.cifUnit)}`, hl: false },
-                        { n: 2, name: `Seguro (${f.insuranceR}% del CIF)`, val: calc.insurance, detail: `${f.insuranceR}% de $${fNum(calc.cifUnit)}`, hl: false },
-                        { n: 3, name: `Arancel (${f.arancelR}% del CIF)`, val: calc.arancel, detail: `${f.arancelR}% de $${fNum(calc.cifUnit)}`, hl: false },
-                        { n: 4, name: `ICE (${f.iceR}% del CIF)`, val: calc.ice, detail: `${f.iceR}% de $${fNum(calc.cifUnit)}`, hl: false },
-                        { n: 5, name: `IVA (${f.ivaR}% sobre CIF+Arl+ICE)`, val: calc.iva, detail: `${f.ivaR}% de $${fNum(calc.cifUnit + calc.arancel + calc.ice)}`, hl: false },
-                        { n: 6, name: calc.freightMode === 'fixed' ? `Flete Cerrado + Almacén China` : 'Flete CBM + Almacén China', val: calc.freight + calc.supplierShippingPerUnit, detail: calc.freightMode === 'fixed' ? `$${fNum(calc.freightFixed)}÷${calc.q} + prov $${fNum(calc.supplierShippingPerUnit)}` : (cbm > 0 ? `${cbm.toFixed(4)} m³ + prov $${fNum(calc.supplierShippingPerUnit)}` : `Sin CBM + prov $${fNum(calc.supplierShippingPerUnit)}`), hl: true },
-                        { n: 7, name: 'OPEX Galanet (2.5% PV)', val: calc.galanetCalc, detail: `2.5% de $${fNum(calc.finalPrice)}`, hl: true },
-                        { n: 8, name: 'OPEX Publicidad + Empaque + Delivery', val: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit, detail: `$${fNum(calc.adPerUnit)} + $${fNum(calc.packagingPerUnit)} + $${fNum(calc.deliveryPerUnit)}`, hl: true },
-                        { n: 9, name: 'TOTAL COSTO + MARGEN', val: calc.finalPrice, detail: `Incluye ${f.marginR}% margen`, hl: false, total: true },
-                      ].map(item => (
+                        { name: 'CIF (Costo Unitario)', val: calc.cifUnit, detail: `FOB $${fNum(calc.cifUnit)}`, hl: false },
+                        ...(calc.insurance > 0 ? [{ name: `Seguro (${f.insuranceR}% del CIF)`, val: calc.insurance, detail: `${f.insuranceR}% de $${fNum(calc.cifUnit)}`, hl: false }] : []),
+                        ...(calc.arancel > 0 ? [{ name: `Arancel (${f.arancelR}% del CIF)`, val: calc.arancel, detail: `${f.arancelR}% de $${fNum(calc.cifUnit)}`, hl: false }] : []),
+                        ...(calc.ice > 0 ? [{ name: `ICE (${f.iceR}% del CIF)`, val: calc.ice, detail: `${f.iceR}% de $${fNum(calc.cifUnit)}`, hl: false }] : []),
+                        ...(calc.iva > 0 ? [{ name: `IVA (${f.ivaR}% sobre CIF+Arl+ICE)`, val: calc.iva, detail: `${f.ivaR}% de $${fNum(calc.cifUnit + calc.arancel + calc.ice)}`, hl: false }] : []),
+                        { name: calc.freightMode === 'fixed' ? `Flete Cerrado + Almacén China` : 'Flete CBM + Almacén China', val: calc.freight + calc.supplierShippingPerUnit, detail: calc.freightMode === 'fixed' ? `$${fNum(calc.freightFixed)}÷${calc.q} + prov $${fNum(calc.supplierShippingPerUnit)}` : (cbm > 0 ? `${cbm.toFixed(4)} m³ + prov $${fNum(calc.supplierShippingPerUnit)}` : `Sin CBM + prov $${fNum(calc.supplierShippingPerUnit)}`), hl: true },
+                        { name: 'OPEX Galanet (2.5% PV)', val: calc.galanetCalc, detail: `2.5% de $${fNum(calc.finalPrice)}`, hl: true },
+                        { name: 'OPEX Publicidad + Empaque + Delivery', val: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit, detail: `$${fNum(calc.adPerUnit)} + $${fNum(calc.packagingPerUnit)} + $${fNum(calc.deliveryPerUnit)}`, hl: true },
+                        { name: 'TOTAL COSTO + MARGEN', val: calc.finalPrice, detail: `Incluye ${f.marginR}% margen`, hl: false, total: true },
+                      ].map((r, i) => ({ ...r, n: i + 1 })).map(item => (
                         <div key={item.n} style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '12px 0',
-                          borderBottom: item.n < 9 ? `1px solid rgba(28,28,44,0.5)` : 'none'
+                          borderBottom: !item.total ? `1px solid rgba(28,28,44,0.5)` : 'none'
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span style={{
