@@ -14,7 +14,7 @@ interface Form {
   insuranceR: string; arancelR: string; iceR: string; ivaR: string
   cbmRate: string; fixedCosts: string
   galanetUsd: string; adUsd: string; packagingUsd: string; deliveryUsd: string
-  marginR: string; shippingBs: string; freightUsd: string
+  marginR: string; shippingBs: string; freightUsd: string; supplierShipping: string
 }
 interface InvEntry { id: number; product: string; qty: number; fobCost: number; sold: number; mermaR: number; date: string }
 interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string }
@@ -91,7 +91,7 @@ export default function ZyncSuite() {
     insuranceR: '1.5', arancelR: '15', iceR: '10', ivaR: '16',
     cbmRate: '250', fixedCosts: '15',
     galanetUsd: '34', adUsd: '15', packagingUsd: '3', deliveryUsd: '5',
-    marginR: '30', shippingBs: '0', freightUsd: '0'
+    marginR: '30', shippingBs: '0', freightUsd: '0', supplierShipping: '0'
   })
 
   // --- Inventory ---
@@ -100,6 +100,7 @@ export default function ZyncSuite() {
   const [newProd, setNewProd] = useState({ name: '', qty: '', fob: '' })
   const [editId, setEditId] = useState<number | null>(null)
   const [editData, setEditData] = useState({ name: '', qty: '', fob: '' })
+  const [freightTab, setFreightTab] = useState<'fixed' | 'cbm'>('cbm')
 
   // --- Helpers ---
   const v = (k: keyof Form) => parseFloat(f[k]) || 0
@@ -147,10 +148,11 @@ export default function ZyncSuite() {
     const iva = ivaBase * (v('ivaR') / 100)
     const totalTaxes = insurance + arancel + ice + iva
     const freightFixed = v('freightUsd')
-    const freight = freightFixed > 0
+    const freight = freightTab === 'fixed'
       ? freightFixed / q
       : (cbm > 0 ? (cbm * v('cbmRate')) / q : 0)
-    const freightMode: 'fixed' | 'cbm' = freightFixed > 0 ? 'fixed' : 'cbm'
+    const freightMode: 'fixed' | 'cbm' = freightTab
+    const supplierShippingPerUnit = v('supplierShipping') / q
     const fixedPerUnit = v('fixedCosts')
 
     // OPEX por unidad
@@ -160,7 +162,7 @@ export default function ZyncSuite() {
     const deliveryPerUnit = v('deliveryUsd')
     const totalOpex = galanetPerUnit + adPerUnit + packagingPerUnit + deliveryPerUnit
 
-    const costBase = cifUnit + totalTaxes + freight + fixedPerUnit + totalOpex
+    const costBase = cifUnit + totalTaxes + freight + supplierShippingPerUnit + fixedPerUnit + totalOpex
     const margin = v('marginR')
 
     // Galanet es % del precio de venta → formula iterativa
@@ -170,7 +172,7 @@ export default function ZyncSuite() {
       : costBase * (1 + margin / 100)
     const galanetCalc = sellingPrice * (galanetPct / 100)
 
-    const totalUnit = cifUnit + totalTaxes + freight + fixedPerUnit + galanetCalc + totalOpex
+    const totalUnit = cifUnit + totalTaxes + freight + supplierShippingPerUnit + fixedPerUnit + galanetCalc + totalOpex
     const totalWithMargin = totalUnit * (1 + margin / 100)
 
     // Correccion con Galanet %
@@ -190,9 +192,9 @@ export default function ZyncSuite() {
       sellingBs: finalPrice * rate,
       sellingBsP2P: finalPrice * p2p,
       gap: ((p2p - rate) / rate) * 100,
-      q, freightFixed, freightMode
+      q, freightFixed, freightMode, supplierShippingPerUnit
     }
-  }, [f, rates, activeRate, cbm])
+  }, [f, rates, activeRate, cbm, freightTab])
 
   // ============================================================
   // INVENTORY LOGIC
@@ -474,68 +476,109 @@ export default function ZyncSuite() {
 
                 <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
 
-                {/* CBM MODULE */}
-                <div style={secTitle}><span>🚢</span> Modulo Maritimo CBM</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-                  {([['length', 'Largo (cm)'], ['width', 'Ancho (cm)'], ['height', 'Alto (cm)']] as [keyof Form, string][]).map(([k, lb]) => (
-                    <div key={k}>
-                      <label style={label}>{lb}</label>
-                      <input type="number" value={f[k]} onChange={e => chF(k, e.target.value)} placeholder="0.0" style={{ ...inp, textAlign: 'center', fontSize: 13 }} step="0.1" min="0" />
-                    </div>
+                {/* FREIGHT MODULE */}
+                <div style={secTitle}><span>🚢</span> Modulo de Flete Maritimo</div>
+
+                {/* MODE TOGGLE BUTTONS */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                  {([
+                    { key: 'fixed' as const, icon: '⚡', title: 'FLETE FIJO', sub: 'Ya sé cuánto pagué', activeColor: C.gold, activeBg: 'rgba(212,175,55,0.1)', activeBorder: C.gold },
+                    { key: 'cbm' as const, icon: '📐', title: 'POR MEDIDAS CBM', sub: 'Cálculo por volumen', activeColor: C.blue, activeBg: 'rgba(96,165,250,0.1)', activeBorder: C.blue },
+                  ]).map(({ key, icon, title, sub, activeColor, activeBg, activeBorder }) => (
+                    <button key={key} onClick={() => setFreightTab(key)} style={{
+                      padding: '14px 10px', border: `2px solid ${freightTab === key ? activeBorder : C.border}`,
+                      borderRadius: 10, cursor: 'pointer', transition: 'all 0.2s',
+                      background: freightTab === key ? activeBg : C.bgInput,
+                      fontFamily: 'var(--font-body)', textAlign: 'center' as const,
+                      outline: 'none'
+                    }}>
+                      <div style={{ fontSize: 20, marginBottom: 5 }}>{icon}</div>
+                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, color: freightTab === key ? activeColor : C.textMuted }}>{title}</div>
+                      <div style={{ fontSize: 9, marginTop: 3, color: freightTab === key ? activeColor : C.textMuted, opacity: 0.75 }}>{sub}</div>
+                    </button>
                   ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-                  <div>
-                    <label style={label}>CBM Calculado</label>
+
+                {/* FLETE FIJO FIELDS */}
+                {freightTab === 'fixed' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={label}>Flete Total Cerrado (USD)</label>
+                    <input
+                      type="number"
+                      value={f.freightUsd}
+                      onChange={e => chF('freightUsd', e.target.value)}
+                      placeholder="Ej: 57.00"
+                      style={{ ...inp, borderColor: v('freightUsd') > 0 ? 'rgba(212,175,55,0.4)' : C.border, color: v('freightUsd') > 0 ? C.goldLight : C.text }}
+                      step="0.01" min="0"
+                    />
                     <div style={{
-                      width: '100%', background: C.bgInput, border: `1px solid ${cbm > 0 ? 'rgba(212,175,55,0.2)' : C.border}`,
-                      borderRadius: 8, padding: '10px 12px', fontSize: 14, fontWeight: 700,
-                      color: cbm > 0 ? C.goldLight : C.textMuted, textAlign: 'center'
-                    }}>{cbm > 0 ? cbm.toFixed(6) : '0.000000'} m³</div>
+                      marginTop: 8, padding: '9px 13px', borderRadius: 7,
+                      background: v('freightUsd') > 0 ? 'rgba(212,175,55,0.07)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${v('freightUsd') > 0 ? 'rgba(212,175,55,0.25)' : C.border}`,
+                      fontSize: 11, fontWeight: 600,
+                      color: v('freightUsd') > 0 ? C.goldLight : C.textMuted
+                    }}>
+                      {v('freightUsd') > 0
+                        ? `⚡ Usando monto cerrado de $${fNum(v('freightUsd'))}. CBM desactivado.`
+                        : '⚡ Ingresa el monto total del flete para activar este modo.'}
+                    </div>
                   </div>
-                  <div>
-                    <label style={label}>Peso (kg)</label>
-                    <input type="number" value={f.weight} onChange={e => chF('weight', e.target.value)} placeholder="0.0" style={inp} step="0.1" min="0" />
-                  </div>
-                  <div>
-                    <label style={label}>Tarifa Flete (USD/m³)</label>
-                    <input type="number" value={f.cbmRate} onChange={e => chF('cbmRate', e.target.value)} style={inp} step="1" min="0" />
+                )}
+
+                {/* CBM FIELDS */}
+                {freightTab === 'cbm' && (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                      {([['length', 'Largo (cm)'], ['width', 'Ancho (cm)'], ['height', 'Alto (cm)']] as [keyof Form, string][]).map(([k, lb]) => (
+                        <div key={k}>
+                          <label style={label}>{lb}</label>
+                          <input type="number" value={f[k]} onChange={e => chF(k, e.target.value)} placeholder="0.0" style={{ ...inp, textAlign: 'center', fontSize: 13 }} step="0.1" min="0" />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                      <div>
+                        <label style={label}>CBM Calculado</label>
+                        <div style={{
+                          width: '100%', background: C.bgInput, border: `1px solid ${cbm > 0 ? 'rgba(212,175,55,0.2)' : C.border}`,
+                          borderRadius: 8, padding: '10px 12px', fontSize: 14, fontWeight: 700,
+                          color: cbm > 0 ? C.goldLight : C.textMuted, textAlign: 'center'
+                        }}>{cbm > 0 ? cbm.toFixed(6) : '0.000000'} m³</div>
+                      </div>
+                      <div>
+                        <label style={label}>Peso (kg)</label>
+                        <input type="number" value={f.weight} onChange={e => chF('weight', e.target.value)} placeholder="0.0" style={inp} step="0.1" min="0" />
+                      </div>
+                      <div>
+                        <label style={label}>Tarifa Flete (USD/m³)</label>
+                        <input type="number" value={f.cbmRate} onChange={e => chF('cbmRate', e.target.value)} style={inp} step="1" min="0" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* GASTOS PROVEEDOR — SIEMPRE VISIBLE */}
+                <div style={{
+                  padding: '14px', borderRadius: 10, marginBottom: 12,
+                  background: 'rgba(167,139,250,0.04)', border: `1px solid rgba(167,139,250,0.15)`
+                }}>
+                  <label style={{ ...label, color: C.purple }}>Gastos Proveedor — Envío a Almacén China (USD)</label>
+                  <input
+                    type="number"
+                    value={f.supplierShipping}
+                    onChange={e => chF('supplierShipping', e.target.value)}
+                    placeholder="0.00"
+                    style={{ ...inp, borderColor: v('supplierShipping') > 0 ? 'rgba(167,139,250,0.35)' : C.border }}
+                    step="0.01" min="0"
+                  />
+                  <div style={{ marginTop: 6, fontSize: 9, color: C.textMuted, letterSpacing: 0.5 }}>
+                    Se suma siempre al costo total — activo en ambos modos de flete
                   </div>
                 </div>
+
                 <div>
                   <label style={label}>Costos Fijos Importacion (USD)</label>
                   <input type="number" value={f.fixedCosts} onChange={e => chF('fixedCosts', e.target.value)} style={inp} step="0.01" min="0" />
-                </div>
-
-                {/* FLETE TOTAL FIJO */}
-                <div style={{ marginTop: 14 }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
-                    padding: '7px 12px', borderRadius: 7,
-                    background: v('freightUsd') > 0 ? 'rgba(212,175,55,0.07)' : 'rgba(96,165,250,0.05)',
-                    border: `1px solid ${v('freightUsd') > 0 ? 'rgba(212,175,55,0.28)' : 'rgba(96,165,250,0.15)'}`,
-                  }}>
-                    <span style={{ fontSize: 13 }}>{v('freightUsd') > 0 ? '⚡' : '📐'}</span>
-                    <span style={{
-                      fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase',
-                      color: v('freightUsd') > 0 ? C.goldLight : C.blue
-                    }}>
-                      Modo Flete: {v('freightUsd') > 0 ? 'FIJO — CBM ignorado' : 'POR VOLUMEN CBM'}
-                    </span>
-                  </div>
-                  <label style={label}>Flete Total Cerrado (USD) — pon 0 para usar CBM</label>
-                  <input
-                    type="number"
-                    value={f.freightUsd}
-                    onChange={e => chF('freightUsd', e.target.value)}
-                    placeholder="Ej: 57 — si ya conoces el flete total del envío"
-                    style={{
-                      ...inp,
-                      borderColor: v('freightUsd') > 0 ? 'rgba(212,175,55,0.35)' : C.border,
-                      color: v('freightUsd') > 0 ? C.goldLight : C.text
-                    }}
-                    step="0.01" min="0"
-                  />
                 </div>
 
                 <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
@@ -599,7 +642,7 @@ export default function ZyncSuite() {
                         { n: 3, name: `Arancel (${f.arancelR}% del CIF)`, val: calc.arancel, detail: `${f.arancelR}% de $${fNum(calc.cifUnit)}`, hl: false },
                         { n: 4, name: `ICE (${f.iceR}% del CIF)`, val: calc.ice, detail: `${f.iceR}% de $${fNum(calc.cifUnit)}`, hl: false },
                         { n: 5, name: `IVA (${f.ivaR}% sobre CIF+Arl+ICE)`, val: calc.iva, detail: `${f.ivaR}% de $${fNum(calc.cifUnit + calc.arancel + calc.ice)}`, hl: false },
-                        { n: 6, name: calc.freightMode === 'fixed' ? `Flete Cerrado (÷${calc.q} uds)` : 'Flete Maritimo (CBM)', val: calc.freight, detail: calc.freightMode === 'fixed' ? `$${fNum(calc.freightFixed)} ÷ ${calc.q} uds` : (cbm > 0 ? `${cbm.toFixed(6)} m³` : 'Sin dimensiones'), hl: true },
+                        { n: 6, name: calc.freightMode === 'fixed' ? `Flete Cerrado + Almacén China` : 'Flete CBM + Almacén China', val: calc.freight + calc.supplierShippingPerUnit, detail: calc.freightMode === 'fixed' ? `$${fNum(calc.freightFixed)}÷${calc.q} + prov $${fNum(calc.supplierShippingPerUnit)}` : (cbm > 0 ? `${cbm.toFixed(4)} m³ + prov $${fNum(calc.supplierShippingPerUnit)}` : `Sin CBM + prov $${fNum(calc.supplierShippingPerUnit)}`), hl: true },
                         { n: 7, name: 'OPEX Galanet (2.5% PV)', val: calc.galanetCalc, detail: `2.5% de $${fNum(calc.finalPrice)}`, hl: true },
                         { n: 8, name: 'OPEX Publicidad + Empaque + Delivery', val: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit, detail: `$${fNum(calc.adPerUnit)} + $${fNum(calc.packagingPerUnit)} + $${fNum(calc.deliveryPerUnit)}`, hl: true },
                         { n: 9, name: 'TOTAL COSTO + MARGEN', val: calc.finalPrice, detail: `Incluye ${f.marginR}% margen`, hl: false, total: true },
