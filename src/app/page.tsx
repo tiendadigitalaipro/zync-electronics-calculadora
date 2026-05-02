@@ -154,12 +154,19 @@ export default function ZyncSuite() {
       : (cbm > 0 ? (cbm * v('cbmRate')) / q : 0)
     const freightMode: 'fixed' | 'cbm' = freightTab
     const supplierShippingPerUnit = v('supplierShipping') / q
-    const fixedPerUnit = v('fixedCosts')
-    const galanetPerUnit = v('galanetUsd')
-    const adPerUnit = v('adUsd')
-    const packagingPerUnit = v('packagingUsd')
-    const deliveryPerUnit = v('deliveryUsd')
-    const totalOpex = galanetPerUnit + adPerUnit + packagingPerUnit + deliveryPerUnit + fixedPerUnit
+    // OPEX — montos TOTALES mensuales/del lote, divididos entre cantidad
+    const fixedTotal = v('fixedCosts')
+    const galanetTotal = v('galanetUsd')
+    const adTotal = v('adUsd')
+    const packagingTotal = v('packagingUsd')
+    const deliveryTotal = v('deliveryUsd')
+    const opexMonthly = galanetTotal + adTotal + packagingTotal + deliveryTotal + fixedTotal
+    const fixedPerUnit = fixedTotal / q
+    const galanetPerUnit = galanetTotal / q
+    const adPerUnit = adTotal / q
+    const packagingPerUnit = packagingTotal / q
+    const deliveryPerUnit = deliveryTotal / q
+    const totalOpex = opexMonthly / q
 
     // costBase = suma limpia de todos los costos antes del margen
     const costBase = cifUnit + totalTaxes + freight + supplierShippingPerUnit + totalOpex
@@ -175,6 +182,7 @@ export default function ZyncSuite() {
       cifUnit, insurance, arancel, ice, iva, totalTaxes,
       freight, freightFixed, freightMode, supplierShippingPerUnit,
       fixedPerUnit, galanetPerUnit, adPerUnit, packagingPerUnit, deliveryPerUnit, totalOpex,
+      fixedTotal, galanetTotal, adTotal, packagingTotal, deliveryTotal, opexMonthly,
       costBase, mermaAmount, mermaR, costWithMerma,
       finalPrice, profitPerUnit, profitPct,
       sellingBs: finalPrice * rate,
@@ -577,8 +585,13 @@ export default function ZyncSuite() {
                 </div>
 
                 <div>
-                  <label style={label}>Costos Fijos Importacion (USD)</label>
-                  <input type="number" value={f.fixedCosts} onChange={e => chF('fixedCosts', e.target.value)} style={inp} step="0.01" min="0" />
+                  <label style={label}>Costos Fijos Importacion (USD total del lote)</label>
+                  <input type="number" value={f.fixedCosts} onChange={e => chF('fixedCosts', e.target.value)} style={{ ...inp, borderColor: v('fixedCosts') > 0 ? 'rgba(212,175,55,0.35)' : C.border }} step="0.01" min="0" />
+                  {v('fixedCosts') > 0 && (
+                    <div style={{ fontSize: 9, color: C.goldDark, marginTop: 3, fontWeight: 600 }}>
+                      ${fNum(v('fixedCosts'))} ÷ {parseInt(f.quantity) || 1} uds = ${fNum(v('fixedCosts') / (parseInt(f.quantity) || 1))}/ud
+                    </div>
+                  )}
                 </div>
 
                 <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
@@ -597,14 +610,24 @@ export default function ZyncSuite() {
                 <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
 
                 {/* OPEX */}
-                <div style={secTitle}><span>📊</span> Desglose OPEX (por unidad)</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                  {([['galanetUsd', 'Internet Galanet'], ['adUsd', 'Publicidad'], ['packagingUsd', 'Empaques'], ['deliveryUsd', 'Delivery']] as [keyof Form, string][]).map(([k, lb]) => (
-                    <div key={k}>
-                      <label style={label}>{lb} (USD)</label>
-                      <input type="number" value={f[k]} onChange={e => chF(k, e.target.value)} style={inp} step="0.01" min="0" />
-                    </div>
-                  ))}
+                <div style={secTitle}><span>📊</span> OPEX Mensual Global (÷ cantidad automático)</div>
+                <div style={{ background: 'rgba(96,165,250,0.04)', border: '1px solid rgba(96,165,250,0.12)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, color: C.blue, fontWeight: 700, letterSpacing: 0.5, marginBottom: 10 }}>
+                    💡 Ingresa el gasto mensual TOTAL — la app divide entre {parseInt(f.quantity) || 1} unidades automáticamente
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {([['galanetUsd', 'Internet Galanet'], ['adUsd', 'Publicidad'], ['packagingUsd', 'Empaques'], ['deliveryUsd', 'Delivery']] as [keyof Form, string][]).map(([k, lb]) => (
+                      <div key={k}>
+                        <label style={label}>{lb} (USD/mes)</label>
+                        <input type="number" value={f[k]} onChange={e => chF(k, e.target.value)} style={inp} step="0.01" min="0" />
+                        {(parseFloat(f[k]) || 0) > 0 && (
+                          <div style={{ fontSize: 9, color: C.blue, marginTop: 3, fontWeight: 600 }}>
+                            ${fNum(parseFloat(f[k]) || 0)} ÷ {parseInt(f.quantity) || 1} = ${fNum((parseFloat(f[k]) || 0) / (parseInt(f.quantity) || 1))}/ud
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '16px 0' }} />
@@ -665,7 +688,7 @@ export default function ZyncSuite() {
                         ...(calc.ice > 0 ? [{ name: `ICE (${f.iceR}% del CIF)`, val: calc.ice, detail: `${f.iceR}% de $${fNum(calc.cifUnit)}`, hl: false }] : []),
                         ...(calc.iva > 0 ? [{ name: `IVA (${f.ivaR}% sobre CIF+Arl+ICE)`, val: calc.iva, detail: `${f.ivaR}% de $${fNum(calc.cifUnit + calc.arancel + calc.ice)}`, hl: false }] : []),
                         { name: calc.freightMode === 'fixed' ? `Flete Cerrado + Almacén China` : 'Flete CBM + Almacén China', val: calc.freight + calc.supplierShippingPerUnit, detail: calc.freightMode === 'fixed' ? `$${fNum(calc.freightFixed)}÷${calc.q} + prov $${fNum(calc.supplierShippingPerUnit)}` : (cbm > 0 ? `${cbm.toFixed(4)} m³ + prov $${fNum(calc.supplierShippingPerUnit)}` : `Sin CBM + prov $${fNum(calc.supplierShippingPerUnit)}`), hl: true },
-                        ...(calc.totalOpex > 0 ? [{ name: 'OPEX (Internet + Pub + Empaque + Delivery + Fijos)', val: calc.totalOpex, detail: `Gal $${fNum(calc.galanetPerUnit)} + Pub $${fNum(calc.adPerUnit)} + Emp $${fNum(calc.packagingPerUnit)} + Del $${fNum(calc.deliveryPerUnit)} + Fij $${fNum(calc.fixedPerUnit)}`, hl: true }] : []),
+                        ...(calc.totalOpex > 0 ? [{ name: 'OPEX por Unidad (total ÷ cantidad)', val: calc.totalOpex, detail: `$${fNum(calc.opexMonthly)} total ÷ ${calc.q} uds = $${fNum(calc.totalOpex)}/ud`, hl: true }] : []),
                         ...(calc.mermaAmount > 0 ? [{ name: `Merma (${f.mermaR}%)`, val: calc.mermaAmount, detail: `${f.mermaR}% del costo base $${fNum(calc.costBase)}`, hl: true }] : []),
                         { name: 'TOTAL COSTO + MARGEN', val: calc.finalPrice, detail: `Incluye ${f.marginR}% margen`, hl: false, total: true },
                       ].map((r, i) => ({ ...r, n: i + 1 })).map(item => (
@@ -1010,7 +1033,7 @@ export default function ZyncSuite() {
                     <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Desglose OPEX</span>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 600, color: C.goldLight }}>
-                    Total: {fUSD(v('galanetUsd') + v('adUsd') + v('packagingUsd') + v('deliveryUsd'))}/unidad
+                    Total OPEX mensual: {fUSD(v('galanetUsd') + v('adUsd') + v('packagingUsd') + v('deliveryUsd'))}
                   </span>
                 </div>
                 <div style={{ ...cardBody, height: 280 }}>
