@@ -17,7 +17,7 @@ interface Form {
   galanetUsd: string; adUsd: string; packagingUsd: string; deliveryUsd: string
   marginR: string; mermaR: string; shippingBs: string; freightUsd: string; supplierShipping: string
 }
-interface InvEntry { id: number; product: string; qty: number; fobCost: number; sold: number; mermaR: number; date: string }
+interface InvEntry { id: number; product: string; qty: number; fobCost: number; sellingPrice: number; sold: number; mermaR: number; date: string }
 interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string }
 
 // ============================================================
@@ -201,7 +201,7 @@ export default function ZyncSuite() {
     const fob = parseFloat(newProd.fob) || 0
     if (!name || qty <= 0 || fob <= 0) return
     const entry: InvEntry = {
-      id: Date.now(), product: name, qty, fobCost: fob, sold: 0, mermaR: 3,
+      id: Date.now(), product: name, qty, fobCost: fob, sellingPrice: 0, sold: 0, mermaR: 3,
       date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
     }
     const updated = [entry, ...inv]
@@ -237,9 +237,11 @@ export default function ZyncSuite() {
   }
 
   const recordSale = (invId: number) => {
+    const entry = inv.find(e => e.id === invId)
+    const suggested = (entry?.sellingPrice || 0).toFixed(2)
     const qty = parseInt(prompt('Cantidad vendida:') || '0')
     if (qty <= 0) return
-    const price = parseFloat(prompt('Precio de venta USD por unidad:') || '0')
+    const price = parseFloat(prompt(`Precio de venta USD/unidad: (Sugerido: $${suggested})`, suggested) || '0')
     if (price <= 0) return
 
     setInv(prev => prev.map(e => {
@@ -268,6 +270,7 @@ export default function ZyncSuite() {
       product: name,
       qty: calc.q,
       fobCost: parseFloat(calc.costWithMerma.toFixed(4)),
+      sellingPrice: parseFloat(calc.finalPrice.toFixed(4)),
       sold: 0,
       mermaR: parseFloat(f.mermaR) || 0,
       date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -313,6 +316,12 @@ export default function ZyncSuite() {
       const mermaQty = Math.round(e.qty * (e.mermaR / 100))
       return s + mermaQty
     }, 0)
+    const estimatedProfit = inv.reduce((s, e) => {
+      const mermaQty = Math.round(e.qty * ((e.mermaR || 0) / 100))
+      const avail = e.qty - e.sold - mermaQty
+      if (avail <= 0) return s
+      return s + avail * ((e.sellingPrice || 0) - e.fobCost)
+    }, 0)
 
     // Brecha chart
     const brechaBar = [
@@ -321,8 +330,8 @@ export default function ZyncSuite() {
       { name: 'P2P Efectivo', value: rates.p2p },
     ]
 
-    return { opexPie, costBar, totalInvCost, totalSold, totalRevenue, grossProfit, totalMerma, brechaBar }
-  }, [f, calc, inv, sales, rates])
+    return { opexPie, costBar, totalInvCost, totalSold, totalRevenue, grossProfit, totalMerma, brechaBar, estimatedProfit }
+  }, [f, calc, inv, sales, rates, activeRate])
 
   // ============================================================
   // TABS
@@ -870,23 +879,45 @@ export default function ZyncSuite() {
             </div>
 
             {/* Inventory Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 20 }}>
               {[
-                { label: 'Productos', value: inv.length.toString(), icon: '📦', color: C.blue },
-                { label: 'Inversion Total', value: fUSD(dashData.totalInvCost), icon: '💰', color: C.gold },
-                { label: 'Unidades Vendidas', value: dashData.totalSold.toString(), icon: '✅', color: C.green },
-                { label: 'Merma Estimada', value: dashData.totalMerma.toString() + ' uds', icon: '⚠️', color: C.orange },
+                { label: 'Productos', value: inv.length.toString(), icon: '📦', color: C.blue, gold: false },
+                { label: 'Inversion Total', value: fUSD(dashData.totalInvCost), icon: '💰', color: C.gold, gold: false },
+                { label: 'Unidades Vendidas', value: dashData.totalSold.toString(), icon: '✅', color: C.green, gold: false },
+                { label: 'Merma Estimada', value: dashData.totalMerma.toString() + ' uds', icon: '⚠️', color: C.orange, gold: false },
+                { label: 'Ganancia Est. Total', value: fUSD(dashData.estimatedProfit), icon: '🏆', color: dashData.estimatedProfit >= 0 ? C.goldLight : C.red, gold: true },
               ].map((s, i) => (
-                <div key={i} style={{ ...card, padding: 0 }}>
-                  <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ fontSize: 24 }}>{s.icon}</div>
+                <div key={i} style={{
+                  ...card, padding: 0,
+                  ...(s.gold ? { border: `1px solid rgba(212,175,55,0.4)`, background: 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.02))' } : {})
+                }}>
+                  <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ fontSize: 22 }}>{s.icon}</div>
                     <div>
-                      <div style={{ fontSize: 9, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>{s.label}</div>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: s.color }}>{s.value}</div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: s.gold ? C.goldDark : C.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>{s.label}</div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: s.color }}>{s.value}</div>
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Rate Banner */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
+              padding: '8px 14px', borderRadius: 8,
+              background: 'rgba(212,175,55,0.05)', border: `1px solid rgba(212,175,55,0.15)`
+            }}>
+              <span style={{ fontSize: 12 }}>💱</span>
+              <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 500 }}>
+                Tasa activa para Bs:
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.goldLight, letterSpacing: 0.5 }}>
+                {activeRate.toUpperCase()} — {rate.toFixed(2)} Bs/$
+              </span>
+              <span style={{ fontSize: 9, color: C.textMuted, marginLeft: 4 }}>
+                (Los precios en Bs se calculan con esta tasa)
+              </span>
             </div>
 
             {/* Inventory Table */}
@@ -908,7 +939,7 @@ export default function ZyncSuite() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                     <thead>
                       <tr>
-                        {['Producto', 'Cantidad', 'Vendidos', 'Disponible', 'Costo FOB', 'Inversion', 'Merma 3%', 'Fecha', 'ACCIONES'].map(h => (
+                        {['Producto', 'Cantidad', 'Vendidos', 'Disponible', 'Costo FOB', 'Inversion', 'PV (USD)', 'PV (Bs)', 'Merma', 'Fecha', 'ACCIONES'].map(h => (
                           <th key={h} style={{
                             padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700,
                             letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase',
@@ -929,6 +960,12 @@ export default function ZyncSuite() {
                             <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: avail > 0 ? C.goldLight : C.red }}>{avail}</td>
                             <td style={{ padding: '12px 14px', fontSize: 13, color: C.textSec }}>{fUSD(e.fobCost)}</td>
                             <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{fUSD(e.qty * e.fobCost)}</td>
+                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: (e.sellingPrice || 0) > 0 ? C.green : C.textMuted }}>
+                              {(e.sellingPrice || 0) > 0 ? fUSD(e.sellingPrice) : '—'}
+                            </td>
+                            <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 700, color: (e.sellingPrice || 0) > 0 ? C.goldLight : C.textMuted }}>
+                              {(e.sellingPrice || 0) > 0 ? fBs(e.sellingPrice * rate) : '—'}
+                            </td>
                             <td style={{ padding: '12px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
                             <td style={{ padding: '12px 14px', fontSize: 11, color: C.textMuted }}>{e.date}</td>
                             <td style={{ padding: '12px 14px' }}>
