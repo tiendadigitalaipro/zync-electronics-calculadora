@@ -238,20 +238,37 @@ export default function ZyncSuite() {
 
   const recordSale = (invId: number) => {
     const entry = inv.find(e => e.id === invId)
-    const suggested = (entry?.sellingPrice || 0).toFixed(2)
-    const qty = parseInt(prompt('Cantidad vendida:') || '0')
-    if (qty <= 0) return
-    const price = parseFloat(prompt(`Precio de venta USD/unidad: (Sugerido: $${suggested})`, suggested) || '0')
-    if (price <= 0) return
+    if (!entry) return
 
-    setInv(prev => prev.map(e => {
-      if (e.id === invId) {
-        const newSold = e.sold + qty
-        if (newSold > e.qty) return e
-        return { ...e, sold: newSold }
-      }
-      return e
-    }))
+    const price = entry.sellingPrice || 0
+    if (price <= 0) {
+      alert(`"${entry.product}" no tiene precio de venta registrado.\n\nVe a la Calculadora → calcula el precio → presiona GUARDAR EN INVENTARIO.`)
+      return
+    }
+
+    const mermaQty = Math.round(entry.qty * ((entry.mermaR || 0) / 100))
+    const available = entry.qty - entry.sold - mermaQty
+    if (available <= 0) {
+      alert(`No hay unidades disponibles de "${entry.product}".`)
+      return
+    }
+
+    const qtyStr = prompt(
+      `VENDER — ${entry.product}\n` +
+      `Precio: ${fUSD(price)}/ud (${fBs(price * rate)})\n` +
+      `Disponibles: ${available} uds\n\n` +
+      `¿Cuántas unidades vender?`
+    )
+    const qty = parseInt(qtyStr || '0')
+    if (qty <= 0) return
+    if (qty > available) {
+      alert(`Solo hay ${available} unidades disponibles.`)
+      return
+    }
+
+    const updatedInv = inv.map(e => e.id === invId ? { ...e, sold: e.sold + qty } : e)
+    setInv(updatedInv)
+    localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
 
     const sale: SaleRecord = {
       id: Date.now(), invId, qty, priceUSD: price,
