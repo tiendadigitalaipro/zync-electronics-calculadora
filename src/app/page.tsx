@@ -15,7 +15,7 @@ interface Form {
   insuranceR: string; arancelR: string; iceR: string; ivaR: string
   cbmRate: string; fixedCosts: string
   galanetUsd: string; adUsd: string; packagingUsd: string; deliveryUsd: string
-  marginR: string; shippingBs: string; freightUsd: string; supplierShipping: string
+  marginR: string; mermaR: string; shippingBs: string; freightUsd: string; supplierShipping: string
 }
 interface InvEntry { id: number; product: string; qty: number; fobCost: number; sold: number; mermaR: number; date: string }
 interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string }
@@ -93,7 +93,7 @@ export default function ZyncSuite() {
     insuranceR: '0', arancelR: '0', iceR: '0', ivaR: '0',
     cbmRate: '250', fixedCosts: '0',
     galanetUsd: '0', adUsd: '0', packagingUsd: '0', deliveryUsd: '0',
-    marginR: '30', shippingBs: '0', freightUsd: '0', supplierShipping: '0'
+    marginR: '30', mermaR: '0', shippingBs: '0', freightUsd: '0', supplierShipping: '0'
   })
 
   // --- Inventory ---
@@ -135,13 +135,12 @@ export default function ZyncSuite() {
   }, [p2p])
 
   // ============================================================
-  // CALCULATION ENGINE — 9 LINEAS
+  // CALCULATION ENGINE
   // ============================================================
   const calc = useMemo(() => {
     const c = v('costUSD'), q = parseInt(f.quantity) || 1
     if (c <= 0) return null
 
-    // Por unidad
     const cifUnit = c
     const insurance = cifUnit * (v('insuranceR') / 100)
     const arancel = cifUnit * (v('arancelR') / 100)
@@ -156,45 +155,32 @@ export default function ZyncSuite() {
     const freightMode: 'fixed' | 'cbm' = freightTab
     const supplierShippingPerUnit = v('supplierShipping') / q
     const fixedPerUnit = v('fixedCosts')
-
-    // OPEX por unidad
     const galanetPerUnit = v('galanetUsd')
     const adPerUnit = v('adUsd')
     const packagingPerUnit = v('packagingUsd')
     const deliveryPerUnit = v('deliveryUsd')
-    const totalOpex = galanetPerUnit + adPerUnit + packagingPerUnit + deliveryPerUnit
+    const totalOpex = galanetPerUnit + adPerUnit + packagingPerUnit + deliveryPerUnit + fixedPerUnit
 
-    const costBase = cifUnit + totalTaxes + freight + supplierShippingPerUnit + fixedPerUnit + totalOpex
+    // costBase = suma limpia de todos los costos antes del margen
+    const costBase = cifUnit + totalTaxes + freight + supplierShippingPerUnit + totalOpex
+    const mermaR = v('mermaR')
+    const mermaAmount = costBase * (mermaR / 100)
+    const costWithMerma = costBase + mermaAmount
     const margin = v('marginR')
-
-    // Galanet es % del precio de venta → formula iterativa
-    const galanetPct = 2.5
-    const sellingPrice = galanetPct > 0
-      ? (costBase * (1 + margin / 100)) / (1 - galanetPct / 100)
-      : costBase * (1 + margin / 100)
-    const galanetCalc = sellingPrice * (galanetPct / 100)
-
-    const totalUnit = cifUnit + totalTaxes + freight + supplierShippingPerUnit + fixedPerUnit + galanetCalc + totalOpex
-    const totalWithMargin = totalUnit * (1 + margin / 100)
-
-    // Correccion con Galanet %
-    const finalPrice = galanetPct > 0
-      ? (totalUnit * (1 + margin / 100)) / (1 - galanetPct / 100)
-      : totalWithMargin
-
-    const finalGalanet = finalPrice * (galanetPct / 100)
-    const profitPerUnit = finalPrice - totalUnit
-    const profitPct = totalUnit > 0 ? (profitPerUnit / totalUnit) * 100 : 0
+    const finalPrice = costWithMerma * (1 + margin / 100)
+    const profitPerUnit = finalPrice - costWithMerma
+    const profitPct = costWithMerma > 0 ? (profitPerUnit / costWithMerma) * 100 : 0
 
     return {
       cifUnit, insurance, arancel, ice, iva, totalTaxes,
-      freight, fixedPerUnit, galanetCalc: finalGalanet,
-      adPerUnit, packagingPerUnit, deliveryPerUnit, totalOpex,
-      costBase, totalUnit, finalPrice, profitPerUnit, profitPct,
+      freight, freightFixed, freightMode, supplierShippingPerUnit,
+      fixedPerUnit, galanetPerUnit, adPerUnit, packagingPerUnit, deliveryPerUnit, totalOpex,
+      costBase, mermaAmount, mermaR, costWithMerma,
+      finalPrice, profitPerUnit, profitPct,
       sellingBs: finalPrice * rate,
       sellingBsP2P: finalPrice * p2p,
       gap: ((p2p - rate) / rate) * 100,
-      q, freightFixed, freightMode, supplierShippingPerUnit
+      q
     }
   }, [f, rates, activeRate, cbm, freightTab])
 
@@ -281,10 +267,10 @@ export default function ZyncSuite() {
     // Cost breakdown bar
     const costBar = calc ? [
       { name: 'CIF', value: calc.cifUnit },
-      { name: 'Impuestos', value: calc.totalTaxes },
-      { name: 'Flete CBM', value: calc.freight },
-      { name: 'Galanet', value: calc.galanetCalc },
-      { name: 'OPEX', value: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit },
+      ...(calc.totalTaxes > 0 ? [{ name: 'Impuestos', value: calc.totalTaxes }] : []),
+      { name: 'Flete', value: calc.freight + calc.supplierShippingPerUnit },
+      ...(calc.totalOpex > 0 ? [{ name: 'OPEX', value: calc.totalOpex }] : []),
+      ...(calc.mermaAmount > 0 ? [{ name: 'Merma', value: calc.mermaAmount }] : []),
       { name: 'Ganancia', value: calc.profitPerUnit },
     ] : []
 
@@ -634,6 +620,25 @@ export default function ZyncSuite() {
                     <input type="number" value={f.shippingBs} onChange={e => chF('shippingBs', e.target.value)} style={inp} step="0.01" min="0" />
                   </div>
                 </div>
+
+                {/* MERMA */}
+                <div style={{
+                  marginTop: 10, padding: '14px', borderRadius: 10,
+                  background: 'rgba(251,146,60,0.04)', border: `1px solid rgba(251,146,60,0.15)`
+                }}>
+                  <label style={{ ...label, color: C.orange }}>Merma (%)</label>
+                  <input
+                    type="number"
+                    value={f.mermaR}
+                    onChange={e => chF('mermaR', e.target.value)}
+                    placeholder="0"
+                    style={{ ...inp, borderColor: v('mermaR') > 0 ? `rgba(251,146,60,0.4)` : C.border, color: v('mermaR') > 0 ? C.orange : C.text }}
+                    step="0.1" min="0"
+                  />
+                  <div style={{ marginTop: 6, fontSize: 9, color: C.textMuted, letterSpacing: 0.5 }}>
+                    % del costo base reservado para cubrir pérdidas — se suma antes del margen
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -660,8 +665,8 @@ export default function ZyncSuite() {
                         ...(calc.ice > 0 ? [{ name: `ICE (${f.iceR}% del CIF)`, val: calc.ice, detail: `${f.iceR}% de $${fNum(calc.cifUnit)}`, hl: false }] : []),
                         ...(calc.iva > 0 ? [{ name: `IVA (${f.ivaR}% sobre CIF+Arl+ICE)`, val: calc.iva, detail: `${f.ivaR}% de $${fNum(calc.cifUnit + calc.arancel + calc.ice)}`, hl: false }] : []),
                         { name: calc.freightMode === 'fixed' ? `Flete Cerrado + Almacén China` : 'Flete CBM + Almacén China', val: calc.freight + calc.supplierShippingPerUnit, detail: calc.freightMode === 'fixed' ? `$${fNum(calc.freightFixed)}÷${calc.q} + prov $${fNum(calc.supplierShippingPerUnit)}` : (cbm > 0 ? `${cbm.toFixed(4)} m³ + prov $${fNum(calc.supplierShippingPerUnit)}` : `Sin CBM + prov $${fNum(calc.supplierShippingPerUnit)}`), hl: true },
-                        { name: 'OPEX Galanet (2.5% PV)', val: calc.galanetCalc, detail: `2.5% de $${fNum(calc.finalPrice)}`, hl: true },
-                        { name: 'OPEX Publicidad + Empaque + Delivery', val: calc.adPerUnit + calc.packagingPerUnit + calc.deliveryPerUnit, detail: `$${fNum(calc.adPerUnit)} + $${fNum(calc.packagingPerUnit)} + $${fNum(calc.deliveryPerUnit)}`, hl: true },
+                        ...(calc.totalOpex > 0 ? [{ name: 'OPEX (Internet + Pub + Empaque + Delivery + Fijos)', val: calc.totalOpex, detail: `Gal $${fNum(calc.galanetPerUnit)} + Pub $${fNum(calc.adPerUnit)} + Emp $${fNum(calc.packagingPerUnit)} + Del $${fNum(calc.deliveryPerUnit)} + Fij $${fNum(calc.fixedPerUnit)}`, hl: true }] : []),
+                        ...(calc.mermaAmount > 0 ? [{ name: `Merma (${f.mermaR}%)`, val: calc.mermaAmount, detail: `${f.mermaR}% del costo base $${fNum(calc.costBase)}`, hl: true }] : []),
                         { name: 'TOTAL COSTO + MARGEN', val: calc.finalPrice, detail: `Incluye ${f.marginR}% margen`, hl: false, total: true },
                       ].map((r, i) => ({ ...r, n: i + 1 })).map(item => (
                         <div key={item.n} style={{
@@ -1059,11 +1064,11 @@ export default function ZyncSuite() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     {[
                       { label: 'Precio de Venta', value: fUSD(calc.finalPrice), color: C.goldLight },
-                      { label: 'Costo Total/Unidad', value: fUSD(calc.totalUnit), color: C.red },
+                      { label: 'Costo Total/Unidad', value: fUSD(calc.costWithMerma), color: C.red },
                       { label: 'Ganancia/Unidad', value: fUSD(calc.profitPerUnit), color: C.green },
                       { label: 'Margen Real', value: calc.profitPct.toFixed(1) + '%', color: calc.profitPct > 20 ? C.green : C.orange },
-                      { label: 'ROI', value: (calc.profitPerUnit / calc.totalUnit * 100).toFixed(1) + '%', color: C.cyan },
-                      { label: 'Punto de Equilibrio', value: fUSD(calc.totalUnit), color: C.purple },
+                      { label: 'ROI', value: (calc.profitPerUnit / calc.costWithMerma * 100).toFixed(1) + '%', color: C.cyan },
+                      { label: 'Punto de Equilibrio', value: fUSD(calc.costWithMerma), color: C.purple },
                     ].map((m, i) => (
                       <div key={i} style={{
                         background: C.bgInput, border: `1px solid ${C.border}`,
