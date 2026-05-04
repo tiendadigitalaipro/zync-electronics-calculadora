@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, CartesianGrid
 } from 'recharts'
+import { rates as defaultRates } from '@/utils/config'
 
 // ============================================================
 // TYPES
@@ -18,7 +19,23 @@ interface Form {
   marginR: string; mermaR: string; shippingBs: string; freightUsd: string; supplierShipping: string
 }
 interface InvEntry { id: number; product: string; qty: number; fobCost: number; sellingPrice: number; sold: number; mermaR: number; date: string }
-interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string }
+type PaymentMethod = 'Dólares Físicos' | 'Pago Móvil (Bs)' | 'Transferencia (Bs)' | 'USDT' | 'Fiado / Pendiente'
+interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string; paymentMethod?: PaymentMethod }
+
+const seedInv: InvEntry[] = [
+  { id: 202605030001, product: 'REBANADOR DE HORTALIZAS Y VERDURAS MANGO DE MADERA', qty: 50, fobCost: 2.27, sellingPrice: 3.41, sold: 0, mermaR: 0, date: '01 may. 2026' },
+  { id: 202605030002, product: 'FILTROS DE AGUARA PARA GRIFOS', qty: 45, fobCost: 6.78, sellingPrice: 10.17, sold: 0, mermaR: 0, date: '01 may. 2026' },
+  { id: 202605030003, product: 'AUDIFONOS INALAMBRICOS CRISTAL MODELO AIRMAX', qty: 35, fobCost: 7.57, sellingPrice: 11.35, sold: 5, mermaR: 0, date: '01 may. 2026' },
+  { id: 202605030004, product: 'MICROFONOS INALAMBRICOS TIPO LAVALIER MODELO K9 DUOS', qty: 30, fobCost: 5.63, sellingPrice: 8.44, sold: 6, mermaR: 0, date: '01 may. 2026' },
+  { id: 202605030005, product: 'RELOJES INTELIGENTES I30 PRO MAX', qty: 28, fobCost: 13.09, sellingPrice: 19.64, sold: 0, mermaR: 0, date: '01 may. 2026' }
+]
+
+const seedSales: SaleRecord[] = [
+  { id: 202605030101, invId: 202605030004, qty: 1, priceUSD: 8.44, date: '03-may., 12:12 p. m.', paymentMethod: 'Dólares Físicos' },
+  { id: 202605030102, invId: 202605030004, qty: 5, priceUSD: 8.44, date: '02-may., 12:15 a. m.', paymentMethod: 'Dólares Físicos' },
+  { id: 202605030103, invId: 202605030003, qty: 5, priceUSD: 11.35, date: '02-may., 12:14 a. m.', paymentMethod: 'Dólares Físicos' }
+]
+const paymentMethods: PaymentMethod[] = ['Dólares Físicos', 'Pago Móvil (Bs)', 'Transferencia (Bs)', 'USDT', 'Fiado / Pendiente']
 
 // ============================================================
 // FORMATTERS
@@ -29,6 +46,31 @@ const fBs = (v: number) => {
   return i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + d + ' Bs'
 }
 const fNum = (v: number, dec = 2) => v.toFixed(dec)
+const getStoredRate = (key: string, fallback: string) => {
+  if (typeof window === 'undefined') return parseFloat(fallback)
+  const stored = localStorage.getItem(key)
+  const storedRate = parseFloat(stored || fallback)
+  if (key === 'zync_r_bcv' && storedRate !== defaultRates.bcv) {
+    localStorage.setItem(key, defaultRates.bcv.toString())
+    return defaultRates.bcv
+  }
+  if (key === 'zync_r_p2p' && storedRate < 700) {
+    localStorage.setItem(key, defaultRates.p2p.toString())
+    return defaultRates.p2p
+  }
+  return storedRate
+}
+const getStoredList = <T,>(key: string): T[] => {
+  if (typeof window === 'undefined') return []
+  const stored = localStorage.getItem(key)
+  if (!stored) return []
+  try {
+    const parsed = JSON.parse(stored)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 // ============================================================
 // COLORS
@@ -80,9 +122,9 @@ export default function ZyncSuite() {
 
   // --- Rates ---
   const [rates, setRates] = useState<Rates>({
-    bcv: parseFloat(typeof window !== 'undefined' ? localStorage.getItem('zync_r_bcv') || '78.50' : '78.50'),
-    usdt: parseFloat(typeof window !== 'undefined' ? localStorage.getItem('zync_r_usdt') || '85.30' : '85.30'),
-    p2p: parseFloat(typeof window !== 'undefined' ? localStorage.getItem('zync_r_p2p') || '681.69' : '681.69')
+    bcv: getStoredRate('zync_r_bcv', defaultRates.bcv.toString()),
+    usdt: getStoredRate('zync_r_usdt', defaultRates.usdt.toString()),
+    p2p: getStoredRate('zync_r_p2p', defaultRates.p2p.toString())
   })
   const [activeRate, setActiveRate] = useState<'bcv' | 'usdt' | 'p2p'>((typeof window !== 'undefined' ? localStorage.getItem('zync_ar') : null) as any || 'p2p')
 
@@ -91,18 +133,29 @@ export default function ZyncSuite() {
     productName: '',
     costUSD: '', quantity: '1', length: '', width: '', height: '', weight: '',
     insuranceR: '0', arancelR: '0', iceR: '0', ivaR: '0',
-    cbmRate: '250', fixedCosts: '0',
+    cbmRate: '765', fixedCosts: '0',
     galanetUsd: '0', adUsd: '0', packagingUsd: '0', deliveryUsd: '0',
-    marginR: '30', mermaR: '0', shippingBs: '0', freightUsd: '0', supplierShipping: '0'
+    marginR: '50', mermaR: '0', shippingBs: '0', freightUsd: '0', supplierShipping: '0'
   })
 
   // --- Inventory ---
-  const [inv, setInv] = useState<InvEntry[]>(JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('zync_inv') || '[]' : '[]'))
-  const [sales, setSales] = useState<SaleRecord[]>(JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('zync_sales') || '[]' : '[]'))
+  const [inv, setInv] = useState<InvEntry[]>(() => getStoredList<InvEntry>('zync_inv'))
+  const [sales, setSales] = useState<SaleRecord[]>(() => getStoredList<SaleRecord>('zync_sales'))
   const [newProd, setNewProd] = useState({ name: '', qty: '', fob: '' })
   const [editId, setEditId] = useState<number | null>(null)
   const [editData, setEditData] = useState({ name: '', qty: '', fob: '' })
   const [freightTab, setFreightTab] = useState<'fixed' | 'cbm'>('cbm')
+  const [editingInvId, setEditingInvId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (localStorage.getItem('zync_seed_loaded') === '2026-05-03') return
+    localStorage.setItem('zync_inv', JSON.stringify(seedInv))
+    localStorage.setItem('zync_sales', JSON.stringify(seedSales))
+    localStorage.setItem('zync_seed_loaded', '2026-05-03')
+    setInv(seedInv)
+    setSales(seedSales)
+  }, [])
 
   // Migración forzada: rellena sellingPrice vacío con fobCost × 1.30
   useEffect(() => {
@@ -110,7 +163,7 @@ export default function ZyncSuite() {
     if (!needsFix) return
     const fixed = inv.map(e => ({
       ...e,
-      sellingPrice: (e.sellingPrice > 0) ? e.sellingPrice : parseFloat((e.fobCost * 1.30).toFixed(4))
+      sellingPrice: (e.sellingPrice > 0) ? e.sellingPrice : parseFloat((e.fobCost * 1.50).toFixed(4))
     }))
     setInv(fixed)
     localStorage.setItem('zync_inv', JSON.stringify(fixed))
@@ -163,7 +216,7 @@ export default function ZyncSuite() {
     const freightFixed = v('freightUsd')
     const freight = freightTab === 'fixed'
       ? freightFixed / q
-      : (cbm > 0 ? (cbm * v('cbmRate')) / q : 0)
+      : (cbm > 0 ? cbm * v('cbmRate') : 0)  // cbm is per-unit volume, no /q needed
     const freightMode: 'fixed' | 'cbm' = freightTab
     const supplierShippingPerUnit = v('supplierShipping') / q
     // OPEX — montos TOTALES mensuales/del lote, divididos entre cantidad
@@ -251,7 +304,7 @@ export default function ZyncSuite() {
   const updatePrice = (invId: number) => {
     const entry = inv.find(e => e.id === invId)
     if (!entry) return
-    const margin = parseFloat(f.marginR) || 30
+    const margin = parseFloat(f.marginR) || 50
     const suggested = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
     const input = prompt(
       `Precio de venta para "${entry.product}"\nCosto: ${fUSD(entry.fobCost)}/ud\nSugerido (${margin}% margen): ${fUSD(suggested)}\n\nIngresa el precio de venta USD/unidad:`,
@@ -265,19 +318,30 @@ export default function ZyncSuite() {
     toast(`Precio actualizado: ${fUSD(price)}/ud`)
   }
 
+  const loadIntoCalc = (e: InvEntry) => {
+    setF(prev => ({
+      ...prev,
+      productName: e.product,
+      costUSD: e.fobCost.toString(),
+      quantity: e.qty.toString(),
+    }))
+    setEditingInvId(e.id)
+    setTab('calc')
+    toast(`"${e.product}" cargado. Ajusta costo FOB, flete y OPEX → GUARDAR actualizará el precio en inventario.`)
+  }
+
   const recordSale = (invId: number) => {
     const entry = inv.find(e => e.id === invId)
     if (!entry) return
 
-    const margin = parseFloat(f.marginR) || 30
+    const margin = parseFloat(f.marginR) || 50
     const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
     if (price <= 0) {
       alert(`"${entry.product}" no tiene precio de venta registrado.\n\nVe a la Calculadora → calcula el precio → presiona GUARDAR EN INVENTARIO.`)
       return
     }
 
-    const mermaQty = Math.round(entry.qty * ((entry.mermaR || 0) / 100))
-    const available = entry.qty - entry.sold - mermaQty
+    const available = entry.qty - entry.sold
     if (available <= 0) {
       alert(`No hay unidades disponibles de "${entry.product}".`)
       return
@@ -296,12 +360,25 @@ export default function ZyncSuite() {
       return
     }
 
+    const methodStr = prompt(
+      `Método de Pago\n\n` +
+      `1. Dólares Físicos\n` +
+      `2. Pago Móvil (Bs)\n` +
+      `3. Transferencia (Bs)\n` +
+      `4. USDT\n` +
+      `5. Fiado / Pendiente\n\n` +
+      `Escribe el número del método:`,
+      '1'
+    )
+    const paymentMethod = paymentMethods[(parseInt(methodStr || '1') || 1) - 1]
+    if (!paymentMethod) return
+
     const updatedInv = inv.map(e => e.id === invId ? { ...e, sold: e.sold + qty } : e)
     setInv(updatedInv)
     localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
 
     const sale: SaleRecord = {
-      id: Date.now(), invId, qty, priceUSD: price,
+      id: Date.now(), invId, qty, priceUSD: price, paymentMethod,
       date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
     }
     const updatedSales = [sale, ...sales]
@@ -309,9 +386,68 @@ export default function ZyncSuite() {
     localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
   }
 
+  const editSale = (sale: SaleRecord) => {
+    const entry = inv.find(e => e.id === sale.invId)
+    if (!entry) return
+    const maxQty = entry.qty - entry.sold + sale.qty
+    const qtyStr = prompt(`Editar venta — ${entry.product}\nCantidad máxima disponible considerando esta venta: ${maxQty}`, sale.qty.toString())
+    const qty = parseInt(qtyStr || '0')
+    if (qty <= 0 || qty > maxQty) {
+      alert(`Cantidad inválida. Máximo disponible: ${maxQty}`)
+      return
+    }
+    const priceStr = prompt('Precio USD por unidad:', sale.priceUSD.toString())
+    const priceUSD = parseFloat(priceStr || '0')
+    if (priceUSD <= 0) return
+    const methodStr = prompt(
+      `Método de Pago\n\n` +
+      paymentMethods.map((m, i) => `${i + 1}. ${m}`).join('\n') +
+      `\n\nEscribe el número del método:`,
+      ((paymentMethods.indexOf(sale.paymentMethod || 'Dólares Físicos') + 1) || 1).toString()
+    )
+    const paymentMethod = paymentMethods[(parseInt(methodStr || '1') || 1) - 1]
+    if (!paymentMethod) return
+
+    const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: e.sold - sale.qty + qty } : e)
+    const updatedSales = sales.map(s => s.id === sale.id ? { ...s, qty, priceUSD, paymentMethod } : s)
+    setInv(updatedInv)
+    setSales(updatedSales)
+    localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
+    localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+  }
+
+  const deleteSale = (sale: SaleRecord) => {
+    if (!window.confirm('¿Eliminar esta venta del historial?\nEsto devolverá las unidades al inventario vendido.')) return
+    const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: Math.max(0, e.sold - sale.qty) } : e)
+    const updatedSales = sales.filter(s => s.id !== sale.id)
+    setInv(updatedInv)
+    setSales(updatedSales)
+    localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
+    localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+  }
+
   const saveToInventory = () => {
     if (!calc) return
     const name = f.productName.trim() || `Producto ${new Date().toLocaleDateString('es-VE')}`
+
+    if (editingInvId !== null) {
+      // UPDATE existing inventory entry (came from ⚡ Suite)
+      const updated = inv.map(e => e.id === editingInvId ? {
+        ...e,
+        product: name,
+        qty: calc.q,
+        fobCost: parseFloat(calc.costWithMerma.toFixed(4)),
+        sellingPrice: parseFloat(calc.finalPrice.toFixed(4)),
+        mermaR: parseFloat(f.mermaR) || 0,
+      } : e)
+      setInv(updated)
+      localStorage.setItem('zync_inv', JSON.stringify(updated))
+      setEditingInvId(null)
+      toast(`✅ "${name}" actualizado — Costo ${fUSD(calc.costWithMerma)}/ud · PV ${fUSD(calc.finalPrice)}/ud`)
+      return
+    }
+
+    // CREATE new entry
     const entry: InvEntry = {
       id: Date.now(),
       product: name,
@@ -354,6 +490,9 @@ export default function ZyncSuite() {
     const totalInvCost = inv.reduce((s, e) => s + (e.qty * e.fobCost), 0)
     const totalSold = inv.reduce((s, e) => s + e.sold, 0)
     const totalRevenue = sales.reduce((s, r) => s + (r.qty * r.priceUSD), 0)
+    const totalCashUSD = sales.reduce((s, r) => r.paymentMethod === 'Dólares Físicos' ? s + (r.qty * r.priceUSD) : s, 0)
+    const totalBs = sales.reduce((s, r) => (r.paymentMethod === 'Pago Móvil (Bs)' || r.paymentMethod === 'Transferencia (Bs)') ? s + (r.qty * r.priceUSD * p2p) : s, 0)
+    const totalPending = sales.reduce((s, r) => r.paymentMethod === 'Fiado / Pendiente' ? s + (r.qty * r.priceUSD) : s, 0)
     const totalCOGS = sales.reduce((s, r) => {
       const entry = inv.find(e => e.id === r.invId)
       return s + (r.qty * (entry?.fobCost || 0))
@@ -363,10 +502,9 @@ export default function ZyncSuite() {
       const mermaQty = Math.round(e.qty * (e.mermaR / 100))
       return s + mermaQty
     }, 0)
-    const defaultMargin = parseFloat(f.marginR) || 30
+    const defaultMargin = parseFloat(f.marginR) || 50
     const estimatedProfit = inv.reduce((s, e) => {
-      const mermaQty = Math.round(e.qty * ((e.mermaR || 0) / 100))
-      const avail = e.qty - e.sold - mermaQty
+      const avail = e.qty - e.sold
       if (avail <= 0) return s
       const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + defaultMargin / 100)
       return s + avail * (sp - e.fobCost)
@@ -379,7 +517,7 @@ export default function ZyncSuite() {
       { name: 'P2P Efectivo', value: rates.p2p },
     ]
 
-    return { opexPie, costBar, totalInvCost, totalSold, totalRevenue, grossProfit, totalMerma, brechaBar, estimatedProfit }
+    return { opexPie, costBar, totalInvCost, totalSold, totalRevenue, totalCashUSD, totalBs, totalPending, grossProfit, totalMerma, brechaBar, estimatedProfit }
   }, [f, calc, inv, sales, rates, activeRate])
 
   // ============================================================
@@ -531,7 +669,7 @@ export default function ZyncSuite() {
                 {/* Brecha Info */}
                 <div style={{ background: 'rgba(251,146,60,0.05)', border: '1px solid rgba(251,146,60,0.12)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', fontSize: 11, color: C.orange, fontWeight: 500 }}>
                   <span style={{ fontSize: 16 }}>⚡</span>
-                  <span>Tasa Base <b>681.69</b> incluye spread 1.5%, comisiones USDT→Zinli y recargas. Brecha vs BCV: <b>{((p2p - rates.bcv) / rates.bcv * 100).toFixed(1)}%</b></span>
+                  <span>Tasa Base <b>{p2p.toFixed(2)}</b> incluye spread 1.5%, comisiones USDT→Zinli y recargas. Brecha vs BCV: <b>{((p2p - rates.bcv) / rates.bcv * 100).toFixed(1)}%</b></span>
                 </div>
 
                 {/* Product Name */}
@@ -860,6 +998,23 @@ export default function ZyncSuite() {
                       ))}
                     </div>
 
+                    {/* MODO ACTUALIZACIÓN banner */}
+                    {editingInvId !== null && (
+                      <div style={{
+                        marginTop: 14, padding: '10px 14px', borderRadius: 8,
+                        background: 'rgba(212,175,55,0.08)', border: `1px solid rgba(212,175,55,0.35)`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                      }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.goldLight }}>
+                          ⚡ Actualizando: <em style={{ fontStyle: 'normal', color: C.gold }}>{inv.find(e => e.id === editingInvId)?.product}</em>
+                          <span style={{ fontWeight: 400, color: C.textMuted, marginLeft: 6 }}>— GUARDAR reemplazará el precio en inventario</span>
+                        </span>
+                        <button onClick={() => setEditingInvId(null)} style={{
+                          background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, lineHeight: 1
+                        }}>✕</button>
+                      </div>
+                    )}
+
                     {/* GUARDAR EN INVENTARIO */}
                     <button
                       onClick={saveToInventory}
@@ -874,8 +1029,8 @@ export default function ZyncSuite() {
                         boxShadow: '0 4px 20px rgba(212,175,55,0.08)'
                       }}
                     >
-                      <span style={{ fontSize: 18 }}>📦</span>
-                      <span>GUARDAR EN INVENTARIO</span>
+                      <span style={{ fontSize: 18 }}>{editingInvId !== null ? '⚡' : '📦'}</span>
+                      <span>{editingInvId !== null ? 'ACTUALIZAR PRECIO EN INVENTARIO' : 'GUARDAR EN INVENTARIO'}</span>
                       {f.productName && (
                         <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 400, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           — {f.productName}
@@ -1000,8 +1155,8 @@ export default function ZyncSuite() {
                     <tbody>
                       {inv.map(e => {
                         const merma = Math.round(e.qty * ((e.mermaR || 0) / 100))
-                        const avail = e.qty - e.sold - merma
-                        const margin = parseFloat(f.marginR) || 30
+                        const avail = e.qty - e.sold  // merma only affects cost, not physical stock
+                        const margin = parseFloat(f.marginR) || 50
                         const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + margin / 100)
                         const isEstimated = !(e.sellingPrice > 0)
                         return (
@@ -1017,11 +1172,12 @@ export default function ZyncSuite() {
                                 {fUSD(sp)}{isEstimated && <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>est.</span>}
                               </div>
                               {isEstimated && (
-                                <button onClick={() => updatePrice(e.id)} style={{
-                                  fontSize: 8, padding: '2px 6px', marginTop: 3, border: `1px solid ${C.orange}40`,
-                                  borderRadius: 4, background: `${C.orange}10`, color: C.orange,
-                                  cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 700, display: 'block'
-                                }}>✏ Actualizar</button>
+                                <button onClick={() => loadIntoCalc(e)} style={{
+                                  fontSize: 8, padding: '2px 6px', marginTop: 3, border: `1px solid ${C.gold}40`,
+                                  borderRadius: 4, background: `${C.gold}10`, color: C.goldLight,
+                                  cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 700, display: 'block',
+                                  whiteSpace: 'nowrap'
+                                }}>⚡ Recalcular con Suite</button>
                               )}
                             </td>
                             <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 700, color: isEstimated ? C.orange : C.goldLight }}>
@@ -1032,11 +1188,18 @@ export default function ZyncSuite() {
                             <td style={{ padding: '12px 14px', fontSize: 11, color: C.textMuted }}>{e.date}</td>
                             <td style={{ padding: '12px 14px' }}>
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                <button onClick={() => recordSale(e.id)} style={{
-                                  padding: '5px 10px', border: `1px solid ${C.green}40`, borderRadius: 6,
-                                  background: `${C.green}10`, color: C.green, fontSize: 11, fontWeight: 700,
-                                  cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
-                                }}>Vender</button>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <button onClick={() => recordSale(e.id)} style={{
+                                    padding: '5px 10px', border: `1px solid ${C.green}40`, borderRadius: 6,
+                                    background: `${C.green}10`, color: C.green, fontSize: 11, fontWeight: 700,
+                                    cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
+                                  }}>Vender</button>
+                                  <button onClick={() => loadIntoCalc(e)} title="Cargar en Calculadora para recalcular precio exacto" style={{
+                                    padding: '4px 8px', border: `1px solid ${C.gold}40`, borderRadius: 6,
+                                    background: `${C.gold}08`, color: C.goldDark, fontSize: 9, fontWeight: 700,
+                                    cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
+                                  }}>⚡ Suite</button>
+                                </div>
                                 <button onClick={() => startEdit(e)} title="Editar producto" style={{
                                   padding: '6px 8px', border: `1px solid rgba(212,175,55,0.35)`, borderRadius: 6,
                                   background: 'rgba(212,175,55,0.08)', color: C.goldLight,
@@ -1080,15 +1243,23 @@ export default function ZyncSuite() {
                     <span style={{ fontSize: 16 }}>🧾</span>
                     <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Historial de Ventas</span>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: C.green }}>
-                    Ingresos: {fUSD(dashData.totalRevenue)} | Ganancia Bruta: {fUSD(dashData.grossProfit)}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.green }}>
+                      Ingresos: {fUSD(dashData.totalRevenue)} | Ganancia Bruta: {fUSD(dashData.grossProfit)}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.goldLight }}>
+                      Total en Efectivo: {fUSD(dashData.totalCashUSD)} | Total en Bolívares: {fBs(dashData.totalBs)}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.orange }}>
+                      Total por Cobrar (Fiado): {fUSD(dashData.totalPending)}
+                    </span>
+                  </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
                     <thead>
                       <tr>
-                        {['Producto', 'Cantidad', 'Precio USD', 'Total', 'Fecha'].map(h => (
+                        {['Producto', 'Cantidad', 'Precio USD', 'Método de Pago', 'Total', 'Fecha', 'Acciones'].map(h => (
                           <th key={h} style={{
                             padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700,
                             letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase',
@@ -1105,8 +1276,23 @@ export default function ZyncSuite() {
                             <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{entry?.product || '-'}</td>
                             <td style={{ padding: '10px 14px', fontSize: 13, color: C.textSec }}>{s.qty}</td>
                             <td style={{ padding: '10px 14px', fontSize: 13, color: C.goldLight, fontWeight: 600 }}>{fUSD(s.priceUSD)}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: C.textSec }}>{s.paymentMethod || 'Dólares Físicos'}</td>
                             <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: C.text }}>{fUSD(s.qty * s.priceUSD)}</td>
                             <td style={{ padding: '10px 14px', fontSize: 11, color: C.textMuted }}>{s.date}</td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={() => editSale(s)} style={{
+                                  padding: '5px 8px', border: `1px solid ${C.gold}40`, borderRadius: 6,
+                                  background: `${C.gold}10`, color: C.goldLight, fontSize: 10, fontWeight: 700,
+                                  cursor: 'pointer', fontFamily: 'var(--font-body)'
+                                }}>Editar</button>
+                                <button onClick={() => deleteSale(s)} style={{
+                                  padding: '5px 8px', border: `1px solid ${C.red}40`, borderRadius: 6,
+                                  background: `${C.red}10`, color: C.red, fontSize: 10, fontWeight: 700,
+                                  cursor: 'pointer', fontFamily: 'var(--font-body)'
+                                }}>Eliminar</button>
+                              </div>
+                            </td>
                           </tr>
                         )
                       })}
