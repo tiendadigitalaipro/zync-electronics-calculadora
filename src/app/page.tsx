@@ -50,10 +50,6 @@ const getStoredRate = (key: string, fallback: string) => {
   if (typeof window === 'undefined') return parseFloat(fallback)
   const stored = localStorage.getItem(key)
   const storedRate = parseFloat(stored || fallback)
-  if (key === 'zync_r_bcv' && storedRate !== defaultRates.bcv) {
-    localStorage.setItem(key, defaultRates.bcv.toString())
-    return defaultRates.bcv
-  }
   if (key === 'zync_r_p2p' && storedRate < 700) {
     localStorage.setItem(key, defaultRates.p2p.toString())
     return defaultRates.p2p
@@ -146,6 +142,17 @@ export default function ZyncSuite() {
   const [editData, setEditData] = useState({ name: '', qty: '', fob: '' })
   const [freightTab, setFreightTab] = useState<'fixed' | 'cbm'>('cbm')
   const [editingInvId, setEditingInvId] = useState<number | null>(null)
+  const [saleModal, setSaleModal] = useState<{ open: boolean; invId: number | null; qty: string; method: PaymentMethod }>({ open: false, invId: null, qty: '1', method: 'Dólares Físicos' })
+  const [editSaleModal, setEditSaleModal] = useState<{ open: boolean; sale: SaleRecord | null; qty: string; priceUSD: string; method: PaymentMethod }>({ open: false, sale: null, qty: '', priceUSD: '', method: 'Dólares Físicos' })
+  const [priceModal, setPriceModal] = useState<{ open: boolean; invId: number | null; price: string }>({ open: false, invId: null, price: '' })
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -306,16 +313,20 @@ export default function ZyncSuite() {
     if (!entry) return
     const margin = parseFloat(f.marginR) || 50
     const suggested = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
-    const input = prompt(
-      `Precio de venta para "${entry.product}"\nCosto: ${fUSD(entry.fobCost)}/ud\nSugerido (${margin}% margen): ${fUSD(suggested)}\n\nIngresa el precio de venta USD/unidad:`,
-      suggested.toFixed(2)
-    )
-    const price = parseFloat(input || '0')
-    if (price <= 0) return
-    const updated = inv.map(e => e.id === invId ? { ...e, sellingPrice: price } : e)
+    setPriceModal({ open: true, invId, price: suggested.toFixed(2) })
+  }
+
+  const confirmUpdatePrice = () => {
+    const { invId, price } = priceModal
+    if (!invId) return
+    const p = parseFloat(price) || 0
+    if (p <= 0) { toast('Precio inválido', 'err'); return }
+    const entry = inv.find(e => e.id === invId)
+    const updated = inv.map(e => e.id === invId ? { ...e, sellingPrice: p } : e)
     setInv(updated)
     localStorage.setItem('zync_inv', JSON.stringify(updated))
-    toast(`Precio actualizado: ${fUSD(price)}/ud`)
+    setPriceModal({ open: false, invId: null, price: '' })
+    toast(`Precio actualizado: ${fUSD(p)}/ud — ${entry?.product}`)
   }
 
   const loadIntoCalc = (e: InvEntry) => {
@@ -333,87 +344,62 @@ export default function ZyncSuite() {
   const recordSale = (invId: number) => {
     const entry = inv.find(e => e.id === invId)
     if (!entry) return
-
     const margin = parseFloat(f.marginR) || 50
     const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
-    if (price <= 0) {
-      alert(`"${entry.product}" no tiene precio de venta registrado.\n\nVe a la Calculadora → calcula el precio → presiona GUARDAR EN INVENTARIO.`)
-      return
-    }
-
+    if (price <= 0) { toast(`"${entry.product}" no tiene precio. Ve a Calculadora → GUARDAR.`, 'err'); return }
     const available = entry.qty - entry.sold
-    if (available <= 0) {
-      alert(`No hay unidades disponibles de "${entry.product}".`)
-      return
-    }
+    if (available <= 0) { toast(`No hay unidades disponibles de "${entry.product}".`, 'err'); return }
+    setSaleModal({ open: true, invId, qty: '1', method: 'Dólares Físicos' })
+  }
 
-    const qtyStr = prompt(
-      `VENDER — ${entry.product}\n` +
-      `Precio: ${fUSD(price)}/ud (${fBs(price * rate)})\n` +
-      `Disponibles: ${available} uds\n\n` +
-      `¿Cuántas unidades vender?`
-    )
-    const qty = parseInt(qtyStr || '0')
-    if (qty <= 0) return
-    if (qty > available) {
-      alert(`Solo hay ${available} unidades disponibles.`)
-      return
-    }
-
-    const methodStr = prompt(
-      `Método de Pago\n\n` +
-      `1. Dólares Físicos\n` +
-      `2. Pago Móvil (Bs)\n` +
-      `3. Transferencia (Bs)\n` +
-      `4. USDT\n` +
-      `5. Fiado / Pendiente\n\n` +
-      `Escribe el número del método:`,
-      '1'
-    )
-    const paymentMethod = paymentMethods[(parseInt(methodStr || '1') || 1) - 1]
-    if (!paymentMethod) return
-
-    const updatedInv = inv.map(e => e.id === invId ? { ...e, sold: e.sold + qty } : e)
+  const confirmSale = () => {
+    const { invId, qty, method } = saleModal
+    if (!invId) return
+    const entry = inv.find(e => e.id === invId)
+    if (!entry) return
+    const margin = parseFloat(f.marginR) || 50
+    const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
+    const q = parseInt(qty) || 0
+    const available = entry.qty - entry.sold
+    if (q <= 0 || q > available) { toast(`Cantidad inválida. Máximo disponible: ${available}`, 'err'); return }
+    const updatedInv = inv.map(e => e.id === invId ? { ...e, sold: e.sold + q } : e)
     setInv(updatedInv)
     localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
-
     const sale: SaleRecord = {
-      id: Date.now(), invId, qty, priceUSD: price, paymentMethod,
+      id: Date.now(), invId, qty: q, priceUSD: price, paymentMethod: method,
       date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
     }
     const updatedSales = [sale, ...sales]
     setSales(updatedSales)
     localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+    setSaleModal({ open: false, invId: null, qty: '1', method: 'Dólares Físicos' })
+    toast(`Venta registrada: ${q} ud(s) de "${entry.product}" — ${fUSD(price * q)}`)
   }
 
   const editSale = (sale: SaleRecord) => {
     const entry = inv.find(e => e.id === sale.invId)
     if (!entry) return
-    const maxQty = entry.qty - entry.sold + sale.qty
-    const qtyStr = prompt(`Editar venta — ${entry.product}\nCantidad máxima disponible considerando esta venta: ${maxQty}`, sale.qty.toString())
-    const qty = parseInt(qtyStr || '0')
-    if (qty <= 0 || qty > maxQty) {
-      alert(`Cantidad inválida. Máximo disponible: ${maxQty}`)
-      return
-    }
-    const priceStr = prompt('Precio USD por unidad:', sale.priceUSD.toString())
-    const priceUSD = parseFloat(priceStr || '0')
-    if (priceUSD <= 0) return
-    const methodStr = prompt(
-      `Método de Pago\n\n` +
-      paymentMethods.map((m, i) => `${i + 1}. ${m}`).join('\n') +
-      `\n\nEscribe el número del método:`,
-      ((paymentMethods.indexOf(sale.paymentMethod || 'Dólares Físicos') + 1) || 1).toString()
-    )
-    const paymentMethod = paymentMethods[(parseInt(methodStr || '1') || 1) - 1]
-    if (!paymentMethod) return
+    setEditSaleModal({ open: true, sale, qty: sale.qty.toString(), priceUSD: sale.priceUSD.toString(), method: sale.paymentMethod || 'Dólares Físicos' })
+  }
 
-    const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: e.sold - sale.qty + qty } : e)
-    const updatedSales = sales.map(s => s.id === sale.id ? { ...s, qty, priceUSD, paymentMethod } : s)
+  const confirmEditSale = () => {
+    const { sale, qty, priceUSD, method } = editSaleModal
+    if (!sale) return
+    const entry = inv.find(e => e.id === sale.invId)
+    if (!entry) return
+    const maxQty = entry.qty - entry.sold + sale.qty
+    const q = parseInt(qty) || 0
+    const p = parseFloat(priceUSD) || 0
+    if (q <= 0 || q > maxQty) { toast(`Cantidad inválida. Máximo: ${maxQty}`, 'err'); return }
+    if (p <= 0) { toast('Precio inválido', 'err'); return }
+    const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: e.sold - sale.qty + q } : e)
+    const updatedSales = sales.map(s => s.id === sale.id ? { ...s, qty: q, priceUSD: p, paymentMethod: method } : s)
     setInv(updatedInv)
     setSales(updatedSales)
     localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
     localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+    setEditSaleModal({ open: false, sale: null, qty: '', priceUSD: '', method: 'Dólares Físicos' })
+    toast('Venta actualizada correctamente')
   }
 
   const deleteSale = (sale: SaleRecord) => {
@@ -424,6 +410,63 @@ export default function ZyncSuite() {
     setSales(updatedSales)
     localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
     localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+  }
+
+  const exportBackup = () => {
+    const backup = { version: '3.0', date: new Date().toISOString(), inv, sales, rates }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `zync-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast(`Respaldo exportado: ${inv.length} productos, ${sales.length} ventas`)
+  }
+
+  const importBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string)
+        if (!Array.isArray(data.inv) || !Array.isArray(data.sales)) throw new Error('Formato inválido')
+        if (!window.confirm(`Restaurar respaldo del ${new Date(data.date).toLocaleDateString('es-VE')}?\n${data.inv.length} productos · ${data.sales.length} ventas\n\nEsto reemplazará todos los datos actuales.`)) return
+        setInv(data.inv)
+        setSales(data.sales)
+        localStorage.setItem('zync_inv', JSON.stringify(data.inv))
+        localStorage.setItem('zync_sales', JSON.stringify(data.sales))
+        if (data.rates) {
+          setRates(data.rates)
+          localStorage.setItem('zync_r_bcv', data.rates.bcv.toString())
+          localStorage.setItem('zync_r_usdt', data.rates.usdt.toString())
+          localStorage.setItem('zync_r_p2p', data.rates.p2p.toString())
+        }
+        toast(`Respaldo restaurado: ${data.inv.length} productos, ${data.sales.length} ventas`)
+      } catch { toast('Archivo inválido. Usa solo respaldos de Zync v3.0.', 'err') }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const copiarCatalogo = () => {
+    if (inv.length === 0) { toast('No hay productos en inventario', 'err'); return }
+    const margin = parseFloat(f.marginR) || 50
+    const disponibles = inv.filter(e => e.qty - e.sold > 0)
+    if (disponibles.length === 0) { toast('No hay productos con stock disponible', 'err'); return }
+    const lines = [
+      `🛍️ *CATÁLOGO ZYNC ELECTRONICS*`,
+      `📅 ${new Date().toLocaleDateString('es-VE')}`,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      ...disponibles.map(e => {
+        const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + margin / 100)
+        return [`📦 *${e.product}*`, `   💵 $${sp.toFixed(2)} USD`, `   💸 ${fBs(sp * rates.bcv)} (BCV)`, `   💰 ${fBs(sp * rates.p2p)} (P2P)`, `   📊 Stock: ${e.qty - e.sold} uds`].join('\n')
+      }),
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      `_Precios sujetos a cambio según tasa del día_`
+    ].join('\n\n')
+    navigator.clipboard.writeText(lines).then(() => toast(`Catálogo copiado: ${disponibles.length} productos`))
   }
 
   const saveToInventory = () => {
@@ -557,8 +600,10 @@ export default function ZyncSuite() {
         backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
       }}>
         <div style={{
-          maxWidth: 1200, margin: '0 auto', padding: '0 24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72
+          maxWidth: 1200, margin: '0 auto', padding: isMobile ? '12px 16px' : '0 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 10,
+          height: isMobile ? 'auto' : 72, minHeight: isMobile ? 0 : 72
         }}>
           {/* LEFT: A2K Logo + Name */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -614,8 +659,9 @@ export default function ZyncSuite() {
 
       {/* ============ TAB NAV ============ */}
       <nav style={{
-        maxWidth: 1200, margin: '0 auto', padding: '20px 24px 0',
-        display: 'flex', gap: 6, borderBottom: `1px solid ${C.border}`
+        maxWidth: 1200, margin: '0 auto', padding: isMobile ? '12px 16px 0' : '20px 24px 0',
+        display: 'flex', gap: 6, borderBottom: `1px solid ${C.border}`,
+        overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' as any
       }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -630,12 +676,39 @@ export default function ZyncSuite() {
         ))}
       </nav>
 
+      {/* ============ BACKUP BAR ============ */}
+      <div style={{
+        maxWidth: 1200, margin: '0 auto', padding: isMobile ? '8px 16px' : '10px 24px',
+        display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end',
+        flexWrap: 'wrap', gap: 8, borderBottom: `1px solid ${C.border}`
+      }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', marginRight: 4 }}>Respaldo</span>
+        <button onClick={exportBackup} style={{
+          padding: '5px 14px', border: `1px solid ${C.border}`, borderRadius: 6,
+          background: C.bgInput, color: C.textSec, fontSize: 11, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
+        }}>⬇️ Exportar</button>
+        <label style={{
+          padding: '5px 14px', border: `1px solid ${C.border}`, borderRadius: 6,
+          background: C.bgInput, color: C.textSec, fontSize: 11, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
+        }}>
+          ⬆️ Importar
+          <input type="file" accept=".json" onChange={importBackup} style={{ display: 'none' }} />
+        </label>
+        <button onClick={copiarCatalogo} style={{
+          padding: '5px 14px', border: `1px solid rgba(212,175,55,0.35)`, borderRadius: 6,
+          background: 'rgba(212,175,55,0.07)', color: C.goldLight, fontSize: 11, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
+        }}>📲 Catálogo WhatsApp</button>
+      </div>
+
       {/* ============ MAIN CONTENT ============ */}
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
 
         {/* ==================== TAB: CALCULADORA ==================== */}
         {tab === 'calc' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, animation: 'fadeUp 0.4s ease-out' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, animation: 'fadeUp 0.4s ease-out' }}>
 
             {/* --- LEFT: FORM --- */}
             <div style={{ ...card, animation: 'fadeUp 0.4s ease-out' }}>
@@ -1083,7 +1156,7 @@ export default function ZyncSuite() {
             </div>
 
             {/* Inventory Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)', gap: 10, marginBottom: 20 }}>
               {[
                 { label: 'Productos', value: inv.length.toString(), icon: '📦', color: C.blue, gold: false },
                 { label: 'Inversion Total', value: fUSD(dashData.totalInvCost), icon: '💰', color: C.gold, gold: false },
@@ -1106,22 +1179,17 @@ export default function ZyncSuite() {
               ))}
             </div>
 
-            {/* Rate Banner */}
+            {/* Rate Banner — Vista triple */}
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
-              padding: '8px 14px', borderRadius: 8,
+              display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10,
+              padding: '8px 14px', borderRadius: 8, flexWrap: 'wrap',
               background: 'rgba(212,175,55,0.05)', border: `1px solid rgba(212,175,55,0.15)`
             }}>
               <span style={{ fontSize: 12 }}>💱</span>
-              <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 500 }}>
-                Tasa activa para Bs:
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 800, color: C.goldLight, letterSpacing: 0.5 }}>
-                {activeRate.toUpperCase()} — {rate.toFixed(2)} Bs/$
-              </span>
-              <span style={{ fontSize: 9, color: C.textMuted, marginLeft: 4 }}>
-                (Los precios en Bs se calculan con esta tasa)
-              </span>
+              <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 500 }}>Vista de precios simultáneos:</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.blue }}>🟦 BCV {rates.bcv.toFixed(2)} Bs/$</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.cyan }}>🩵 USDT {rates.usdt.toFixed(2)} Bs/$</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.goldLight }}>🟡 P2P {rates.p2p.toFixed(2)} Bs/$</span>
             </div>
 
             {/* Inventory Table */}
@@ -1143,12 +1211,14 @@ export default function ZyncSuite() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                     <thead>
                       <tr>
-                        {['Producto', 'Cantidad', 'Vendidos', 'Disponible', 'Costo FOB', 'Inversion', 'PV (USD)', 'PV (Bs)', 'Merma', 'Fecha', 'ACCIONES'].map(h => (
-                          <th key={h} style={{
-                            padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700,
-                            letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase',
-                            borderBottom: `1px solid ${C.border}`, background: C.bgSecondary
-                          }}>{h}</th>
+                        {['Producto', 'Cant.', 'Vend.', 'Disp.', 'Costo FOB', 'PV (USD)'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, background: C.bgSecondary }}>{h}</th>
+                        ))}
+                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, background: C.bgSecondary, color: C.blue }}>PV BCV 🟦</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, background: C.bgSecondary, color: C.cyan }}>PV USDT 🩵</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, background: C.bgSecondary, color: C.goldLight }}>PV P2P 🟡</th>
+                        {['Merma', 'ACCIONES'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, background: C.bgSecondary }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1161,13 +1231,12 @@ export default function ZyncSuite() {
                         const isEstimated = !(e.sellingPrice > 0)
                         return (
                           <tr key={e.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
-                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{e.product}</td>
-                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.textSec }}>{e.qty}</td>
-                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.green, fontWeight: 600 }}>{e.sold}</td>
-                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: avail > 0 ? C.goldLight : C.red }}>{avail}</td>
-                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.textSec }}>{fUSD(e.fobCost)}</td>
-                            <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{fUSD(e.qty * e.fobCost)}</td>
-                            <td style={{ padding: '12px 14px' }}>
+                            <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: C.text, maxWidth: 200 }}>{e.product}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.textSec }}>{e.qty}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.green, fontWeight: 600 }}>{e.sold}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: avail > 0 ? C.goldLight : C.red }}>{avail}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: C.textSec }}>{fUSD(e.fobCost)}</td>
+                            <td style={{ padding: '10px 14px' }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: isEstimated ? C.orange : C.green }}>
                                 {fUSD(sp)}{isEstimated && <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>est.</span>}
                               </div>
@@ -1175,17 +1244,23 @@ export default function ZyncSuite() {
                                 <button onClick={() => loadIntoCalc(e)} style={{
                                   fontSize: 8, padding: '2px 6px', marginTop: 3, border: `1px solid ${C.gold}40`,
                                   borderRadius: 4, background: `${C.gold}10`, color: C.goldLight,
-                                  cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 700, display: 'block',
-                                  whiteSpace: 'nowrap'
-                                }}>⚡ Recalcular con Suite</button>
+                                  cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 700, display: 'block', whiteSpace: 'nowrap'
+                                }}>⚡ Suite</button>
                               )}
                             </td>
-                            <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 700, color: isEstimated ? C.orange : C.goldLight }}>
-                              {fBs(sp * rate)}
+                            <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.blue }}>
+                              {fBs(sp * rates.bcv)}
                               {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
                             </td>
-                            <td style={{ padding: '12px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
-                            <td style={{ padding: '12px 14px', fontSize: 11, color: C.textMuted }}>{e.date}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.cyan }}>
+                              {fBs(sp * rates.usdt)}
+                              {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
+                            </td>
+                            <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.goldLight }}>
+                              {fBs(sp * rates.p2p)}
+                              {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
+                            </td>
+                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
                             <td style={{ padding: '12px 14px' }}>
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1253,6 +1328,9 @@ export default function ZyncSuite() {
                     <span style={{ fontSize: 10, fontWeight: 700, color: C.orange }}>
                       Total por Cobrar (Fiado): {fUSD(dashData.totalPending)}
                     </span>
+                    <span style={{ fontSize: 9, color: C.textMuted }}>
+                      {sales.length} venta(s) registrada(s)
+                    </span>
                   </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
@@ -1269,7 +1347,7 @@ export default function ZyncSuite() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sales.slice(0, 20).map(s => {
+                      {sales.map(s => {
                         const entry = inv.find(e => e.id === s.invId)
                         return (
                           <tr key={s.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
@@ -1308,7 +1386,7 @@ export default function ZyncSuite() {
         {tab === 'dash' && (
           <div style={{ animation: 'fadeUp 0.4s ease-out' }}>
             {/* KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
               {[
                 { label: 'Tasa P2P', value: p2p.toFixed(2) + ' Bs/$', icon: '💱', color: C.goldLight },
                 { label: 'Brecha P2P vs BCV', value: ((p2p - rates.bcv) / rates.bcv * 100).toFixed(1) + '%', icon: '📈', color: C.orange },
@@ -1327,7 +1405,7 @@ export default function ZyncSuite() {
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
               {/* Brecha Cambiaria */}
               <div style={{ ...card, animation: 'fadeUp 0.4s ease-out 0.1s both' }}>
                 <div style={cardHead}>
@@ -1363,15 +1441,23 @@ export default function ZyncSuite() {
                   </span>
                 </div>
                 <div style={{ ...cardBody, height: 280 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={dashData.opexPie} cx="50%" cy="45%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" label={({ name, value }) => `${name}: $${value}`}>
-                        {dashData.opexPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
-                      </Pie>
-                      <Legend verticalAlign="bottom" iconType="circle" iconSize={8} formatter={(v: string) => <span style={{ color: C.textSec, fontSize: 11 }}>{v}</span>} />
-                      <Tooltip contentStyle={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {dashData.opexPie.length === 0 ? (
+                    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <div style={{ fontSize: 36, opacity: 0.2 }}>📊</div>
+                      <div style={{ fontSize: 12, color: C.textMuted, textAlign: 'center' }}>Sin datos OPEX</div>
+                      <div style={{ fontSize: 10, color: C.textMuted, textAlign: 'center' }}>Ingresa Galanet, Publicidad, Empaques o Delivery en la Calculadora</div>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={dashData.opexPie} cx="50%" cy="45%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" label={({ name, value }) => `${name}: $${value}`}>
+                          {dashData.opexPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
+                        </Pie>
+                        <Legend verticalAlign="bottom" iconType="circle" iconSize={8} formatter={(v: string) => <span style={{ color: C.textSec, fontSize: 11 }}>{v}</span>} />
+                        <Tooltip contentStyle={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
@@ -1417,7 +1503,7 @@ export default function ZyncSuite() {
                       { label: 'Ganancia/Unidad', value: fUSD(calc.profitPerUnit), color: C.green },
                       { label: 'Margen Real', value: calc.profitPct.toFixed(1) + '%', color: calc.profitPct > 20 ? C.green : C.orange },
                       { label: 'ROI', value: (calc.profitPerUnit / calc.costWithMerma * 100).toFixed(1) + '%', color: C.cyan },
-                      { label: 'Punto de Equilibrio', value: fUSD(calc.costWithMerma), color: C.purple },
+                      { label: 'Break-even (precio mínimo)', value: fUSD(calc.costWithMerma), color: C.purple },
                     ].map((m, i) => (
                       <div key={i} style={{
                         background: C.bgInput, border: `1px solid ${C.border}`,
@@ -1453,6 +1539,155 @@ export default function ZyncSuite() {
           </div>
         )}
       </main>
+
+      {/* ============ SALE MODAL ============ */}
+      {saleModal.open && (() => {
+        const entry = inv.find(e => e.id === saleModal.invId)
+        if (!entry) return null
+        const margin = parseFloat(f.marginR) || 50
+        const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
+        const available = entry.qty - entry.sold
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,6,10,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => setSaleModal(p => ({ ...p, open: false }))}>
+            <div style={{ ...card, width: '100%', maxWidth: 440, margin: '0 24px', border: `1px solid rgba(74,222,128,0.3)`, boxShadow: `0 0 60px rgba(74,222,128,0.08), 0 24px 64px rgba(0,0,0,0.6)`, animation: 'fadeUp 0.25s ease-out' }}
+              onClick={ev => ev.stopPropagation()}>
+              <div style={{ ...cardHead, borderBottom: `1px solid rgba(74,222,128,0.15)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🛒</span>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: C.green }}>Registrar Venta</div>
+                    <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginTop: 1, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.product}</div>
+                  </div>
+                </div>
+                <button onClick={() => setSaleModal(p => ({ ...p, open: false }))} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.textMuted, fontSize: 14, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: C.bgInput, borderRadius: 8, padding: '10px 14px', fontSize: 11 }}>
+                  <div><span style={{ color: C.textMuted }}>Precio: </span><span style={{ color: C.green, fontWeight: 700 }}>{fUSD(price)}/ud</span></div>
+                  <div><span style={{ color: C.textMuted }}>Disponibles: </span><span style={{ color: C.goldLight, fontWeight: 700 }}>{available} uds</span></div>
+                  <div><span style={{ color: C.textMuted }}>En Bs (P2P): </span><span style={{ color: C.text, fontWeight: 600 }}>{fBs(price * rates.p2p)}</span></div>
+                  <div><span style={{ color: C.textMuted }}>En Bs (BCV): </span><span style={{ color: C.text, fontWeight: 600 }}>{fBs(price * rates.bcv)}</span></div>
+                </div>
+                <div>
+                  <label style={label}>Cantidad a vender</label>
+                  <input type="number" value={saleModal.qty} onChange={e => setSaleModal(p => ({ ...p, qty: e.target.value }))} style={{ ...inp, borderColor: 'rgba(74,222,128,0.3)' }} step="1" min="1" max={available} autoFocus />
+                </div>
+                <div>
+                  <label style={label}>Método de Pago</label>
+                  <select value={saleModal.method} onChange={e => setSaleModal(p => ({ ...p, method: e.target.value as PaymentMethod }))} style={{ ...inp }}>
+                    {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                {parseInt(saleModal.qty) > 0 && (
+                  <div style={{ background: 'rgba(74,222,128,0.06)', border: `1px solid rgba(74,222,128,0.2)`, borderRadius: 8, padding: '10px 14px', fontSize: 12, fontWeight: 700, color: C.green }}>
+                    Total: {fUSD(price * (parseInt(saleModal.qty) || 0))} — {fBs(price * (parseInt(saleModal.qty) || 0) * rates.p2p)}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
+                  <button onClick={() => setSaleModal(p => ({ ...p, open: false }))} style={{ padding: '10px 20px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: C.textSec, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Cancelar</button>
+                  <button onClick={confirmSale} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: `linear-gradient(135deg,#2d8f4e,${C.green})`, color: '#0a0a0f', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', boxShadow: `0 4px 16px rgba(74,222,128,0.2)` }}>Confirmar Venta</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ============ EDIT SALE MODAL ============ */}
+      {editSaleModal.open && editSaleModal.sale && (() => {
+        const entry = inv.find(e => e.id === editSaleModal.sale!.invId)
+        const maxQty = entry ? entry.qty - entry.sold + editSaleModal.sale.qty : 0
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,6,10,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => setEditSaleModal(p => ({ ...p, open: false }))}>
+            <div style={{ ...card, width: '100%', maxWidth: 440, margin: '0 24px', border: `1px solid rgba(212,175,55,0.3)`, boxShadow: `0 0 60px rgba(212,175,55,0.08), 0 24px 64px rgba(0,0,0,0.6)`, animation: 'fadeUp 0.25s ease-out' }}
+              onClick={ev => ev.stopPropagation()}>
+              <div style={{ ...cardHead, borderBottom: `1px solid rgba(212,175,55,0.15)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>✏️</span>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: C.goldLight }}>Editar Venta</div>
+                    <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginTop: 1 }}>{entry?.product}</div>
+                  </div>
+                </div>
+                <button onClick={() => setEditSaleModal(p => ({ ...p, open: false }))} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.textMuted, fontSize: 14, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={label}>Cantidad (máx. {maxQty})</label>
+                    <input type="number" value={editSaleModal.qty} onChange={e => setEditSaleModal(p => ({ ...p, qty: e.target.value }))} style={inp} step="1" min="1" max={maxQty} autoFocus />
+                  </div>
+                  <div>
+                    <label style={label}>Precio USD/ud</label>
+                    <input type="number" value={editSaleModal.priceUSD} onChange={e => setEditSaleModal(p => ({ ...p, priceUSD: e.target.value }))} style={inp} step="0.01" min="0" />
+                  </div>
+                </div>
+                <div>
+                  <label style={label}>Método de Pago</label>
+                  <select value={editSaleModal.method} onChange={e => setEditSaleModal(p => ({ ...p, method: e.target.value as PaymentMethod }))} style={inp}>
+                    {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
+                  <button onClick={() => setEditSaleModal(p => ({ ...p, open: false }))} style={{ padding: '10px 20px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: C.textSec, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Cancelar</button>
+                  <button onClick={confirmEditSale} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: `linear-gradient(135deg,${C.goldDark},${C.gold})`, color: '#0a0a0f', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', boxShadow: `0 4px 16px rgba(212,175,55,0.25)` }}>Guardar Cambios</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ============ PRICE MODAL ============ */}
+      {priceModal.open && (() => {
+        const entry = inv.find(e => e.id === priceModal.invId)
+        if (!entry) return null
+        const margin = parseFloat(f.marginR) || 50
+        const suggested = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,6,10,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => setPriceModal(p => ({ ...p, open: false }))}>
+            <div style={{ ...card, width: '100%', maxWidth: 400, margin: '0 24px', border: `1px solid rgba(96,165,250,0.3)`, boxShadow: `0 0 60px rgba(96,165,250,0.08), 0 24px 64px rgba(0,0,0,0.6)`, animation: 'fadeUp 0.25s ease-out' }}
+              onClick={ev => ev.stopPropagation()}>
+              <div style={{ ...cardHead, borderBottom: `1px solid rgba(96,165,250,0.15)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>💲</span>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: C.blue }}>Fijar Precio de Venta</div>
+                    <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginTop: 1, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.product}</div>
+                  </div>
+                </div>
+                <button onClick={() => setPriceModal(p => ({ ...p, open: false }))} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, color: C.textMuted, fontSize: 14, cursor: 'pointer', padding: '4px 8px', lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ background: C.bgInput, borderRadius: 8, padding: '10px 14px', fontSize: 11 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ color: C.textMuted }}>Costo FOB</span><span style={{ color: C.text, fontWeight: 600 }}>{fUSD(entry.fobCost)}/ud</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: C.textMuted }}>Sugerido ({margin}% margen)</span><span style={{ color: C.goldLight, fontWeight: 700 }}>{fUSD(suggested)}/ud</span>
+                  </div>
+                </div>
+                <div>
+                  <label style={label}>Precio de venta (USD/unidad)</label>
+                  <input type="number" value={priceModal.price} onChange={e => setPriceModal(p => ({ ...p, price: e.target.value }))} style={{ ...inp, borderColor: 'rgba(96,165,250,0.3)' }} step="0.01" min="0" autoFocus />
+                  {parseFloat(priceModal.price) > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: C.textMuted }}>
+                      En Bs (P2P): <span style={{ color: C.goldLight, fontWeight: 700 }}>{fBs(parseFloat(priceModal.price) * rates.p2p)}</span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
+                  <button onClick={() => setPriceModal(p => ({ ...p, open: false }))} style={{ padding: '10px 20px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: C.textSec, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Cancelar</button>
+                  <button onClick={confirmUpdatePrice} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: `linear-gradient(135deg,#3b82f6,${C.blue})`, color: '#0a0a0f', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', boxShadow: `0 4px 16px rgba(96,165,250,0.2)` }}>Guardar Precio</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ============ EDIT MODAL ============ */}
       {editId !== null && (
