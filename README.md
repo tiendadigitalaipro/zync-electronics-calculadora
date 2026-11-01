@@ -39,3 +39,5 @@ La aplicacion es un sitio estatico (HTML/CSS/JS) que funciona directamente desde
 ---
 
 (c) 2026 ZYNC ELECTRONICS. Todos los derechos reservados.
+
+<!-- redeploy 1793541415 -->
