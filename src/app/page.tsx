@@ -1,10 +1,16 @@
-'use client'
-import { useState, useMemo, useCallback, useEffect } from 'react'
+﻿'use client'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, CartesianGrid
 } from 'recharts'
 import { rates as defaultRates } from '@/utils/config'
+import {
+  zyncDb, sbUpsertInv, sbDeleteInv, sbLoadInv,
+  sbUpsertVenta, sbDeleteVenta, sbLoadVentas,
+  sbPushTasas, sbLoadTasas, sbLoadAll, sbInvalidateCache,
+  invToDb, dbToInv,
+} from '@/lib/zync-supabase'
 
 // ============================================================
 // TYPES
@@ -18,16 +24,16 @@ interface Form {
   galanetUsd: string; adUsd: string; packagingUsd: string; deliveryUsd: string
   marginR: string; mermaR: string; shippingBs: string; freightUsd: string; supplierShipping: string
 }
-interface InvEntry { id: number; product: string; qty: number; fobCost: number; sellingPrice: number; sold: number; mermaR: number; date: string }
+interface InvEntry { id: number; product: string; qty: number; fobCost: number; sellingPrice: number; sold: number; mermaR: number; date: string; imageUrl?: string }
 type PaymentMethod = 'Dólares Físicos' | 'Pago Móvil (Bs)' | 'Transferencia (Bs)' | 'USDT' | 'Fiado / Pendiente'
 interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number; date: string; paymentMethod?: PaymentMethod }
 
 const seedInv: InvEntry[] = [
-  { id: 202605030001, product: 'REBANADOR DE HORTALIZAS Y VERDURAS MANGO DE MADERA', qty: 50, fobCost: 2.27, sellingPrice: 3.41, sold: 0, mermaR: 0, date: '01 may. 2026' },
-  { id: 202605030002, product: 'FILTROS DE AGUARA PARA GRIFOS', qty: 45, fobCost: 6.78, sellingPrice: 10.17, sold: 0, mermaR: 0, date: '01 may. 2026' },
-  { id: 202605030003, product: 'AUDIFONOS INALAMBRICOS CRISTAL MODELO AIRMAX', qty: 35, fobCost: 7.57, sellingPrice: 11.35, sold: 5, mermaR: 0, date: '01 may. 2026' },
-  { id: 202605030004, product: 'MICROFONOS INALAMBRICOS TIPO LAVALIER MODELO K9 DUOS', qty: 30, fobCost: 5.63, sellingPrice: 8.44, sold: 6, mermaR: 0, date: '01 may. 2026' },
-  { id: 202605030005, product: 'RELOJES INTELIGENTES I30 PRO MAX', qty: 28, fobCost: 13.09, sellingPrice: 19.64, sold: 0, mermaR: 0, date: '01 may. 2026' }
+  { id: 202605030001, product: 'REBANADOR DE HORTALIZAS Y VERDURAS MANGO DE MADERA', qty: 50, fobCost: 2.27, sellingPrice: 3.41, sold: 0, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/Sad5bff694d5e4ed1b09ee8b36b4d5a1dx.jpg' },
+  { id: 202605030002, product: 'FILTROS DE AGUARA PARA GRIFOS', qty: 45, fobCost: 6.78, sellingPrice: 10.17, sold: 0, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S0e3ac47a455c4d619765b79c0bc7eca3r.jpg' },
+  { id: 202605030003, product: 'AUDIFONOS INALAMBRICOS CRISTAL MODELO AIRMAX', qty: 35, fobCost: 7.57, sellingPrice: 11.35, sold: 5, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S8c2e4ae6fc714afc9aad764c5a01bba4I.jpg' },
+  { id: 202605030004, product: 'MICROFONOS INALAMBRICOS TIPO LAVALIER MODELO K9 DUOS', qty: 30, fobCost: 5.63, sellingPrice: 8.44, sold: 6, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S6b7a2dd9b5d948fb9c5e7f8d3a3c1e1cS.jpg' },
+  { id: 202605030005, product: 'RELOJES INTELIGENTES I30 PRO MAX', qty: 28, fobCost: 13.09, sellingPrice: 19.64, sold: 0, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S9f4a1b2c3d4e5f6a7b8c9d0e1f2a3b4c.jpg' }
 ]
 
 const seedSales: SaleRecord[] = [
@@ -50,9 +56,10 @@ const getStoredRate = (key: string, fallback: string) => {
   if (typeof window === 'undefined') return parseFloat(fallback)
   const stored = localStorage.getItem(key)
   const storedRate = parseFloat(stored || fallback)
-  if (key === 'zync_r_p2p' && storedRate < 700) {
-    localStorage.setItem(key, defaultRates.p2p.toString())
-    return defaultRates.p2p
+  // Sanity check: if stored value is NaN or 0, reset to default
+  if (isNaN(storedRate) || storedRate <= 0) {
+    localStorage.setItem(key, fallback)
+    return parseFloat(fallback)
   }
   return storedRate
 }
@@ -137,15 +144,16 @@ export default function ZyncSuite() {
   // --- Inventory ---
   const [inv, setInv] = useState<InvEntry[]>(() => getStoredList<InvEntry>('zync_inv'))
   const [sales, setSales] = useState<SaleRecord[]>(() => getStoredList<SaleRecord>('zync_sales'))
-  const [newProd, setNewProd] = useState({ name: '', qty: '', fob: '' })
+  const [newProd, setNewProd] = useState({ name: '', qty: '', fob: '', imageUrl: '' })
   const [editId, setEditId] = useState<number | null>(null)
-  const [editData, setEditData] = useState({ name: '', qty: '', fob: '' })
+  const [editData, setEditData] = useState({ name: '', qty: '', fob: '', imageUrl: '' })
   const [freightTab, setFreightTab] = useState<'fixed' | 'cbm'>('cbm')
   const [editingInvId, setEditingInvId] = useState<number | null>(null)
   const [saleModal, setSaleModal] = useState<{ open: boolean; invId: number | null; qty: string; method: PaymentMethod }>({ open: false, invId: null, qty: '1', method: 'Dólares Físicos' })
   const [editSaleModal, setEditSaleModal] = useState<{ open: boolean; sale: SaleRecord | null; qty: string; priceUSD: string; method: PaymentMethod }>({ open: false, sale: null, qty: '', priceUSD: '', method: 'Dólares Físicos' })
   const [priceModal, setPriceModal] = useState<{ open: boolean; invId: number | null; price: string }>({ open: false, invId: null, price: '' })
   const [isMobile, setIsMobile] = useState(false)
+  const [sbOnline, setSbOnline] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -154,43 +162,175 @@ export default function ZyncSuite() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // ── Supabase: SOLO cargar tasas al inicio. Inventario/ventas NUNCA se sobreescriben automáticamente.
+    // La sincronización con la nube es EXPLICITA via botón "Sincronizar con la nube" con confirmación.
+      useEffect(() => {
+        let channel: ReturnType<typeof zyncDb.channel> | null = null
+        let mounted = true
+
+        async function init() {
+          try {
+            // Solo cargar tasas de Supabase (cache TTL 5 min)
+            const { tasas: tasasDb } = await sbLoadAll()
+
+            if (!mounted) return
+
+            // Tasas - SOLO escriben en zync_r_*
+            if (tasasDb && (tasasDb.bcv > 0 || tasasDb.usdt > 0)) {
+              const newRates = {
+                bcv:  tasasDb.bcv  > 0 ? tasasDb.bcv  : rates.bcv,
+                usdt: tasasDb.usdt > 0 ? tasasDb.usdt : rates.usdt,
+                p2p:  tasasDb.p2p  > 0 ? tasasDb.p2p  : rates.p2p,
+              }
+              setRates(newRates)
+              localStorage.setItem('zync_r_bcv',  newRates.bcv.toString())
+              localStorage.setItem('zync_r_usdt', newRates.usdt.toString())
+              localStorage.setItem('zync_r_p2p',  newRates.p2p.toString())
+            }
+
+            setSbOnline(true)
+          } catch { /* offline — localStorage ya cargó */ }
+
+          // Realtime SOLO si se habilita explícitamente (evita WebSocket por usuario en Hobby)
+          const enableRealtime = process.env.NEXT_PUBLIC_ENABLE_REALTIME === 'true'
+          if (enableRealtime) {
+            channel = zyncDb
+              .channel('zync_tasas_live')
+              .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'zync_tasas' },
+                (payload) => {
+                  const r = payload.new as { bcv: number; usdt: number; p2p: number }
+                  if (r.bcv > 0 || r.usdt > 0) {
+                    setRates(prev => ({
+                      bcv:  r.bcv  > 0 ? r.bcv  : prev.bcv,
+                      usdt: r.usdt > 0 ? r.usdt : prev.usdt,
+                      p2p:  r.p2p  > 0 ? r.p2p  : prev.p2p,
+                    }))
+                    toast('📡 Tasas actualizadas por Jarvis en tiempo real', 'ok')
+                  }
+                }
+              )
+              .subscribe()
+          }
+        }
+
+        init()
+        return () => { 
+          mounted = false
+          if (channel) zyncDb.removeChannel(channel) 
+        }
+      }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (localStorage.getItem('zync_seed_loaded') === '2026-05-03') return
-    localStorage.setItem('zync_inv', JSON.stringify(seedInv))
-    localStorage.setItem('zync_sales', JSON.stringify(seedSales))
-    localStorage.setItem('zync_seed_loaded', '2026-05-03')
-    setInv(seedInv)
-    setSales(seedSales)
-  }, [])
+      if (typeof window === 'undefined') return
+      // v3.1: bump seed version to inject imageUrl into existing inventory
+      if (localStorage.getItem('zync_seed_loaded') === '2026-06-17') return
+      // SEMILLA: SOLO si zync_inv NO EXISTE (null). Si existe (aunque sea "[]"), JAMÁS sembrar demo.
+      const existing = localStorage.getItem('zync_inv')
+      if (existing === null) {
+        localStorage.setItem('zync_inv', JSON.stringify(seedInv))
+        localStorage.setItem('zync_sales', JSON.stringify(seedSales))
+        setInv(seedInv)
+        setSales(seedSales)
+      } else {
+        // Migrate existing seed entries (ids 202605030001-5) to add imageUrl
+        try {
+          const parsed: InvEntry[] = JSON.parse(existing)
+          const imageMap: Record<number, string> = {
+            202605030001: 'https://ae01.alicdn.com/kf/Sad5bff694d5e4ed1b09ee8b36b4d5a1dx.jpg',
+            202605030002: 'https://ae01.alicdn.com/kf/S0e3ac47a455c4d619765b79c0bc7eca3r.jpg',
+            202605030003: 'https://ae01.alicdn.com/kf/S8c2e4ae6fc714afc9aad764c5a01bba4I.jpg',
+            202605030004: 'https://ae01.alicdn.com/kf/S6b7a2dd9b5d948fb9c5e7f8d3a3c1e1cS.jpg',
+            202605030005: 'https://ae01.alicdn.com/kf/S9f4a1b2c3d4e5f6a7b8c9d0e1f2a3b4c.jpg',
+          }
+          const migrated = parsed.map(e => imageMap[e.id] && !e.imageUrl ? { ...e, imageUrl: imageMap[e.id] } : e)
+          localStorage.setItem('zync_inv', JSON.stringify(migrated))
+          setInv(migrated)
+        } catch { /* keep existing */ }
+      }
+      localStorage.setItem('zync_seed_loaded', '2026-06-17')
+    }, [])
 
-  // Migración forzada: rellena sellingPrice vacío con fobCost × 1.30
-  useEffect(() => {
-    const needsFix = inv.some(e => !(e.sellingPrice > 0))
-    if (!needsFix) return
-    const fixed = inv.map(e => ({
-      ...e,
-      sellingPrice: (e.sellingPrice > 0) ? e.sellingPrice : parseFloat((e.fobCost * 1.50).toFixed(4))
-    }))
-    setInv(fixed)
-    localStorage.setItem('zync_inv', JSON.stringify(fixed))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Migración forzada: rellena sellingPrice vacío con fobCost — 1.50 (margen 50%)
+      // Se ejecuta cada vez que cambia el inventario para cubrir productos agregados después
+      const migrationRan = useRef<Set<number>>(new Set())
+      useEffect(() => {
+        const needsFix = inv.some(e => !(e.sellingPrice > 0))
+        if (!needsFix) return
+        const fixed = inv.map(e => {
+          // Evitar re-migrar el mismo ID
+          if (e.sellingPrice > 0 || migrationRan.current.has(e.id)) return e
+          migrationRan.current.add(e.id)
+          return {
+            ...e,
+            sellingPrice: parseFloat((e.fobCost * 1.50).toFixed(4))
+          }
+        })
+        if (fixed.some((e, i) => e !== inv[i])) {
+          setInv(fixed)
+          localStorage.setItem('zync_inv', JSON.stringify(fixed))
+        }
+      }, [inv])
 
-  // --- Helpers ---
-  const v = (k: keyof Form) => parseFloat(f[k]) || 0
-  const chF = (k: keyof Form, val: string) => { if (val === '' || /^\d*\.?\d*$/.test(val)) setF(p => ({ ...p, [k]: val })) }
-  const chRate = (k: keyof Rates, val: string) => {
-    const n = parseFloat(val)
-    if (!isNaN(n) && n >= 0) { setRates(p => ({ ...p, [k]: n })); localStorage.setItem(`zync_r_${k}`, val) }
-  }
-  const selRate = (k: 'bcv' | 'usdt' | 'p2p') => { setActiveRate(k); localStorage.setItem('zync_ar', k) }
-  const rate = rates[activeRate]
-  const p2p = rates.p2p
+      // ── Lookup map para evitar inv.find() O(n²) en renders ───────────────────
+      const invMap = useMemo(() => {
+        const m = new Map<number, InvEntry>()
+        inv.forEach(e => m.set(e.id, e))
+        return m
+      }, [inv])
 
-  // ============================================================
-  // CBM
-  // ============================================================
-  const cbm = useMemo(() => {
+      // ── Helpers ──
+            const v = (k: keyof Form) => parseFloat(f[k]) || 0
+            const chF = (k: keyof Form, val: string) => { if (val === '' || /^\d*\.?\d*$/.test(val)) setF(p => ({ ...p, [k]: val })) }
+            const ratesSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+            const chRate = (k: keyof Rates, val: string) => {
+              const n = parseFloat(val)
+              if (!isNaN(n) && n >= 0) {
+                // Snapshot ANTES de cambiar tasas
+                crearRespaldo()
+                setRates(p => {
+                  const next = { ...p, [k]: n }
+                  localStorage.setItem(`zync_r_${k}`, val)
+                  // Debounce: sync to Supabase 1.5s after last keystroke
+                  if (ratesSyncTimer.current) clearTimeout(ratesSyncTimer.current)
+                  ratesSyncTimer.current = setTimeout(() => {
+                    sbPushTasas(next.bcv, next.usdt, next.p2p, 'suite')
+                  }, 1500)
+                  return next
+                })
+              }
+            }
+            const selRate = (k: 'bcv' | 'usdt' | 'p2p') => { setActiveRate(k); localStorage.setItem('zync_ar', k) }
+            const rate = rates[activeRate]
+            const p2p = rates.p2p
+
+            // ============================================================
+            // SNAPSHOT BACKUP HELPER — guarda instantánea de zync_inv y zync_sales
+            // antes de cambios de tasas u otras operaciones riesgosas.
+            // Clave: zync_respaldo_<timestamp>. Conserva últimas 5.
+            // ============================================================
+            const crearRespaldo = useCallback(() => {
+              if (typeof window === 'undefined') return
+              const ts = Date.now()
+              const key = `zync_respaldo_${ts}`
+              const snapshot = {
+                ts,
+                inv: JSON.parse(localStorage.getItem('zync_inv') || '[]'),
+                sales: JSON.parse(localStorage.getItem('zync_sales') || '[]'),
+              }
+              localStorage.setItem(key, JSON.stringify(snapshot))
+              // Mantener solo últimas 5
+              const keys = Object.keys(localStorage)
+                .filter(k => k.startsWith('zync_respaldo_'))
+                .sort((a, b) => Number(a.split('_')[2]) - Number(b.split('_')[2]))
+              while (keys.length > 5) {
+                localStorage.removeItem(keys.shift()!)
+              }
+            }, [])
+
+            // ============================================================
+            // CBM
+            // ============================================================
+            const cbm = useMemo(() => {
     const l = v('length'), w = v('width'), h = v('height')
     return (l && w && h) ? (l * w * h) / 1000000 : 0
   }, [f.length, f.width, f.height])
@@ -199,11 +339,12 @@ export default function ZyncSuite() {
   // BRECHA CAMBIARIA & FRICCION P2P
   // ============================================================
   const brecha = useMemo(() => {
-    const spread = p2p * 0.015 // 1.5% spread
+    const spread = p2p * 0.015 // 1.5% spread en Bs
     const comisionUSDT = 2.5 // USD fijo approx por conversion USDT→Zinli
-    const tasaNeta = p2p - spread
-    const friccion = spread + (comisionUSDT * p2p / p2p) // simplificado
-    return { spread, comisionUSDT, tasaNeta, friccion, tasaBruta: p2p }
+    const comisionBs = comisionUSDT * p2p // convertir comisión a Bs
+    const tasaNeta = p2p - spread - comisionBs
+    const friccion = spread + comisionBs // fricción total en Bs
+    return { spread, comisionUSDT, comisionBs, tasaNeta, friccion, tasaBruta: p2p }
   }, [p2p])
 
   // ============================================================
@@ -272,19 +413,24 @@ export default function ZyncSuite() {
     const qty = parseInt(newProd.qty) || 0
     const fob = parseFloat(newProd.fob) || 0
     if (!name || qty <= 0 || fob <= 0) return
+    const margin = parseFloat(f.marginR) || 50
+    const suggestedPrice = parseFloat((fob * (1 + margin / 100)).toFixed(4))
     const entry: InvEntry = {
-      id: Date.now(), product: name, qty, fobCost: fob, sellingPrice: 0, sold: 0, mermaR: 3,
-      date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
+      id: Date.now(), product: name, qty, fobCost: fob, sellingPrice: suggestedPrice, sold: 0, mermaR: 3,
+      date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' }),
+      imageUrl: newProd.imageUrl.trim() || undefined
     }
     const updated = [entry, ...inv]
     setInv(updated)
     localStorage.setItem('zync_inv', JSON.stringify(updated))
-    setNewProd({ name: '', qty: '', fob: '' })
+    sbUpsertInv(invToDb(entry))
+    setNewProd({ name: '', qty: '', fob: '', imageUrl: '' })
+    toast(`Producto agregado con precio sugerido: ${fUSD(suggestedPrice)}/ud`)
   }
 
   const startEdit = (e: InvEntry) => {
     setEditId(e.id)
-    setEditData({ name: e.product, qty: e.qty.toString(), fob: e.fobCost.toString() })
+    setEditData({ name: e.product, qty: e.qty.toString(), fob: e.fobCost.toString(), imageUrl: e.imageUrl || '' })
   }
 
   const saveEdit = () => {
@@ -293,9 +439,11 @@ export default function ZyncSuite() {
     const qty = parseInt(editData.qty) || 0
     const fob = parseFloat(editData.fob) || 0
     if (!name || qty <= 0 || fob <= 0) { toast('Completa todos los campos correctamente', 'err'); return }
-    const updated = inv.map(e => e.id === editId ? { ...e, product: name, qty, fobCost: fob } : e)
+    const updated = inv.map(e => e.id === editId ? { ...e, product: name, qty, fobCost: fob, imageUrl: editData.imageUrl.trim() || e.imageUrl } : e)
     setInv(updated)
     localStorage.setItem('zync_inv', JSON.stringify(updated))
+    const editedEntry = updated.find(e => e.id === editId)
+    if (editedEntry) sbUpsertInv(invToDb(editedEntry))
     setEditId(null)
     toast('Producto actualizado correctamente')
   }
@@ -305,11 +453,12 @@ export default function ZyncSuite() {
     const updated = inv.filter(e => e.id !== id)
     setInv(updated)
     localStorage.setItem('zync_inv', JSON.stringify(updated))
+    sbDeleteInv(id)
     toast('Producto eliminado del inventario')
   }
 
   const updatePrice = (invId: number) => {
-    const entry = inv.find(e => e.id === invId)
+    const entry = invMap.get(invId)
     if (!entry) return
     const margin = parseFloat(f.marginR) || 50
     const suggested = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
@@ -321,10 +470,12 @@ export default function ZyncSuite() {
     if (!invId) return
     const p = parseFloat(price) || 0
     if (p <= 0) { toast('Precio inválido', 'err'); return }
-    const entry = inv.find(e => e.id === invId)
+    const entry = invMap.get(invId)
     const updated = inv.map(e => e.id === invId ? { ...e, sellingPrice: p } : e)
     setInv(updated)
     localStorage.setItem('zync_inv', JSON.stringify(updated))
+    const updatedEntry = updated.find(e => e.id === invId)
+    if (updatedEntry) sbUpsertInv(invToDb(updatedEntry))
     setPriceModal({ open: false, invId: null, price: '' })
     toast(`Precio actualizado: ${fUSD(p)}/ud — ${entry?.product}`)
   }
@@ -342,7 +493,7 @@ export default function ZyncSuite() {
   }
 
   const recordSale = (invId: number) => {
-    const entry = inv.find(e => e.id === invId)
+    const entry = invMap.get(invId)
     if (!entry) return
     const margin = parseFloat(f.marginR) || 50
     const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
@@ -355,16 +506,17 @@ export default function ZyncSuite() {
   const confirmSale = () => {
     const { invId, qty, method } = saleModal
     if (!invId) return
-    const entry = inv.find(e => e.id === invId)
+    const entry = invMap.get(invId)
     if (!entry) return
-    const margin = parseFloat(f.marginR) || 50
-    const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
+    const price = entry.sellingPrice > 0 ? entry.sellingPrice : entry.fobCost * 1.5
     const q = parseInt(qty) || 0
     const available = entry.qty - entry.sold
     if (q <= 0 || q > available) { toast(`Cantidad inválida. Máximo disponible: ${available}`, 'err'); return }
     const updatedInv = inv.map(e => e.id === invId ? { ...e, sold: e.sold + q } : e)
     setInv(updatedInv)
     localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
+    const updatedEntry = updatedInv.find(e => e.id === invId)
+    if (updatedEntry) sbUpsertInv(invToDb(updatedEntry))
     const sale: SaleRecord = {
       id: Date.now(), invId, qty: q, priceUSD: price, paymentMethod: method,
       date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -372,45 +524,55 @@ export default function ZyncSuite() {
     const updatedSales = [sale, ...sales]
     setSales(updatedSales)
     localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+    sbUpsertVenta({ id: sale.id, inv_id: sale.invId, qty: sale.qty, precio_usd: sale.priceUSD, metodo_pago: sale.paymentMethod ?? 'Dólares Físicos', fecha: sale.date })
     setSaleModal({ open: false, invId: null, qty: '1', method: 'Dólares Físicos' })
     toast(`Venta registrada: ${q} ud(s) de "${entry.product}" — ${fUSD(price * q)}`)
   }
 
   const editSale = (sale: SaleRecord) => {
-    const entry = inv.find(e => e.id === sale.invId)
+    const entry = invMap.get(sale.invId)
     if (!entry) return
     setEditSaleModal({ open: true, sale, qty: sale.qty.toString(), priceUSD: sale.priceUSD.toString(), method: sale.paymentMethod || 'Dólares Físicos' })
   }
 
   const confirmEditSale = () => {
-    const { sale, qty, priceUSD, method } = editSaleModal
-    if (!sale) return
-    const entry = inv.find(e => e.id === sale.invId)
-    if (!entry) return
-    const maxQty = entry.qty - entry.sold + sale.qty
-    const q = parseInt(qty) || 0
-    const p = parseFloat(priceUSD) || 0
-    if (q <= 0 || q > maxQty) { toast(`Cantidad inválida. Máximo: ${maxQty}`, 'err'); return }
-    if (p <= 0) { toast('Precio inválido', 'err'); return }
-    const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: e.sold - sale.qty + q } : e)
-    const updatedSales = sales.map(s => s.id === sale.id ? { ...s, qty: q, priceUSD: p, paymentMethod: method } : s)
-    setInv(updatedInv)
-    setSales(updatedSales)
-    localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
-    localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
-    setEditSaleModal({ open: false, sale: null, qty: '', priceUSD: '', method: 'Dólares Físicos' })
-    toast('Venta actualizada correctamente')
-  }
+      const { sale, qty, priceUSD, method } = editSaleModal
+      if (!sale) return
+      const entry = invMap.get(sale.invId)
+      if (!entry) return
+      const maxQty = entry.qty - entry.sold + sale.qty
+      const q = parseInt(qty) || 0
+      const p = parseFloat(priceUSD) || 0
+      if (q <= 0 || q > maxQty) { toast(`Cantidad inválida. Máximo: ${maxQty}`, 'err'); return }
+      if (p <= 0) { toast('Precio inválido', 'err'); return }
+      const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: e.sold - sale.qty + q } : e)
+      const updatedSales = sales.map(s => s.id === sale.id ? { ...s, qty: q, priceUSD: p, paymentMethod: method } : s)
+      setInv(updatedInv)
+      setSales(updatedSales)
+      localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
+      localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+      // Upsert a Supabase: inventario actualizado + venta editada
+      const updatedEntry = updatedInv.find(e => e.id === sale.invId)
+      if (updatedEntry) sbUpsertInv(invToDb(updatedEntry))
+      const updatedSale = updatedSales.find(s => s.id === sale.id)
+      if (updatedSale) sbUpsertVenta({ id: updatedSale.id, inv_id: updatedSale.invId, qty: updatedSale.qty, precio_usd: updatedSale.priceUSD, metodo_pago: updatedSale.paymentMethod ?? 'Dólares Físicos', fecha: updatedSale.date })
+      setEditSaleModal({ open: false, sale: null, qty: '', priceUSD: '', method: 'Dólares Físicos' })
+      toast('Venta actualizada correctamente')
+    }
 
-  const deleteSale = (sale: SaleRecord) => {
-    if (!window.confirm('¿Eliminar esta venta del historial?\nEsto devolverá las unidades al inventario vendido.')) return
-    const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: Math.max(0, e.sold - sale.qty) } : e)
-    const updatedSales = sales.filter(s => s.id !== sale.id)
-    setInv(updatedInv)
-    setSales(updatedSales)
-    localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
-    localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
-  }
+    const deleteSale = (sale: SaleRecord) => {
+      if (!window.confirm('¿Eliminar esta venta del historial?\\nEsto devolverá las unidades al inventario vendido.')) return
+      const updatedInv = inv.map(e => e.id === sale.invId ? { ...e, sold: Math.max(0, e.sold - sale.qty) } : e)
+      const updatedSales = sales.filter(s => s.id !== sale.id)
+      setInv(updatedInv)
+      setSales(updatedSales)
+      localStorage.setItem('zync_inv', JSON.stringify(updatedInv))
+      localStorage.setItem('zync_sales', JSON.stringify(updatedSales))
+      // Upsert a Supabase: inventario actualizado + venta borrada
+      const updatedEntry = updatedInv.find(e => e.id === sale.invId)
+      if (updatedEntry) sbUpsertInv(invToDb(updatedEntry))
+      sbDeleteVenta(sale.id)
+    }
 
   const exportBackup = () => {
     const backup = { version: '3.0', date: new Date().toISOString(), inv, sales, rates }
@@ -450,7 +612,46 @@ export default function ZyncSuite() {
     e.target.value = ''
   }
 
-  const copiarCatalogo = () => {
+  
+  // ============================================================
+  // SINCRONIZAR CON LA NUBE — Carga explícita desde Supabase con confirmación
+  // ============================================================
+  const sincronizarConNube = async () => {
+    try {
+      toast('☁️ Consultando Supabase...', 'ok')
+      const { inv: invDb, ventas: ventasDb } = await sbLoadAll(true) // force refresh cache
+      const invCount = invDb.length
+      const ventasCount = ventasDb.length
+      if (invCount === 0 && ventasCount === 0) {
+        toast('☁️ No hay datos en la nube para sincronizar', 'ok')
+        return
+      }
+      const confirmMsg = `¿Sincronizar con la nube?\n\nDatos en Supabase:\n• ${invCount} productos\n• ${ventasCount} ventas\n\n⚠️ Se hará un respaldo automático (zync_respaldo_*) ANTES de reemplazar.\n\n¿Continuar?`
+      if (!window.confirm(confirmMsg)) {
+        toast('Sincronización cancelada', 'ok')
+        return
+      }
+      // Respaldo previo
+      crearRespaldo()
+      // Aplicar datos de la nube
+      const mappedInv = invDb.map(dbToInv)
+      const mappedSales = ventasDb.map(v => ({
+        id: v.id, invId: v.inv_id, qty: v.qty,
+        priceUSD: v.precio_usd, date: v.fecha,
+        paymentMethod: v.metodo_pago as PaymentMethod
+      }))
+      setInv(mappedInv)
+      setSales(mappedSales)
+      localStorage.setItem('zync_inv', JSON.stringify(mappedInv))
+      localStorage.setItem('zync_sales', JSON.stringify(mappedSales))
+      toast(`☁️ Sincronizado: ${invCount} productos, ${ventasCount} ventas`, 'ok')
+    } catch (err) {
+      console.error('Error sincronizando:', err)
+      toast('❌ Error al sincronizar con Supabase', 'err')
+    }
+  }
+
+const copiarCatalogo = () => {
     if (inv.length === 0) { toast('No hay productos en inventario', 'err'); return }
     const margin = parseFloat(f.marginR) || 50
     const disponibles = inv.filter(e => e.qty - e.sold > 0)
@@ -470,98 +671,112 @@ export default function ZyncSuite() {
   }
 
   const saveToInventory = () => {
-    if (!calc) return
-    const name = f.productName.trim() || `Producto ${new Date().toLocaleDateString('es-VE')}`
+      if (!calc) return
+      const name = f.productName.trim() || `Producto ${new Date().toLocaleDateString('es-VE')}`
+      const originalFob = v('costUSD') // FOB real del formulario
 
-    if (editingInvId !== null) {
-      // UPDATE existing inventory entry (came from ⚡ Suite)
-      const updated = inv.map(e => e.id === editingInvId ? {
-        ...e,
+      if (editingInvId !== null) {
+        // UPDATE existing inventory entry (came from ⚡ Suite)
+        const updated = inv.map(e => e.id === editingInvId ? {
+          ...e,
+          product: name,
+          qty: calc.q,
+          fobCost: originalFob, // ✅ FOB original, no costo aterrizado
+          sellingPrice: parseFloat(calc.finalPrice.toFixed(4)),
+          mermaR: parseFloat(f.mermaR) || 0,
+        } : e)
+        setInv(updated)
+        localStorage.setItem('zync_inv', JSON.stringify(updated))
+        setEditingInvId(null)
+        toast(`✅ "${name}" actualizado — Costo ${fUSD(calc.costWithMerma)}/ud · PV ${fUSD(calc.finalPrice)}/ud`)
+        return
+      }
+
+      // CREATE new entry
+      const entry: InvEntry = {
+        id: Date.now(),
         product: name,
         qty: calc.q,
-        fobCost: parseFloat(calc.costWithMerma.toFixed(4)),
+        fobCost: originalFob, // ✅ FOB original, no costo aterrizado
         sellingPrice: parseFloat(calc.finalPrice.toFixed(4)),
+        sold: 0,
         mermaR: parseFloat(f.mermaR) || 0,
-      } : e)
+        date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
+      }
+      const updated = [entry, ...inv]
       setInv(updated)
       localStorage.setItem('zync_inv', JSON.stringify(updated))
-      setEditingInvId(null)
-      toast(`✅ "${name}" actualizado — Costo ${fUSD(calc.costWithMerma)}/ud · PV ${fUSD(calc.finalPrice)}/ud`)
-      return
+      toast(`"${name}" guardado — ${calc.q} uds · Costo ${fUSD(calc.costWithMerma)}/ud · PV ${fUSD(calc.finalPrice)}/ud`)
     }
 
-    // CREATE new entry
-    const entry: InvEntry = {
-      id: Date.now(),
-      product: name,
-      qty: calc.q,
-      fobCost: parseFloat(calc.costWithMerma.toFixed(4)),
-      sellingPrice: parseFloat(calc.finalPrice.toFixed(4)),
-      sold: 0,
-      mermaR: parseFloat(f.mermaR) || 0,
-      date: new Date().toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })
-    }
-    const updated = [entry, ...inv]
-    setInv(updated)
-    localStorage.setItem('zync_inv', JSON.stringify(updated))
-    toast(`"${name}" guardado — ${calc.q} uds · Costo ${fUSD(calc.costWithMerma)}/ud · PV ${fUSD(calc.finalPrice)}/ud`)
-  }
-
   // ============================================================
-  // DASHBOARD DATA
-  // ============================================================
-  const dashData = useMemo(() => {
-    // OPEX breakdown pie
-    const opexPie = [
+    // DASHBOARD DATA — memos granulares para evitar recálculo total
+    // ============================================================
+    const opexPie = useMemo(() => [
       { name: 'Internet Galanet', value: v('galanetUsd'), color: C.gold },
       { name: 'Publicidad', value: v('adUsd'), color: C.blue },
       { name: 'Empaques', value: v('packagingUsd'), color: C.green },
       { name: 'Delivery', value: v('deliveryUsd'), color: C.orange },
-    ].filter(x => x.value > 0)
+    ].filter(x => x.value > 0), [f.galanetUsd, f.adUsd, f.packagingUsd, f.deliveryUsd])
 
-    // Cost breakdown bar
-    const costBar = calc ? [
-      { name: 'CIF', value: calc.cifUnit },
-      ...(calc.totalTaxes > 0 ? [{ name: 'Impuestos', value: calc.totalTaxes }] : []),
-      { name: 'Flete', value: calc.freight + calc.supplierShippingPerUnit },
-      ...(calc.totalOpex > 0 ? [{ name: 'OPEX', value: calc.totalOpex }] : []),
-      ...(calc.mermaAmount > 0 ? [{ name: 'Merma', value: calc.mermaAmount }] : []),
-      { name: 'Ganancia', value: calc.profitPerUnit },
-    ] : []
+    const costBar = useMemo(() => {
+      if (!calc) return []
+      return [
+        { name: 'CIF', value: calc.cifUnit },
+        ...(calc.totalTaxes > 0 ? [{ name: 'Impuestos', value: calc.totalTaxes }] : []),
+        { name: 'Flete', value: calc.freight + calc.supplierShippingPerUnit },
+        ...(calc.totalOpex > 0 ? [{ name: 'OPEX', value: calc.totalOpex }] : []),
+        ...(calc.mermaAmount > 0 ? [{ name: 'Merma', value: calc.mermaAmount }] : []),
+        { name: 'Ganancia', value: calc.profitPerUnit },
+      ]
+    }, [calc])
 
-    // Inventory summary
-    const totalInvCost = inv.reduce((s, e) => s + (e.qty * e.fobCost), 0)
-    const totalSold = inv.reduce((s, e) => s + e.sold, 0)
-    const totalRevenue = sales.reduce((s, r) => s + (r.qty * r.priceUSD), 0)
-    const totalCashUSD = sales.reduce((s, r) => r.paymentMethod === 'Dólares Físicos' ? s + (r.qty * r.priceUSD) : s, 0)
-    const totalBs = sales.reduce((s, r) => (r.paymentMethod === 'Pago Móvil (Bs)' || r.paymentMethod === 'Transferencia (Bs)') ? s + (r.qty * r.priceUSD * p2p) : s, 0)
-    const totalPending = sales.reduce((s, r) => r.paymentMethod === 'Fiado / Pendiente' ? s + (r.qty * r.priceUSD) : s, 0)
-    const totalCOGS = sales.reduce((s, r) => {
-      const entry = inv.find(e => e.id === r.invId)
-      return s + (r.qty * (entry?.fobCost || 0))
-    }, 0)
-    const grossProfit = totalRevenue - totalCOGS
-    const totalMerma = inv.reduce((s, e) => {
-      const mermaQty = Math.round(e.qty * (e.mermaR / 100))
-      return s + mermaQty
-    }, 0)
-    const defaultMargin = parseFloat(f.marginR) || 50
-    const estimatedProfit = inv.reduce((s, e) => {
-      const avail = e.qty - e.sold
-      if (avail <= 0) return s
-      const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + defaultMargin / 100)
-      return s + avail * (sp - e.fobCost)
-    }, 0)
-
-    // Brecha chart
-    const brechaBar = [
+    const brechaBar = useMemo(() => [
       { name: 'BCV', value: rates.bcv },
       { name: 'USDT', value: rates.usdt },
       { name: 'P2P Efectivo', value: rates.p2p },
-    ]
+    ], [rates.bcv, rates.usdt, rates.p2p])
 
-    return { opexPie, costBar, totalInvCost, totalSold, totalRevenue, totalCashUSD, totalBs, totalPending, grossProfit, totalMerma, brechaBar, estimatedProfit }
-  }, [f, calc, inv, sales, rates, activeRate])
+    // Inventory summary — usa invMap para O(1) lookups
+    const invSummary = useMemo(() => {
+      const totalInvCost = inv.reduce((s, e) => s + (e.qty * e.fobCost), 0)
+      const totalSold = inv.reduce((s, e) => s + e.sold, 0)
+      const totalMerma = inv.reduce((s, e) => {
+        const mermaQty = Math.round(e.qty * ((e.mermaR || 0) / 100))
+        return s + mermaQty
+      }, 0)
+      const defaultMargin = parseFloat(f.marginR) || 50
+      const estimatedProfit = inv.reduce((s, e) => {
+        const avail = e.qty - e.sold
+        if (avail <= 0) return s
+        const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + defaultMargin / 100)
+        return s + avail * (sp - e.fobCost)
+      }, 0)
+      return { totalInvCost, totalSold, totalMerma, estimatedProfit }
+    }, [inv, f.marginR])
+
+    // Sales summary — usa invMap para O(1) lookups
+    const salesSummary = useMemo(() => {
+      const totalRevenue = sales.reduce((s, r) => s + (r.qty * r.priceUSD), 0)
+      const totalCashUSD = sales.reduce((s, r) => r.paymentMethod === 'Dólares Físicos' ? s + (r.qty * r.priceUSD) : s, 0)
+      const totalBs = sales.reduce((s, r) => (r.paymentMethod === 'Pago Móvil (Bs)' || r.paymentMethod === 'Transferencia (Bs)') ? s + (r.qty * r.priceUSD * p2p) : s, 0)
+      const totalPending = sales.reduce((s, r) => r.paymentMethod === 'Fiado / Pendiente' ? s + (r.qty * r.priceUSD) : s, 0)
+      const totalCOGS = sales.reduce((s, r) => {
+        const entry = invMap.get(r.invId)
+        return s + (r.qty * (entry?.fobCost || 0))
+      }, 0)
+      const grossProfit = totalRevenue - totalCOGS
+      return { totalRevenue, totalCashUSD, totalBs, totalPending, grossProfit }
+    }, [sales, invMap, p2p])
+
+    // DashData combinado — solo referencias a memos arriba
+    const dashData = useMemo(() => ({
+      opexPie,
+      costBar,
+      brechaBar,
+      ...invSummary,
+      ...salesSummary,
+    }), [opexPie, costBar, brechaBar, invSummary, salesSummary])
 
   // ============================================================
   // TABS
@@ -641,18 +856,37 @@ export default function ZyncSuite() {
             }}>Suite Financiera v3.0</div>
           </div>
 
-          {/* RIGHT: Tasa P2P Badge */}
-          <div style={{
-            background: C.bgCard, border: `1px solid ${C.border}`,
-            borderRadius: 12, padding: '10px 16px', textAlign: 'center',
-            boxShadow: '0 0 20px rgba(212,175,55,0.1)'
-          }}>
-            <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: C.textMuted, textTransform: 'uppercase' }}>Tasa P2P Real</div>
+          {/* RIGHT: Tasa P2P Badge + Jarvis Status */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             <div style={{
-              fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
-              color: C.goldLight, lineHeight: 1.2
-            }}>{p2p.toFixed(2)}</div>
-            <div style={{ fontSize: 9, color: C.textMuted }}>Bs/$</div>
+              background: C.bgCard, border: `1px solid ${C.border}`,
+              borderRadius: 12, padding: '10px 16px', textAlign: 'center',
+              boxShadow: '0 0 20px rgba(212,175,55,0.1)'
+            }}>
+              <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: C.textMuted, textTransform: 'uppercase' }}>Tasa P2P Real</div>
+              <div style={{
+                fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
+                color: C.goldLight, lineHeight: 1.2
+              }}>{p2p.toFixed(2)}</div>
+              <div style={{ fontSize: 9, color: C.textMuted }}>Bs/$</div>
+            </div>
+            {/* Jarvis connection indicator */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
+              borderRadius: 8, fontSize: 10, fontWeight: 700,
+              background: sbOnline ? 'rgba(74,222,128,0.08)' : 'rgba(100,100,120,0.15)',
+              border: `1px solid ${sbOnline ? 'rgba(74,222,128,0.25)' : 'rgba(100,100,120,0.2)'}`,
+              color: sbOnline ? C.green : C.textMuted
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: sbOnline ? C.green : C.textMuted,
+                boxShadow: sbOnline ? `0 0 6px ${C.green}` : 'none',
+                animation: sbOnline ? 'pulse 2s infinite' : 'none',
+                display: 'inline-block'
+              }} />
+              {sbOnline ? '⚡ Jarvis conectado' : '🔌 Local'}
+            </div>
           </div>
         </div>
       </header>
@@ -677,31 +911,36 @@ export default function ZyncSuite() {
       </nav>
 
       {/* ============ BACKUP BAR ============ */}
-      <div style={{
-        maxWidth: 1200, margin: '0 auto', padding: isMobile ? '8px 16px' : '10px 24px',
-        display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end',
-        flexWrap: 'wrap', gap: 8, borderBottom: `1px solid ${C.border}`
-      }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', marginRight: 4 }}>Respaldo</span>
-        <button onClick={exportBackup} style={{
-          padding: '5px 14px', border: `1px solid ${C.border}`, borderRadius: 6,
-          background: C.bgInput, color: C.textSec, fontSize: 11, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
-        }}>⬇️ Exportar</button>
-        <label style={{
-          padding: '5px 14px', border: `1px solid ${C.border}`, borderRadius: 6,
-          background: C.bgInput, color: C.textSec, fontSize: 11, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
-        }}>
-          ⬆️ Importar
-          <input type="file" accept=".json" onChange={importBackup} style={{ display: 'none' }} />
-        </label>
-        <button onClick={copiarCatalogo} style={{
-          padding: '5px 14px', border: `1px solid rgba(212,175,55,0.35)`, borderRadius: 6,
-          background: 'rgba(212,175,55,0.07)', color: C.goldLight, fontSize: 11, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
-        }}>📲 Catálogo WhatsApp</button>
-      </div>
+            <div style={{
+              maxWidth: 1200, margin: '0 auto', padding: isMobile ? '8px 16px' : '10px 24px',
+              display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end',
+              flexWrap: 'wrap', gap: 8, borderBottom: `1px solid ${C.border}`
+            }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', marginRight: 4 }}>Respaldo</span>
+              <button onClick={exportBackup} style={{
+                padding: '5px 14px', border: `1px solid ${C.border}`, borderRadius: 6,
+                background: C.bgInput, color: C.textSec, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
+              }}>⬇️ Exportar</button>
+              <label style={{
+                padding: '5px 14px', border: `1px solid ${C.border}`, borderRadius: 6,
+                background: C.bgInput, color: C.textSec, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
+              }}>
+                ⬆️ Importar
+                <input type="file" accept=".json" onChange={importBackup} style={{ display: 'none' }} />
+              </label>
+              <button onClick={sincronizarConNube} style={{
+                padding: '5px 14px', border: `1px solid rgba(59,130,246,0.5)`, borderRadius: 6,
+                background: 'rgba(59,130,246,0.1)', color: C.blue, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
+              }}>☁️ Sincronizar con la nube</button>
+              <button onClick={copiarCatalogo} style={{
+                padding: '5px 14px', border: `1px solid rgba(212,175,55,0.35)`, borderRadius: 6,
+                background: 'rgba(212,175,55,0.07)', color: C.goldLight, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5
+              }}>📲 Catálogo WhatsApp</button>
+            </div>
 
       {/* ============ MAIN CONTENT ============ */}
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
@@ -1133,25 +1372,55 @@ export default function ZyncSuite() {
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600 }}>Agregar Producto al Inventario</span>
                 </div>
               </div>
-              <div style={{ ...cardBody, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ flex: 2, minWidth: 200 }}>
-                  <label style={label}>Nombre del Producto</label>
-                  <input type="text" value={newProd.name} onChange={e => setNewProd(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Rebanadora 14-en-1" style={inp} />
+              <div style={{ ...cardBody, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 2, minWidth: 200 }}>
+                    <label style={label}>Nombre del Producto</label>
+                    <input type="text" value={newProd.name} onChange={e => setNewProd(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Rebanadora 14-en-1" style={inp} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 100 }}>
+                    <label style={label}>Cantidad</label>
+                    <input type="number" value={newProd.qty} onChange={e => setNewProd(p => ({ ...p, qty: e.target.value }))} placeholder="50" style={inp} step="1" min="0" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 100 }}>
+                    <label style={label}>Costo FOB (USD)</label>
+                    <input type="number" value={newProd.fob} onChange={e => setNewProd(p => ({ ...p, fob: e.target.value }))} placeholder="0.37" style={inp} step="0.01" min="0" />
+                  </div>
+                  <button onClick={() => { addInv(); toast('Producto agregado al inventario') }} style={{
+                    height: 44, padding: '0 24px', border: 'none', borderRadius: 8,
+                    background: `linear-gradient(135deg,${C.goldDark},${C.gold})`, color: '#0a0a0f',
+                    fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                    fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
+                  }}>Agregar</button>
                 </div>
-                <div style={{ flex: 1, minWidth: 100 }}>
-                  <label style={label}>Cantidad</label>
-                  <input type="number" value={newProd.qty} onChange={e => setNewProd(p => ({ ...p, qty: e.target.value }))} placeholder="50" style={inp} step="1" min="0" />
+                {/* Foto URL */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ ...label, color: C.cyan }}>URL Foto del Producto (opcional)</label>
+                    <input
+                      type="text"
+                      value={newProd.imageUrl}
+                      onChange={e => setNewProd(p => ({ ...p, imageUrl: e.target.value }))}
+                      placeholder="https://ae01.alicdn.com/... o cualquier URL de imagen"
+                      style={{ ...inp, borderColor: newProd.imageUrl ? 'rgba(34,211,238,0.4)' : C.border, color: newProd.imageUrl ? C.cyan : C.text }}
+                    />
+                  </div>
+                  {newProd.imageUrl && (
+                                      <div style={{
+                                        width: 52, height: 52, borderRadius: 8, overflow: 'hidden', flexShrink: 0,
+                                        border: `2px solid rgba(34,211,238,0.4)`, background: C.bgInput,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                      }}>
+                                        <img
+                                          src={newProd.imageUrl}
+                                          alt="preview"
+                                          loading="lazy"
+                                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                                        />
+                                      </div>
+                                    )}
                 </div>
-                <div style={{ flex: 1, minWidth: 100 }}>
-                  <label style={label}>Costo FOB (USD)</label>
-                  <input type="number" value={newProd.fob} onChange={e => setNewProd(p => ({ ...p, fob: e.target.value }))} placeholder="0.37" style={inp} step="0.01" min="0" />
-                </div>
-                <button onClick={() => { addInv(); toast('Producto agregado al inventario') }} style={{
-                  height: 44, padding: '0 24px', border: 'none', borderRadius: 8,
-                  background: `linear-gradient(135deg,${C.goldDark},${C.gold})`, color: '#0a0a0f',
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                  fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
-                }}>Agregar</button>
               </div>
             </div>
 
@@ -1208,9 +1477,10 @@ export default function ZyncSuite() {
                     <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>Agrega productos usando el formulario de arriba</div>
                   </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
                     <thead>
                       <tr>
+                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, background: C.bgSecondary, width: 56 }}>FOTO</th>
                         {['Producto', 'Cant.', 'Vend.', 'Disp.', 'Costo FOB', 'PV (USD)'].map(h => (
                           <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: 1, color: C.textMuted, textTransform: 'uppercase', borderBottom: `1px solid ${C.border}`, background: C.bgSecondary }}>{h}</th>
                         ))}
@@ -1223,88 +1493,113 @@ export default function ZyncSuite() {
                       </tr>
                     </thead>
                     <tbody>
-                      {inv.map(e => {
-                        const merma = Math.round(e.qty * ((e.mermaR || 0) / 100))
-                        const avail = e.qty - e.sold  // merma only affects cost, not physical stock
-                        const margin = parseFloat(f.marginR) || 50
-                        const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + margin / 100)
-                        const isEstimated = !(e.sellingPrice > 0)
-                        return (
-                          <tr key={e.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
-                            <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: C.text, maxWidth: 200 }}>{e.product}</td>
-                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.textSec }}>{e.qty}</td>
-                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.green, fontWeight: 600 }}>{e.sold}</td>
-                            <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: avail > 0 ? C.goldLight : C.red }}>{avail}</td>
-                            <td style={{ padding: '10px 14px', fontSize: 12, color: C.textSec }}>{fUSD(e.fobCost)}</td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: isEstimated ? C.orange : C.green }}>
-                                {fUSD(sp)}{isEstimated && <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>est.</span>}
-                              </div>
-                              {isEstimated && (
-                                <button onClick={() => loadIntoCalc(e)} style={{
-                                  fontSize: 8, padding: '2px 6px', marginTop: 3, border: `1px solid ${C.gold}40`,
-                                  borderRadius: 4, background: `${C.gold}10`, color: C.goldLight,
-                                  cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 700, display: 'block', whiteSpace: 'nowrap'
-                                }}>⚡ Suite</button>
-                              )}
-                            </td>
-                            <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.blue }}>
-                              {fBs(sp * rates.bcv)}
-                              {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
-                            </td>
-                            <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.cyan }}>
-                              {fBs(sp * rates.usdt)}
-                              {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
-                            </td>
-                            <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.goldLight }}>
-                              {fBs(sp * rates.p2p)}
-                              {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
-                            </td>
-                            <td style={{ padding: '10px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  <button onClick={() => recordSale(e.id)} style={{
-                                    padding: '5px 10px', border: `1px solid ${C.green}40`, borderRadius: 6,
-                                    background: `${C.green}10`, color: C.green, fontSize: 11, fontWeight: 700,
-                                    cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
-                                  }}>Vender</button>
-                                  <button onClick={() => loadIntoCalc(e)} title="Cargar en Calculadora para recalcular precio exacto" style={{
-                                    padding: '4px 8px', border: `1px solid ${C.gold}40`, borderRadius: 6,
-                                    background: `${C.gold}08`, color: C.goldDark, fontSize: 9, fontWeight: 700,
-                                    cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
-                                  }}>⚡ Suite</button>
-                                </div>
-                                <button onClick={() => startEdit(e)} title="Editar producto" style={{
-                                  padding: '6px 8px', border: `1px solid rgba(212,175,55,0.35)`, borderRadius: 6,
-                                  background: 'rgba(212,175,55,0.08)', color: C.goldLight,
-                                  cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1,
-                                  transition: 'all 0.2s'
-                                }}>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                  </svg>
-                                </button>
-                                <button onClick={() => deleteInv(e.id, e.product)} title="Eliminar producto" style={{
-                                  padding: '6px 8px', border: `1px solid rgba(248,113,113,0.35)`, borderRadius: 6,
-                                  background: 'rgba(248,113,113,0.08)', color: C.red,
-                                  cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1,
-                                  transition: 'all 0.2s'
-                                }}>
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="3 6 5 6 21 6"/>
-                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                                    <path d="M10 11v6M14 11v6"/>
-                                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
+                                          {inv.map(e => {
+                                            const merma = Math.round(e.qty * ((e.mermaR || 0) / 100))
+                                            const avail = e.qty - e.sold  // merma only affects cost, not physical stock
+                                            const margin = parseFloat(f.marginR) || 50
+                                            const sp = (e.sellingPrice > 0) ? e.sellingPrice : e.fobCost * (1 + margin / 100)
+                                            const isEstimated = !(e.sellingPrice > 0)
+                                            return (
+                                              <tr key={e.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
+                                                {/* FOTO COLUMNA — lazy load */}
+                                                <td style={{ padding: '8px 10px' }}>
+                                                  <div style={{
+                                                    width: 44, height: 44, borderRadius: 8, overflow: 'hidden',
+                                                    background: C.bgInput, border: `1px solid ${C.border}`,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    flexShrink: 0, cursor: e.imageUrl ? 'zoom-in' : 'default'
+                                                  }}>
+                                                    {e.imageUrl ? (
+                                                      <img
+                                                        src={e.imageUrl}
+                                                        alt={e.product}
+                                                        loading="lazy"
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                        onError={ev => {
+                                                          const img = ev.target as HTMLImageElement
+                                                          img.style.display = 'none'
+                                                          img.parentElement!.innerHTML = '<span style="font-size:20px;opacity:0.3">📦</span>'
+                                                        }}
+                                                      />
+                                                    ) : (
+                                                      <span style={{ fontSize: 20, opacity: 0.25 }}>📦</span>
+                                                    )}
+                                                  </div>
+                                                </td>
+                                                <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: C.text, maxWidth: 200 }}>{e.product}</td>
+                                                <td style={{ padding: '10px 14px', fontSize: 13, color: C.textSec }}>{e.qty}</td>
+                                                <td style={{ padding: '10px 14px', fontSize: 13, color: C.green, fontWeight: 600 }}>{e.sold}</td>
+                                                <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: avail > 0 ? C.goldLight : C.red }}>{avail}</td>
+                                                <td style={{ padding: '10px 14px', fontSize: 12, color: C.textSec }}>{fUSD(e.fobCost)}</td>
+                                                <td style={{ padding: '10px 14px' }}>
+                                                  <div style={{ fontSize: 13, fontWeight: 700, color: isEstimated ? C.orange : C.green }}>
+                                                    {fUSD(sp)}{isEstimated && <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>est.</span>}
+                                                  </div>
+                                                  {isEstimated && (
+                                                    <button onClick={() => loadIntoCalc(e)} style={{
+                                                      fontSize: 8, padding: '2px 6px', marginTop: 3, border: `1px solid ${C.gold}40`,
+                                                      borderRadius: 4, background: `${C.gold}10`, color: C.goldLight,
+                                                      cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 700, display: 'block', whiteSpace: 'nowrap'
+                                                    }}>⚡ Suite</button>
+                                                  )}
+                                                </td>
+                                                <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.blue }}>
+                                                  {fBs(sp * rates.bcv)}
+                                                  {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
+                                                </td>
+                                                <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.cyan }}>
+                                                  {fBs(sp * rates.usdt)}
+                                                  {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
+                                                </td>
+                                                <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: isEstimated ? C.orange : C.goldLight }}>
+                                                  {fBs(sp * rates.p2p)}
+                                                  {isEstimated && <div style={{ fontSize: 8, color: C.textMuted, marginTop: 1 }}>est.</div>}
+                                                </td>
+                                                <td style={{ padding: '10px 14px', fontSize: 13, color: C.orange }}>{merma} uds</td>
+                                                <td style={{ padding: '12px 14px' }}>
+                                                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                      <button onClick={() => recordSale(e.id)} style={{
+                                                        padding: '5px 10px', border: `1px solid ${C.green}40`, borderRadius: 6,
+                                                        background: `${C.green}10`, color: C.green, fontSize: 11, fontWeight: 700,
+                                                        cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
+                                                      }}>Vender</button>
+                                                      <button onClick={() => loadIntoCalc(e)} title="Cargar en Calculadora para recalcular precio exacto" style={{
+                                                        padding: '4px 8px', border: `1px solid ${C.gold}40`, borderRadius: 6,
+                                                        background: `${C.gold}08`, color: C.goldDark, fontSize: 9, fontWeight: 700,
+                                                        cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
+                                                      }}>⚡ Suite</button>
+                                                    </div>
+                                                    <button onClick={() => startEdit(e)} title="Editar producto" style={{
+                                                      padding: '6px 8px', border: `1px solid rgba(212,175,55,0.35)`, borderRadius: 6,
+                                                      background: 'rgba(212,175,55,0.08)', color: C.goldLight,
+                                                      cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1,
+                                                      transition: 'all 0.2s'
+                                                    }}>
+                                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                                      </svg>
+                                                    </button>
+                                                    <button onClick={() => deleteInv(e.id, e.product)} title="Eliminar producto" style={{
+                                                      padding: '6px 8px', border: `1px solid rgba(248,113,113,0.35)`, borderRadius: 6,
+                                                      background: 'rgba(248,113,113,0.08)', color: C.red,
+                                                      cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1,
+                                                      transition: 'all 0.2s'
+                                                    }}>
+                                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"/>
+                                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                        <path d="M10 11v6M14 11v6"/>
+                                                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                                                      </svg>
+                                                    </button>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            )
+                                          })}
+                                        </tbody>
                   </table>
                 )}
               </div>
@@ -1348,8 +1643,8 @@ export default function ZyncSuite() {
                     </thead>
                     <tbody>
                       {sales.map(s => {
-                        const entry = inv.find(e => e.id === s.invId)
-                        return (
+                                              const entry = invMap.get(s.invId)
+                                              return (
                           <tr key={s.id} style={{ borderBottom: `1px solid rgba(28,28,44,0.4)` }}>
                             <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: C.text }}>{entry?.product || '-'}</td>
                             <td style={{ padding: '10px 14px', fontSize: 13, color: C.textSec }}>{s.qty}</td>
@@ -1542,7 +1837,7 @@ export default function ZyncSuite() {
 
       {/* ============ SALE MODAL ============ */}
       {saleModal.open && (() => {
-        const entry = inv.find(e => e.id === saleModal.invId)
+        const entry = invMap.get(saleModal.invId!)
         if (!entry) return null
         const margin = parseFloat(f.marginR) || 50
         const price = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
@@ -1554,7 +1849,12 @@ export default function ZyncSuite() {
               onClick={ev => ev.stopPropagation()}>
               <div style={{ ...cardHead, borderBottom: `1px solid rgba(74,222,128,0.15)` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>🛒</span>
+                  {entry.imageUrl && (
+                    <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', border: `1px solid rgba(74,222,128,0.3)`, flexShrink: 0 }}>
+                      <img src={entry.imageUrl} alt={entry.product} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none' }} />
+                    </div>
+                  )}
+                  {!entry.imageUrl && <span style={{ fontSize: 20 }}>🛒</span>}
                   <div>
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: C.green }}>Registrar Venta</div>
                     <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginTop: 1, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.product}</div>
@@ -1596,7 +1896,7 @@ export default function ZyncSuite() {
 
       {/* ============ EDIT SALE MODAL ============ */}
       {editSaleModal.open && editSaleModal.sale && (() => {
-        const entry = inv.find(e => e.id === editSaleModal.sale!.invId)
+        const entry = invMap.get(editSaleModal.sale!.invId)
         const maxQty = entry ? entry.qty - entry.sold + editSaleModal.sale.qty : 0
         return (
           <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,6,10,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1642,7 +1942,7 @@ export default function ZyncSuite() {
 
       {/* ============ PRICE MODAL ============ */}
       {priceModal.open && (() => {
-        const entry = inv.find(e => e.id === priceModal.invId)
+        const entry = invMap.get(priceModal.invId!)
         if (!entry) return null
         const margin = parseFloat(f.marginR) || 50
         const suggested = (entry.sellingPrice > 0) ? entry.sellingPrice : entry.fobCost * (1 + margin / 100)
@@ -1756,6 +2056,35 @@ export default function ZyncSuite() {
                   />
                 </div>
               </div>
+              {/* Foto URL en modal edición */}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ ...label, color: C.cyan }}>URL Foto del Producto</label>
+                  <input
+                    type="text"
+                    value={editData.imageUrl}
+                    onChange={ev => setEditData(p => ({ ...p, imageUrl: ev.target.value }))}
+                    placeholder="https://ae01.alicdn.com/... o URL de imagen"
+                    style={{ ...inp, borderColor: editData.imageUrl ? 'rgba(34,211,238,0.4)' : C.border, color: editData.imageUrl ? C.cyan : C.text, fontSize: 11 }}
+                  />
+                </div>
+                <div style={{
+                  width: 52, height: 52, borderRadius: 8, overflow: 'hidden', flexShrink: 0,
+                  border: `1px solid ${editData.imageUrl ? 'rgba(34,211,238,0.4)' : C.border}`,
+                  background: C.bgInput, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  {editData.imageUrl ? (
+                    <img
+                      src={editData.imageUrl}
+                      alt="preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={ev => { (ev.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 20, opacity: 0.2 }}>📷</span>
+                  )}
+                </div>
+              </div>
               {/* Actions */}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
                 <button onClick={() => setEditId(null)} style={{
@@ -1779,7 +2108,7 @@ export default function ZyncSuite() {
       {/* ============ FOOTER ============ */}
       <footer style={{
         textAlign: 'center', padding: '24px', borderTop: `1px solid ${C.border}`,
-        marginTop: 32, maxWidth: 1200, margin: '32px auto 0'
+        maxWidth: 1200, margin: '32px auto 0'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
           <img src="/a2k-logo.jpeg" alt="" style={{ width: 20, height: 20, borderRadius: 4 }} />

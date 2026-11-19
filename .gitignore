@@ -83,3 +83,7 @@ server.log
 .Trashes
 ehthumbs.db
 Desktop.ini
+
+# secrets
+.env
+.env.local

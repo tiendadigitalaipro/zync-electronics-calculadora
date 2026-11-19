@@ -1,0 +1,345 @@
+'use client'
+import { useState, useEffect, useMemo } from 'react'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+
+// Tipos de datos
+interface Abono {
+  fecha: string;
+  montoBs?: number;
+  montoUSD: number;
+  tasa?: number;
+  metodo: 'USD' | 'Bs';
+}
+
+interface Fiado {
+  id: string;
+  cliente: string;
+  telefono: string;
+  producto: string;
+  costoUSD: number;
+  precioVentaUSD: number;
+  fecha: string;
+  abonos: Abono[];
+}
+
+const COLORS = ['#4ADE80', '#F87171', '#D4AF37'];
+
+export default function FiadosPage() {
+  const [tasa, setTasa] = useState<number>(1005.54)
+  const [fiados, setFiados] = useState<Fiado[]>([])
+  
+  // Formulario
+  const [cliente, setCliente] = useState('')
+  const [telefono, setTelefono] = useState('')
+  const [producto, setProducto] = useState('Filtro de Agua')
+  const [costo, setCosto] = useState('')
+  const [precio, setPrecio] = useState('')
+
+  // Modal de Abono
+  const [modalAbono, setModalAbono] = useState<{ open: boolean; id: string | null; metodo: 'USD' | 'Bs'; monto: string; tasaAbono: string }>({ 
+    open: false, id: null, metodo: 'Bs', monto: '', tasaAbono: '' 
+  })
+
+  // Cargar de localStorage al iniciar
+  useEffect(() => {
+    const saved = localStorage.getItem('zync_fiados')
+    if (saved) setFiados(JSON.parse(saved))
+  }, [])
+
+  // Guardar en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('zync_fiados', JSON.stringify(fiados))
+  }, [fiados])
+
+  // Cálculos Empresariales
+  const metricas = useMemo(() => {
+    let capitalCalle = 0
+    let gananciaProyectada = 0
+    let gananciaEnMano = 0
+    
+    fiados.forEach(f => {
+      const totalAbonadoUSD = f.abonos.reduce((sum, a) => sum + a.montoUSD, 0)
+      const deudaUSD = f.precioVentaUSD - totalAbonadoUSD
+      
+      capitalCalle += deudaUSD
+      gananciaProyectada += (f.precioVentaUSD - f.costoUSD) - totalAbonadoUSD
+      gananciaEnMano += totalAbonadoUSD - f.costoUSD
+    })
+
+    return { capitalCalle, gananciaProyectada, gananciaEnMano }
+  }, [fiados])
+
+  const graficoData = [
+    { name: 'Ganancia en Mano', value: metricas.gananciaEnMano > 0 ? metricas.gananciaEnMano : 0 },
+    { name: 'Capital en Calle', value: metricas.capitalCalle > 0 ? metricas.capitalCalle : 0 },
+  ]
+
+  const agregarFiado = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!cliente || !costo || !precio) return
+
+    const nuevo: Fiado = {
+      id: Date.now().toString(),
+      cliente,
+      telefono,
+      producto,
+      costoUSD: parseFloat(costo),
+      precioVentaUSD: parseFloat(precio),
+      fecha: new Date().toLocaleDateString('es-VE'),
+      abonos: []
+    }
+    setFiados([nuevo, ...fiados])
+    setCliente(''); setTelefono(''); setCosto(''); setPrecio('')
+  }
+
+  const abrirModalAbono = (id: string, deudaRestante: number) => {
+    setModalAbono({ 
+      open: true, 
+      id, 
+      metodo: 'Bs', 
+      monto: '', 
+      tasaAbono: tasa.toString() 
+    })
+  }
+
+  const guardarAbono = () => {
+    if (!modalAbono.id || !modalAbono.monto) return
+
+    const montoNumerico = parseFloat(modalAbono.monto)
+    if (isNaN(montoNumerico) || montoNumerico <= 0) return
+
+    let montoUSD = 0
+    // AQUÍ ESTÁ LA CORRECCIÓN DE TYPESCRIPT: declaramos que pueden ser número o undefined
+    let montoBs: number | undefined = undefined
+    let tasaUsada: number | undefined = undefined
+
+    if (modalAbono.metodo === 'Bs') {
+      const t = parseFloat(modalAbono.tasaAbono)
+      if (isNaN(t) || t <= 0) return alert('Tasa inválida')
+      montoBs = montoNumerico
+      tasaUsada = t
+      montoUSD = montoBs / t
+    } else {
+      montoUSD = montoNumerico
+    }
+
+    const nuevoAbono: Abono = {
+      fecha: new Date().toLocaleDateString('es-VE'),
+      montoBs,
+      montoUSD,
+      tasa: tasaUsada,
+      metodo: modalAbono.metodo
+    }
+
+    setFiados(fiados.map(f => f.id === modalAbono.id ? { ...f, abonos: [...f.abonos, nuevoAbono] } : f))
+    setModalAbono({ open: false, id: null, metodo: 'Bs', monto: '', tasaAbono: '' })
+  }
+
+  const inputStyle = { width: '100%', padding: '8px', background: '#0b0b12', border: '1px solid #2a2a3e', color: '#fff', borderRadius: '6px', fontSize: '13px', outline: 'none' }
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#06060a', color: '#eaeaf2', fontFamily: 'sans-serif', padding: '24px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <h1 style={{ color: '#D4AF37', fontSize: '24px', margin: 0, fontFamily: 'var(--font-display)', letterSpacing: '2px' }}>ZYNC | Control de Fiados</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#111119', padding: '8px 16px', borderRadius: '8px', border: '1px solid #1c1c2c' }}>
+          <label style={{ fontSize: '11px', color: '#aaa', fontWeight: 'bold', textTransform: 'uppercase' }}>Tasa P2P del Día:</label>
+          <input type="number" value={tasa} onChange={e => setTasa(parseFloat(e.target.value))} style={{ padding: '6px', borderRadius: '6px', border: '1px solid #D4AF37', background: '#0b0b12', color: '#D4AF37', width: '100px', fontWeight: 'bold', fontSize: '14px' }} />
+        </div>
+      </header>
+
+      {/* PANEL DE MÉTRICAS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ background: '#111119', padding: '16px', borderRadius: '12px', border: '1px solid #1c1c2c' }}>
+          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Capital en la Calle</div>
+          <div style={{ fontSize: '24px', color: '#F87171', fontWeight: 'bold' }}>${metricas.capitalCalle.toFixed(2)}</div>
+        </div>
+        <div style={{ background: '#111119', padding: '16px', borderRadius: '12px', border: '1px solid #1c1c2c' }}>
+          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Ganancia en Mano</div>
+          <div style={{ fontSize: '24px', color: '#4ADE80', fontWeight: 'bold' }}>${metricas.gananciaEnMano.toFixed(2)}</div>
+        </div>
+        <div style={{ background: '#111119', padding: '16px', borderRadius: '12px', border: '1px solid #1c1c2c' }}>
+          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Ganancia Proyectada</div>
+          <div style={{ fontSize: '24px', color: '#D4AF37', fontWeight: 'bold' }}>${metricas.gananciaProyectada.toFixed(2)}</div>
+        </div>
+        <div style={{ background: '#111119', padding: '16px', borderRadius: '12px', border: '1px solid #1c1c2c' }}>
+          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Total por Cobrar</div>
+          <div style={{ fontSize: '24px', color: '#60A5FA', fontWeight: 'bold' }}>{(metricas.capitalCalle * tasa).toFixed(2)} Bs</div>
+        </div>
+      </div>
+
+      {/* GRÁFICOS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ background: '#111119', padding: '20px', borderRadius: '12px', border: '1px solid #1c1c2c', height: '300px' }}>
+          <h3 style={{ fontSize: '12px', color: '#D4AF37', marginTop: 0, marginBottom: '16px', letterSpacing: '1px', textTransform: 'uppercase' }}>Distribución de Capital</h3>
+          <ResponsiveContainer width="100%" height="85%">
+            <PieChart>
+              <Pie data={graficoData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                {graficoData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ background: '#111119', border: '1px solid #333', borderRadius: '8px' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div style={{ background: '#111119', padding: '20px', borderRadius: '12px', border: '1px solid #1c1c2c', height: '300px' }}>
+          <h3 style={{ fontSize: '12px', color: '#D4AF37', marginTop: 0, marginBottom: '16px', letterSpacing: '1px', textTransform: 'uppercase' }}>Balance General (USD)</h3>
+          <ResponsiveContainer width="100%" height="85%">
+            <BarChart data={[
+              { name: 'En Mano', value: metricas.gananciaEnMano },
+              { name: 'Proyectada', value: metricas.gananciaProyectada },
+              { name: 'En Calle', value: metricas.capitalCalle }
+            ]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+              <XAxis dataKey="name" tick={{ fill: '#888', fontSize: 10 }} />
+              <YAxis tick={{ fill: '#888', fontSize: 10 }} />
+              <Tooltip contentStyle={{ background: '#111119', border: '1px solid #333', borderRadius: '8px' }} />
+              <Bar dataKey="value" fill="#D4AF37" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* FORMULARIO */}
+      <form onSubmit={agregarFiado} style={{ background: '#111119', padding: '20px', borderRadius: '12px', border: '1px solid #1c1c2c', marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: 2, minWidth: '150px' }}>
+          <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Cliente</label>
+          <input required value={cliente} onChange={e => setCliente(e.target.value)} style={inputStyle} placeholder="Ej: Maria Perez" />
+        </div>
+        <div style={{ flex: 1, minWidth: '120px' }}>
+          <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Teléfono</label>
+          <input value={telefono} onChange={e => setTelefono(e.target.value)} style={inputStyle} placeholder="0414-0000000" />
+        </div>
+        <div style={{ flex: 1.5, minWidth: '150px' }}>
+          <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Producto</label>
+          <select value={producto} onChange={e => setProducto(e.target.value)} style={inputStyle}>
+            <option>Filtro de Agua</option>
+            <option>Cartucho Repuesto</option>
+            <option>Audífonos Airmax</option>
+            <option>Reloj i30</option>
+            <option>Micrófono K9 One</option>
+            <option>Micrófono K9 Duos</option>
+            <option>Peladores (Par)</option>
+          </select>
+        </div>
+        <div style={{ width: '100px' }}>
+          <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Costo USD</label>
+          <input required type="number" step="0.01" value={costo} onChange={e => setCosto(e.target.value)} style={inputStyle} placeholder="4.65" />
+        </div>
+        <div style={{ width: '100px' }}>
+          <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Precio Venta</label>
+          <input required type="number" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} style={inputStyle} placeholder="11.62" />
+        </div>
+        <button type="submit" style={{ background: '#D4AF37', color: '#000', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', height: '35px' }}>Anotar Fiado</button>
+      </form>
+
+      {/* TABLA DE CLIENTES */}
+      <div style={{ background: '#111119', borderRadius: '12px', border: '1px solid #1c1c2c', overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '700px' }}>
+          <thead>
+            <tr style={{ background: '#0e0e16', textAlign: 'left', borderBottom: '1px solid #1c1c2c' }}>
+              <th style={{ padding: '12px', color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>Cliente</th>
+              <th style={{ padding: '12px', color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>Producto</th>
+              <th style={{ padding: '12px', color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>Deuda (USD)</th>
+              <th style={{ padding: '12px', color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>Deuda (Bs)</th>
+              <th style={{ padding: '12px', color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>Estado</th>
+              <th style={{ padding: '12px', color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {fiados.map(f => {
+              const totalAbonado = f.abonos.reduce((sum, a) => sum + a.montoUSD, 0)
+              const deuda = f.precioVentaUSD - totalAbonado
+              const isPagado = deuda <= 0.01
+              return (
+                <tr key={f.id} style={{ borderBottom: '1px solid #1c1c2c' }}>
+                  <td style={{ padding: '12px' }}>
+                    <div style={{ fontWeight: 'bold' }}>{f.cliente}</div>
+                    <div style={{ fontSize: '10px', color: '#888' }}>{f.telefono}</div>
+                  </td>
+                  <td style={{ padding: '12px', color: '#ccc' }}>{f.producto}</td>
+                  <td style={{ padding: '12px', color: isPagado ? '#4ADE80' : '#F87171', fontWeight: 'bold' }}>${deuda.toFixed(2)}</td>
+                  <td style={{ padding: '12px', color: isPagado ? '#4ADE80' : '#F87171' }}>{(deuda * tasa).toFixed(2)} Bs</td>
+                  <td style={{ padding: '12px' }}>
+                    <span style={{ 
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold',
+                      background: isPagado ? 'rgba(74,222,128,0.1)' : (totalAbonado > 0 ? 'rgba(212,175,55,0.1)' : 'rgba(248,113,113,0.1)'),
+                      color: isPagado ? '#4ADE80' : (totalAbonado > 0 ? '#D4AF37' : '#F87171'),
+                      border: `1px solid ${isPagado ? 'rgba(74,222,128,0.2)' : (totalAbonado > 0 ? 'rgba(212,175,55,0.2)' : 'rgba(248,113,113,0.2)')}`
+                    }}>
+                      {isPagado ? 'PAGADO' : (totalAbonado > 0 ? 'ABONADO' : 'PENDIENTE')}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px' }}>
+                    {!isPagado && (
+                      <button onClick={() => abrirModalAbono(f.id, deuda)} style={{ background: 'transparent', border: '1px solid #60A5FA', color: '#60A5FA', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
+                        + Abonar
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL DE ABONO (DÓLARES O BOLÍVARES) */}
+      {modalAbono.open && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(6,6,10,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(5px)' }}>
+          <div style={{ background: '#111119', border: '1px solid #2a2a3e', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+            <h2 style={{ color: '#D4AF37', fontSize: '18px', marginTop: 0, marginBottom: '16px', fontFamily: 'var(--font-display)' }}>Registrar Abono</h2>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Método de Pago</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button 
+                  onClick={() => setModalAbono({ ...modalAbono, metodo: 'Bs' })}
+                  style={{ padding: '10px', borderRadius: '8px', border: `1px solid ${modalAbono.metodo === 'Bs' ? '#D4AF37' : '#2a2a3e'}`, background: modalAbono.metodo === 'Bs' ? 'rgba(212,175,55,0.1)' : 'transparent', color: modalAbono.metodo === 'Bs' ? '#D4AF37' : '#888', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  Bolívares
+                </button>
+                <button 
+                  onClick={() => setModalAbono({ ...modalAbono, metodo: 'USD' })}
+                  style={{ padding: '10px', borderRadius: '8px', border: `1px solid ${modalAbono.metodo === 'USD' ? '#4ADE80' : '#2a2a3e'}`, background: modalAbono.metodo === 'USD' ? 'rgba(74,222,128,0.1)' : 'transparent', color: modalAbono.metodo === 'USD' ? '#4ADE80' : '#888', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  Dólares
+                </button>
+              </div>
+            </div>
+
+            {modalAbono.metodo === 'Bs' ? (
+              <>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Monto en Bolívares</label>
+                  <input type="number" value={modalAbono.monto} onChange={e => setModalAbono({ ...modalAbono, monto: e.target.value })} style={inputStyle} placeholder="Ej: 5000" autoFocus />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Tasa P2P (Bs/$)</label>
+                  <input type="number" value={modalAbono.tasaAbono} onChange={e => setModalAbono({ ...modalAbono, tasaAbono: e.target.value })} style={inputStyle} />
+                </div>
+                <div style={{ background: '#0b0b12', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #1c1c2c', textAlign: 'center' }}>
+                  <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>Equivale a:</div>
+                  <div style={{ fontSize: '20px', color: '#D4AF37', fontWeight: 'bold' }}>
+                    ${(parseFloat(modalAbono.monto || '0') / parseFloat(modalAbono.tasaAbono || '1')).toFixed(2)} USD
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Monto en Dólares</label>
+                <input type="number" value={modalAbono.monto} onChange={e => setModalAbono({ ...modalAbono, monto: e.target.value })} style={inputStyle} placeholder="Ej: 5.00" autoFocus />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <button onClick={() => setModalAbono({ open: false, id: null, metodo: 'Bs', monto: '', tasaAbono: '' })} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid #2a2a3e', color: '#888', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Cancelar</button>
+              <button onClick={guardarAbono} style={{ padding: '10px 24px', background: modalAbono.metodo === 'Bs' ? '#D4AF37' : '#4ADE80', border: 'none', color: '#000', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Confirmar Abono</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
