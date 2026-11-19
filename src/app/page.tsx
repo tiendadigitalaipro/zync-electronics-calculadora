@@ -30,7 +30,7 @@ interface SaleRecord { id: number; invId: number; qty: number; priceUSD: number;
 
 const seedInv: InvEntry[] = [
   { id: 202605030001, product: 'REBANADOR DE HORTALIZAS Y VERDURAS MANGO DE MADERA', qty: 50, fobCost: 2.27, sellingPrice: 3.41, sold: 0, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/Sad5bff694d5e4ed1b09ee8b36b4d5a1dx.jpg' },
-  { id: 202605030002, product: 'FILTROS DE AGUARA PARA GRIFOS', qty: 45, fobCost: 6.78, sellingPrice: 10.17, sold: 0, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S0e3ac47a455c4d619765b79c0bc7eca3r.jpg' },
+  { id: 202605030002, product: 'FILTROS DE AGUA PARA GRIFOS', qty: 45, fobCost: 6.78, sellingPrice: 10.17, sold: 0, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S0e3ac47a455c4d619765b79c0bc7eca3r.jpg' },
   { id: 202605030003, product: 'AUDIFONOS INALAMBRICOS CRISTAL MODELO AIRMAX', qty: 35, fobCost: 7.57, sellingPrice: 11.35, sold: 5, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S8c2e4ae6fc714afc9aad764c5a01bba4I.jpg' },
   { id: 202605030004, product: 'MICROFONOS INALAMBRICOS TIPO LAVALIER MODELO K9 DUOS', qty: 30, fobCost: 5.63, sellingPrice: 8.44, sold: 6, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S6b7a2dd9b5d948fb9c5e7f8d3a3c1e1cS.jpg' },
   { id: 202605030005, product: 'RELOJES INTELIGENTES I30 PRO MAX', qty: 28, fobCost: 13.09, sellingPrice: 19.64, sold: 0, mermaR: 0, date: '01 may. 2026', imageUrl: 'https://ae01.alicdn.com/kf/S9f4a1b2c3d4e5f6a7b8c9d0e1f2a3b4c.jpg' }
